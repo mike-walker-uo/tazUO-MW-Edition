@@ -1,0 +1,566 @@
+{
+  "format": 1,
+  "restore": {
+    "D:\\tazUO\\TazUO\\src\\ClassicUO.Renderer\\ClassicUO.Renderer.csproj": {}
+  },
+  "projects": {
+    "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj",
+        "projectName": "FNA",
+        "projectPath": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\external\\FNA\\obj_core\\",
+        "projectStyle": "PackageReference",
+        "crossTargeting": true,
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net40",
+          "netstandard2.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net40": {
+            "targetAlias": "net40",
+            "projectReferences": {}
+          },
+          "netstandard2.0": {
+            "targetAlias": "netstandard2.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net40": {
+          "targetAlias": "net40",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        },
+        "netstandard2.0": {
+          "targetAlias": "netstandard2.0",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "NETStandard.Library": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.0.3, )",
+              "autoReferenced": true
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj": {
+      "version": "1.2.8",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj",
+        "projectName": "FontStashSharp.FNA",
+        "projectPath": "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "Cyotek.Drawing.BitmapFont": {
+              "target": "Package",
+              "version": "[2.0.4, )"
+            },
+            "FontStashSharp.Base": {
+              "target": "Package",
+              "version": "[1.1.8, )"
+            },
+            "FontStashSharp.Rasterizers.StbTrueTypeSharp": {
+              "target": "Package",
+              "version": "[1.1.8, )"
+            },
+            "StbImageSharp": {
+              "target": "Package",
+              "version": "[2.27.13, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\MP3Sharp.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\MP3Sharp.csproj",
+        "projectName": "MP3Sharp",
+        "projectPath": "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\MP3Sharp.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\obj\\",
+        "projectStyle": "PackageReference",
+        "crossTargeting": true,
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net40",
+          "netstandard2.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net40": {
+            "targetAlias": "net40",
+            "projectReferences": {}
+          },
+          "netstandard2.0": {
+            "targetAlias": "netstandard2.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net40": {
+          "targetAlias": "net40",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        },
+        "netstandard2.0": {
+          "targetAlias": "netstandard2.0",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "NETStandard.Library": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[2.0.3, )",
+              "autoReferenced": true
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\ClassicUO.Assets.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\ClassicUO.Assets.csproj",
+        "projectName": "ClassicUO.Assets",
+        "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\ClassicUO.Assets.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj"
+              },
+              "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\ClassicUO.IO.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\ClassicUO.IO.csproj"
+              },
+              "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "EmbedResourceCSharp": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.1.3, )"
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "System.Buffers": {
+              "target": "Package",
+              "version": "[4.5.1, )"
+            },
+            "System.Memory": {
+              "target": "Package",
+              "version": "[4.5.5, )"
+            },
+            "System.Runtime.CompilerServices.Unsafe": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[8.0.5, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\ClassicUO.IO.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\ClassicUO.IO.csproj",
+        "projectName": "ClassicUO.IO",
+        "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\ClassicUO.IO.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.IO\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj"
+              },
+              "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\MP3Sharp.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\MP3Sharp\\MP3Sharp\\MP3Sharp.csproj"
+              },
+              "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "EmbedResourceCSharp": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.1.3, )"
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "System.Buffers": {
+              "target": "Package",
+              "version": "[4.5.1, )"
+            },
+            "System.Memory": {
+              "target": "Package",
+              "version": "[4.5.5, )"
+            },
+            "System.Runtime.CompilerServices.Unsafe": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[8.0.5, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\src\\ClassicUO.Renderer\\ClassicUO.Renderer.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\src\\ClassicUO.Renderer\\ClassicUO.Renderer.csproj",
+        "projectName": "ClassicUO.Renderer",
+        "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Renderer\\ClassicUO.Renderer.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Renderer\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj"
+              },
+              "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FontStashSharp\\src\\XNA\\FontStashSharp.FNA.Core.csproj"
+              },
+              "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\ClassicUO.Assets.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Assets\\ClassicUO.Assets.csproj"
+              },
+              "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "EmbedResourceCSharp": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.1.3, )"
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "System.Buffers": {
+              "target": "Package",
+              "version": "[4.5.1, )"
+            },
+            "System.Memory": {
+              "target": "Package",
+              "version": "[4.5.5, )"
+            },
+            "System.Runtime.CompilerServices.Unsafe": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[8.0.5, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj",
+        "projectName": "ClassicUO.Utility",
+        "projectPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\ClassicUO.Utility.csproj",
+        "packagesPath": "C:\\Users\\m\\.nuget\\packages\\",
+        "outputPath": "D:\\tazUO\\TazUO\\src\\ClassicUO.Utility\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\m\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "targetAlias": "net472",
+            "projectReferences": {
+              "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj": {
+                "projectPath": "D:\\tazUO\\TazUO\\external\\FNA\\FNA.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.200"
+      },
+      "frameworks": {
+        "net472": {
+          "targetAlias": "net472",
+          "dependencies": {
+            "EmbedResourceCSharp": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.1.3, )"
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.*, )"
+            },
+            "System.Buffers": {
+              "target": "Package",
+              "version": "[4.5.1, )"
+            },
+            "System.Memory": {
+              "target": "Package",
+              "version": "[4.5.5, )"
+            },
+            "System.Runtime.CompilerServices.Unsafe": {
+              "target": "Package",
+              "version": "[6.0.0, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[8.0.5, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.203\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
