@@ -174,7 +174,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x034E, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x034E, font: 9)
                     {
                         X = 286,
                         Y = 465
@@ -275,7 +275,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x0481, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x0481, font: 9)
                     {
                         X = 286,
                         Y = 465
@@ -319,6 +319,19 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 font = 9;
                 hue = 0x0481;
+            }
+
+            if (PNGLoader.Instance.TryGetEmbeddedTexture("tazuo-mw-logo.png", out var mwLogoTexture))
+            {
+                Add
+                (
+                    new EmbeddedGumpPic(250, 445, mwLogoTexture)
+                    {
+                        Width = 34,
+                        Height = 34,
+                        AcceptMouseInput = false
+                    }
+                );
             }
 
 
@@ -476,6 +489,16 @@ namespace ClassicUO.Game.UI.Gumps.Login
             HitBox _hit;
             var options = TextBox.RTLOptions.Default();
             options.Width = 200;
+            Add(_ = TextBox.GetOne("TazUO MW Edition Github", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            _.X = 30;
+            _.Y = 400;
+            _.AcceptMouseInput = true;
+            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
+            _hit.MouseUp += (s, e) =>
+            {
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/mike-walker-uo/tazUO-MW-Edition");
+            };
+
             Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
             _.X = 30;
             _.Y = 420;

@@ -91,7 +91,7 @@ namespace ClassicUO
 
             Window.ClientSizeChanged += WindowOnClientSizeChanged;
             Window.AllowUserResizing = true;
-            Window.Title = $"TazUO - {CUOEnviroment.Version}";
+            Window.Title = $"TazUO MW Edition {CUOEnviroment.Version.ToString(2)}";
             IsMouseVisible = Settings.GlobalSettings.RunMouseInASeparateThread;
 
             IsFixedTimeStep = false; // Settings.GlobalSettings.FixedTimeStep;
@@ -284,7 +284,7 @@ namespace ClassicUO
 
         /// <summary>
         /// Builds and applies the OS window title from current World state.
-        /// Format: "{server} | {char} | HP a/b M c/d S e/f - [TazUO {ver}]"
+        /// Format: "{server} | {char} | HP a/b M c/d S e/f - TazUO MW Edition {ver}"
         /// Falls back to the previous behaviour when not in-game.
         /// </summary>
         private static string AsciiBar(int cur, int max, int segments = 5)
@@ -327,12 +327,12 @@ namespace ClassicUO
 
 #if DEV_BUILD
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"TazUO [dev] - {CUOEnviroment.Version}"
-                : $"{left} - TazUO [dev] - {CUOEnviroment.Version}";
+                ? $"TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(2)}"
+                : $"{left} - TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(2)}";
 #else
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"[TazUO {CUOEnviroment.Version}]"
-                : $"{left} - [TazUO {CUOEnviroment.Version}]";
+                ? $"TazUO MW Edition {CUOEnviroment.Version.ToString(2)}"
+                : $"{left} - TazUO MW Edition {CUOEnviroment.Version.ToString(2)}";
 #endif
 
             if (newTitle != _lastTitleString)
