@@ -7,7 +7,7 @@ using ClassicUO.Game.UI;
 
 namespace ClassicUO.Game.Managers
 {
-    internal enum DayCyclePhase
+    public enum DayCyclePhase
     {
         Day,
         Dusk,

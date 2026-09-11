@@ -16,7 +16,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.Managers
 {
-    internal enum ScenerySurface : byte
+    public enum ScenerySurface : byte
     {
         None,
         Dirt,
