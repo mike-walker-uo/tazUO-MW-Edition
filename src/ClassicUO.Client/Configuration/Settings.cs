@@ -125,7 +125,9 @@ namespace ClassicUO.Configuration
             //Disable enhanced packets if the file exists
             //Can't put it in user profile folder because we need it's value before we load profiles
             //Can't put in this global settings JSON because it may mess up launchers
-            if (File.Exists(Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DISABLE_ENHANCED_PACKETS")))
+            string executablePath = CUOEnviroment.ExecutablePath;
+            if (!string.IsNullOrEmpty(executablePath) &&
+                File.Exists(Path.Combine(executablePath, "Data", "DISABLE_ENHANCED_PACKETS")))
                 return false;
 
             return true;

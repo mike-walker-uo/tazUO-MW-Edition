@@ -115,7 +115,7 @@ namespace ClassicUO.UnitTests.Configuration
 
                 Assert.Throws<InvalidOperationException>
                 (
-                    () => ConfigurationResolver.Save(new object(), path, SettingsJsonContext.RealDefault)
+                    () => ConfigurationResolver.Save(new UnsupportedSettings(), path, SettingsJsonContext.RealDefault)
                 );
 
                 Assert.Equal(original, File.ReadAllText(path));
@@ -132,6 +132,10 @@ namespace ClassicUO.UnitTests.Configuration
             string directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             return directory;
+        }
+
+        private sealed class UnsupportedSettings
+        {
         }
     }
 }
