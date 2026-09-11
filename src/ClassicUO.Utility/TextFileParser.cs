@@ -86,7 +86,7 @@ namespace ClassicUO.Utility
             return false;
         }
 
-        private void ObtainQuotedData(char endQuote, bool areTheSame)
+        private void ObtainQuotedData(char endQuote)
         {
             _pos++; // skip opening quote
 
@@ -94,8 +94,7 @@ namespace ClassicUO.Utility
             {
                 if (_string[_pos] == endQuote)
                 {
-                    if (!areTheSame)
-                        _pos++; // skip end quote
+                    _pos++; // skip end quote
                     return;
                 }
 
@@ -132,9 +131,9 @@ namespace ClassicUO.Utility
                 if (IsComment())
                     break;
 
-                if (TryGetQuotePair(out char start, out char end))
+                if (TryGetQuotePair(out _, out char end))
                 {
-                    ObtainQuotedData(end, start == end);
+                    ObtainQuotedData(end);
                 }
                 else
                 {

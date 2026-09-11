@@ -100,7 +100,11 @@ namespace ClassicUO.Game
 
         public static void OpenLegionScriptingGump()
         {
+#if ENABLE_LEGION_SCRIPTING
             UIManager.Add(new ScriptManagerGump());
+#else
+            Print("Legion/Python scripting is disabled in MW Edition.", 0x21);
+#endif
         }
 
         /// <summary>
@@ -108,6 +112,7 @@ namespace ClassicUO.Game
         /// </summary>
         /// <returns>False if no nearby loot gump was open</returns>
         public static bool CloseLegionScriptingGump(){
+#if ENABLE_LEGION_SCRIPTING
             Gump g = UIManager.GetGump<ScriptManagerGump>();
 
             if (g != null)
@@ -117,6 +122,9 @@ namespace ClassicUO.Game
             }
 
             return false;
+#else
+            return false;
+#endif
         }
 
         /// <summary>
@@ -1092,7 +1100,7 @@ namespace ClassicUO.Game
             else
             {
                 Client.Game.GetScene<GameScene>().DisconnectionRequested = true;
-                Socket.Disconnect().Wait();
+                _ = Socket.Disconnect().Catch();
                 Client.Game.SetScene(new LoginScene());
             }
         }

@@ -30,13 +30,13 @@
 
 #endregion
 
-using System.Collections.Concurrent;
 using ClassicUO.Game.Data;
+using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Gumps;
+using ClassicUO.Assets;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System;
 
 namespace ClassicUO.Game.Managers
@@ -44,6 +44,8 @@ namespace ClassicUO.Game.Managers
     public class DurabilityManager : IDisposable
     {
         private readonly Dictionary<uint, DurabiltyProp> _itemLayerSlots = new();
+        private static Regex _durabilityRegex;
+        private static string _durabilityTemplate;
 
         private static readonly Layer[] _equipLayers =
         {
@@ -51,13 +53,15 @@ namespace ClassicUO.Game.Managers
             Layer.Robe, Layer.Waist, Layer.Necklace, Layer.Beard, Layer.Earrings, Layer.Helmet, Layer.OneHanded, Layer.TwoHanded, Layer.Talisman
         };
 
-        public List<DurabiltyProp> Durabilities => _itemLayerSlots.Values.ToList();
+        public IEnumerable<DurabiltyProp> Durabilities => _itemLayerSlots.Values;
 
         public static bool HasDurabilityData { get; private set; }
 
         public DurabilityManager()
         {
             EventSink.OPLOnReceive += OnOPLReceive;
+            EventSink.OnItemUpdated += OnItemUpdated;
+            EventSink.OnDisconnected += OnDisconnected;
         }
 
         public bool TryGetDurability(uint serial, out DurabiltyProp durability)
@@ -73,18 +77,78 @@ namespace ClassicUO.Game.Managers
             if (!World.Items.TryGetValue(e.Serial, out var item) || item.IsDestroyed)
                 return;
 
-            if (item.Container == World.Player.Serial && _equipLayers.Contains(item.Layer))
-            {
-                var durability = ParseDurability((int)item.Serial, e.Data);
+            UpdateItem(item, e.Data);
+        }
 
+        private void OnItemUpdated(object sender, EventArgs e)
+        {
+            if (!(sender is Item item))
+                return;
+
+            if (World.OPL.TryGetNameAndData(item.Serial, out _, out string data))
+            {
+                UpdateItem(item, data);
+            }
+            else if (_itemLayerSlots.Remove(item.Serial))
+            {
+                NotifyChanged();
+            }
+        }
+
+        private void OnDisconnected(object sender, EventArgs e)
+        {
+            if (_itemLayerSlots.Count == 0)
+                return;
+
+            _itemLayerSlots.Clear();
+            NotifyChanged();
+        }
+
+        public void Clear()
+        {
+            OnDisconnected(null, EventArgs.Empty);
+        }
+
+        public void Remove(uint serial)
+        {
+            if (_itemLayerSlots.Remove(serial))
+                NotifyChanged();
+        }
+
+        private void UpdateItem(Item item, string data)
+        {
+            bool equipped = World.Player != null
+                            && !item.IsDestroyed
+                            && item.Container == World.Player.Serial
+                            && _equipLayers.Contains(item.Layer);
+            bool changed;
+
+            if (equipped)
+            {
+                DurabiltyProp durability = ParseDurability((int)item.Serial, data);
                 if (durability.Serial != 0)
+                {
+                    changed = !_itemLayerSlots.TryGetValue(item.Serial, out DurabiltyProp previous)
+                              || previous.Durabilty != durability.Durabilty
+                              || previous.MaxDurabilty != durability.MaxDurabilty;
                     _itemLayerSlots[item.Serial] = durability;
+                }
+                else
+                {
+                    changed = _itemLayerSlots.Remove(item.Serial);
+                }
             }
             else
             {
-                _itemLayerSlots.Remove(item.Serial);
+                changed = _itemLayerSlots.Remove(item.Serial);
             }
 
+            if (changed)
+                NotifyChanged();
+        }
+
+        private void NotifyChanged()
+        {
             UIManager.GetGump<DurabilitysGump>()?.RequestUpdateContents();
             UIManager.GetGump<ModernPaperdoll>()?.RequestUpdateContents();
 
@@ -93,21 +157,44 @@ namespace ClassicUO.Game.Managers
 
         private static DurabiltyProp ParseDurability(int serial, string data)
         {
-            MatchCollection matches = Regex.Matches(data, @"(?<=Durability )(\d*) / (\d*)"); //This should match 45 / 255 for example
-
-            if (matches.Count == 0)
-            {
+            if (string.IsNullOrEmpty(data))
                 return new DurabiltyProp();
+
+            string template = ClilocLoader.Instance.GetString(1060639, "Durability ~1_val~ / ~2_val~");
+            return TryParseDurabilityValues(template, data, out int min, out int max)
+                ? new DurabiltyProp(serial, min, max)
+                : new DurabiltyProp();
+        }
+
+        internal static bool TryParseDurabilityValues(string template, string data, out int current, out int maximum)
+        {
+            current = maximum = 0;
+            if (string.IsNullOrEmpty(template) || string.IsNullOrEmpty(data))
+                return false;
+
+            if (_durabilityRegex == null || !string.Equals(_durabilityTemplate, template, StringComparison.Ordinal))
+            {
+                string pattern = Regex.Replace(Regex.Escape(template), @"~\d+_[^~]+~", @"(\d+)");
+                _durabilityRegex = new Regex(pattern, RegexOptions.IgnoreCase);
+                _durabilityTemplate = template;
             }
 
-            string[] parts = data.Substring(matches[0].Index, matches[0].Length).Split('/');
-
-            return int.TryParse(parts[0].Trim(), out int min) && int.TryParse(parts[1].Trim(), out int max) ? new DurabiltyProp(serial, min, max) : new DurabiltyProp();
+            Match match = _durabilityRegex.Match(data);
+            return match.Success
+                   && int.TryParse(match.Groups[1].Value, out current)
+                   && int.TryParse(match.Groups[2].Value, out maximum)
+                   && current >= 0
+                   && maximum > 0
+                   && current <= maximum;
         }
 
         public void Dispose()
         {
             EventSink.OPLOnReceive -= OnOPLReceive;
+            EventSink.OnItemUpdated -= OnItemUpdated;
+            EventSink.OnDisconnected -= OnDisconnected;
+            _itemLayerSlots.Clear();
+            HasDurabilityData = false;
         }
     }
 

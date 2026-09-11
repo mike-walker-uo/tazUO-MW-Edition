@@ -106,6 +106,8 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("run_mouse_in_separate_thread")]
         public bool RunMouseInASeparateThread { get; set; } = true;
 
+        [JsonPropertyName("session_log")] public bool SessionLog { get; set; }
+
         [JsonPropertyName("force_driver")] public byte ForceDriver { get; set; }
 
         [JsonPropertyName("use_verdata")] public bool UseVerdata { get; set; }
@@ -123,7 +125,9 @@ namespace ClassicUO.Configuration
             //Disable enhanced packets if the file exists
             //Can't put it in user profile folder because we need it's value before we load profiles
             //Can't put in this global settings JSON because it may mess up launchers
-            if (File.Exists(Path.Combine(CUOEnviroment.ExecutablePath, "Data", "DISABLE_ENHANCED_PACKETS")))
+            string executablePath = CUOEnviroment.ExecutablePath;
+            if (!string.IsNullOrEmpty(executablePath) &&
+                File.Exists(Path.Combine(executablePath, "Data", "DISABLE_ENHANCED_PACKETS")))
                 return false;
 
             return true;

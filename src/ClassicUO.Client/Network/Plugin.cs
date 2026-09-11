@@ -540,7 +540,15 @@ namespace ClassicUO.Network
                     byte[] tmp = new byte[length];
                     Array.Copy(data, tmp, length);
 
-                    if (!plugin._onRecv_new(tmp, ref length))
+                    bool accepted = plugin._onRecv_new(tmp, ref length);
+
+                    if (length < 0 || length > tmp.Length)
+                    {
+                        Log.Error($"Plugin returned invalid receive packet length {length}; maximum is {tmp.Length}.");
+                        return false;
+                    }
+
+                    if (!accepted)
                     {
                         result = false;
                     }
@@ -552,7 +560,15 @@ namespace ClassicUO.Network
                     byte[] tmp = new byte[length];
                     Array.Copy(data, tmp, length);
 
-                    if (!plugin._onRecv(ref tmp, ref length))
+                    bool accepted = plugin._onRecv(ref tmp, ref length);
+
+                    if (tmp == null || length < 0 || length > tmp.Length || length > data.Length)
+                    {
+                        Log.Error($"Plugin returned an invalid receive packet buffer or length {length}.");
+                        return false;
+                    }
+
+                    if (!accepted)
                     {
                         result = false;
                     }
@@ -575,7 +591,15 @@ namespace ClassicUO.Network
                     var tmp = message.ToArray();
                     var length = tmp.Length;
 
-                    if (!plugin._onSend_new(tmp, ref length))
+                    bool accepted = plugin._onSend_new(tmp, ref length);
+
+                    if (length < 0 || length > tmp.Length)
+                    {
+                        Log.Error($"Plugin returned invalid send packet length {length}; maximum is {tmp.Length}.");
+                        return false;
+                    }
+
+                    if (!accepted)
                     {
                         result = false;
                     }
@@ -588,7 +612,15 @@ namespace ClassicUO.Network
                     var tmp = message.ToArray();
                     var length = tmp.Length;
 
-                    if (!plugin._onSend(ref tmp, ref length))
+                    bool accepted = plugin._onSend(ref tmp, ref length);
+
+                    if (tmp == null || length < 0 || length > tmp.Length || length > message.Length)
+                    {
+                        Log.Error($"Plugin returned an invalid send packet buffer or length {length}.");
+                        return false;
+                    }
+
+                    if (!accepted)
                     {
                         result = false;
                     }
@@ -752,10 +784,7 @@ namespace ClassicUO.Network
 
         private static bool OnPluginRecv(ref byte[] data, ref int length)
         {
-            lock (PacketHandlers.Handler)
-            {
-                PacketHandlers.Handler.Append(data.AsSpan(0, length), true);
-            }
+            PacketHandlers.Handler.Append(data.AsSpan(0, length), true);
 
             return true;
         }
@@ -774,10 +803,7 @@ namespace ClassicUO.Network
         {
             if (buffer != IntPtr.Zero && length > 0)
             {
-                lock (PacketHandlers.Handler)
-                {
-                    PacketHandlers.Handler.Append(new Span<byte>(buffer.ToPointer(), length), true);
-                }
+                PacketHandlers.Handler.Append(new Span<byte>(buffer.ToPointer(), length), true);
             }
 
             return true;

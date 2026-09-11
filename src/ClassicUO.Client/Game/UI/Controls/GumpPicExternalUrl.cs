@@ -35,14 +35,16 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
+using ClassicUO.Game.Managers;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.UI.Controls
 {
     public class GumpPicExternalUrl : Control
     {
         private Vector3 hueVector;
+        private int _loadVersion;
 
         public GumpPicExternalUrl(int x, int y, string imgUrl, ushort hue, int width, int height, bool resize = false)
         {
@@ -52,7 +54,7 @@ namespace ClassicUO.Game.UI.Controls
             ImgUrl = imgUrl;
             Hue = hue;
             Resize = resize;
-            getImageTexture();
+            _ = LoadImageTextureAsync(++_loadVersion);
             AcceptMouseInput = true;
             CanMove = true;
             hueVector = ShaderHueTranslator.GetHueVector(Hue);
@@ -63,37 +65,34 @@ namespace ClassicUO.Game.UI.Controls
         public bool Resize { get; }
         public Texture2D imageTexture { get; private set; }
 
-        private void getImageTexture()
+        private async Task LoadImageTextureAsync(int version)
         {
-            Task.Factory.StartNew(() =>
+            byte[] data;
+            try
             {
+                data = await ExternalImageLoader.DownloadAsync(ImgUrl).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to load gump image from URL '{ImgUrl}': {ex}");
+                return;
+            }
+
+            MainThreadQueue.EnqueueAction(() =>
+            {
+                if (IsDisposed || version != _loadVersion) return;
+
                 try
                 {
-                    using (HttpClient httpClient = new HttpClient())
-                    using (Stream stream = httpClient.GetStreamAsync(ImgUrl).Result)
-                    {
-                        using (System.Drawing.Image image = System.Drawing.Image.FromStream(stream))
-                        {
-                            Console.WriteLine($"Image size {image.Width} x {image.Height}");
-
-                            var memStream = new MemoryStream();
-                            image.Save(memStream, System.Drawing.Imaging.ImageFormat.Png);
-
-                            using (memStream)
-                            {
-                                var t = Texture2D.FromStream(Client.Game.GraphicsDevice, memStream);
-                                //Color[] buffer = new Color[t.Width * t.Height];
-                                //t.GetData(buffer);
-                                //for (int i = 0; i < buffer.Length; i++)
-                                //    buffer[i] = Color.FromNonPremultiplied(buffer[i].R, buffer[i].G, buffer[i].B, buffer[i].A);
-                                //t.SetData(buffer);
-                                imageTexture = t;
-                            }
-                        }
-
-                    }
+                    using var stream = new MemoryStream(data, false);
+                    Texture2D texture = Texture2D.FromStream(Client.Game.GraphicsDevice, stream);
+                    imageTexture?.Dispose();
+                    imageTexture = texture;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Log.Error($"Failed to create gump texture for URL '{ImgUrl}': {ex}");
+                }
             });
         }
 
@@ -108,6 +107,14 @@ namespace ClassicUO.Game.UI.Controls
             }
 
             return base.Draw(batcher, x, y); ;
+        }
+
+        public override void Dispose()
+        {
+            _loadVersion++;
+            imageTexture?.Dispose();
+            imageTexture = null;
+            base.Dispose();
         }
     }
 }

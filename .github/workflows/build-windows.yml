@@ -1,0 +1,54 @@
+name: Build Windows Client
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install legacy DirectX runtime
+        run: choco install directx -y --no-progress
+
+      - name: Restore client and unit tests
+        run: dotnet restore tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -r win-x64
+
+      - name: Run unit tests
+        run: dotnet test tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -c Release -f net472 -r win-x64 --no-restore
+
+      - name: Publish Windows client
+        run: >
+          dotnet publish src/ClassicUO.Client/ClassicUO.Client.csproj
+          -c Release
+          -f net472
+          -r win-x64
+          --self-contained false
+          --no-restore
+
+      - name: Upload Windows client
+        uses: actions/upload-artifact@v4
+        with:
+          name: TazUO-MW-Edition-win-x64
+          path: bin/dist/**
+          if-no-files-found: error
+          retention-days: 14

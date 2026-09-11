@@ -12,7 +12,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.UI
 {
-    internal enum AbilityOverheadKind : byte
+    public enum AbilityOverheadKind : byte
     {
         None,
         EnemyOfOne,

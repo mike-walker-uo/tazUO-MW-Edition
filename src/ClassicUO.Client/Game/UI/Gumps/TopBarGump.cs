@@ -181,6 +181,7 @@ namespace ClassicUO.Game.UI.Gumps
             assistant.MouseUp += (s, e) => { UIManager.Add(new AssistantGump()); };
             startX += largeWidth + 1;
 
+#if ENABLE_LEGION_SCRIPTING
             RighClickableButton lscript;
             Add(lscript = new(998877,
                 0x098D,
@@ -200,6 +201,7 @@ namespace ClassicUO.Game.UI.Gumps
             }, 1);
             lscript.MouseUp += (s, e) => { UIManager.Add(new LegionScripting.ScriptManagerGump()); };
             startX += largeWidth + 1;
+#endif
 
             RighClickableButton moreMenu;
             Add
@@ -272,8 +274,6 @@ namespace ClassicUO.Game.UI.Gumps
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry(cliloc.GetString(3000134, ResGumps.Help), () => { GameActions.RequestHelp(); }));
 
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Toggle nameplates", () => { NameOverHeadManager.ToggleOverheads(); }));
-
-            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Discord", () => { UIManager.Add(new DiscordGump()); }));
 
             var submenu = new ContextMenuItemEntry("Tools");
             submenu.Add(new ContextMenuItemEntry("Spell quick cast", () => { UIManager.Add(new SpellQuickSearch(200, 200, (sp) => {if (sp != null) GameActions.CastSpell(sp.ID);})); }));

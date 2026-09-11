@@ -113,7 +113,7 @@ namespace ClassicUO.Assets
                 HuesLoader.Instance.Load(),
                 TileDataLoader.Instance.Load(),
                 MultiLoader.Instance.Load(),
-                SkillsLoader.Instance.Load().ContinueWith(t => ProfessionLoader.Instance.Load()),
+                LoadSkillsAndProfessions(),
                 TexmapsLoader.Instance.Load(),
                 SpeechesLoader.Instance.Load(),
                 LightsLoader.Instance.Load(),
@@ -124,9 +124,21 @@ namespace ClassicUO.Assets
             };
 
 
-            if (!Task.WhenAll(tasks).Wait(TimeSpan.FromSeconds(15)))
+            try
             {
-                Log.Panic("Loading files timeout.");
+                Task allLoads = Task.WhenAll(tasks);
+                Task completed = Task.WhenAny(allLoads, Task.Delay(TimeSpan.FromSeconds(30))).GetAwaiter().GetResult();
+
+                if (completed != allLoads)
+                {
+                    throw new TimeoutException($"Loading required Ultima Online assets exceeded 30 seconds for '{BasePath}'.");
+                }
+
+                allLoads.GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidDataException($"Failed to load required Ultima Online assets from '{BasePath}'.", ex);
             }
 
             PNGLoader.Instance.Load();
@@ -319,6 +331,12 @@ namespace ClassicUO.Assets
 
             Log.Trace($"Files loaded in: {stopwatch.ElapsedMilliseconds} ms!");
             stopwatch.Stop();
+        }
+
+        private static async Task LoadSkillsAndProfessions()
+        {
+            await SkillsLoader.Instance.Load().ConfigureAwait(false);
+            await ProfessionLoader.Instance.Load().ConfigureAwait(false);
         }
 
         public static void MapLoaderReLoad(MapLoader newloader)

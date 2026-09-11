@@ -127,7 +127,9 @@ namespace ClassicUO.Game.UI.Gumps
                 UIManager.Add(new VersionHistory());
                 ProfileManager.CurrentProfile.LastVersionHistoryShown = CUOEnviroment.Version.ToString();
 
+#if ENABLE_LEGION_SCRIPTING
                 LegionScripting.LegionScripting.DownloadAPIPy();
+#endif
             }
         }
 

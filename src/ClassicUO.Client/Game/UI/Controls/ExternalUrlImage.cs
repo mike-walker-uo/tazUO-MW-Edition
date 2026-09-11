@@ -1,11 +1,11 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Threading.Tasks;
+using ClassicUO.Game.Managers;
 using ClassicUO.Renderer;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.UI.Controls
 {
@@ -13,8 +13,8 @@ namespace ClassicUO.Game.UI.Controls
     {
         private Texture2D _texture;
         private bool _loading;
+        private int _loadVersion;
         private Vector3 _hue;
-        private static Dictionary<string, Texture2D> _cache = new();
 
         public ExternalUrlImage(string url, int width = 100, int height = 100)
         {
@@ -27,45 +27,47 @@ namespace ClassicUO.Game.UI.Controls
         public void LoadImageFromUrl(string url)
         {
             _loading = true;
-
-            Task.Run(() => LoadImage(url));
+            int version = ++_loadVersion;
+            _ = LoadImageAsync(url, version);
         }
 
-        private void LoadImage(string url)
+        private async Task LoadImageAsync(string url, int version)
         {
-            if (_cache.ContainsKey(url))
-            {
-                _texture = _cache[url];
-
-                if (_texture != null)
-                {
-                    _loading = false;
-
-                    return;
-                }
-            }
-
+            byte[] data;
             try
             {
-                using var client = new WebClient();
-                byte[] data = client.DownloadData(url);
-
-                using var ms = new MemoryStream(data);
-                var texture = Texture2D.FromStream(Client.Game.GraphicsDevice, ms);
-
-                if (!_cache.ContainsKey(url))
-                    _cache.Add(url, texture);
-
-                _texture = texture;
+                data = await ExternalImageLoader.DownloadAsync(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to load image from URL: {ex}");
+                Log.Error($"Failed to load image from URL '{url}': {ex}");
+                MainThreadQueue.EnqueueAction(() =>
+                {
+                    if (version == _loadVersion) _loading = false;
+                });
+                return;
             }
-            finally
+
+            MainThreadQueue.EnqueueAction(() =>
             {
-                _loading = false;
-            }
+                if (IsDisposed || version != _loadVersion) return;
+
+                try
+                {
+                    using var ms = new MemoryStream(data, false);
+                    Texture2D texture = Texture2D.FromStream(Client.Game.GraphicsDevice, ms);
+                    _texture?.Dispose();
+                    _texture = texture;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Failed to create texture for URL '{url}': {ex}");
+                }
+                finally
+                {
+                    _loading = false;
+                }
+            });
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -78,6 +80,14 @@ namespace ClassicUO.Game.UI.Controls
             }
 
             return true;
+        }
+
+        public override void Dispose()
+        {
+            _loadVersion++;
+            _texture?.Dispose();
+            _texture = null;
+            base.Dispose();
         }
     }
 }

@@ -15,7 +15,7 @@ namespace ClassicUO.UnitTests.Game.GameObjects.Effect
         {
             ClassicUO.Game.Managers.EffectManager em = new ClassicUO.Game.Managers.EffectManager();
 
-            em.CreateEffect((ClassicUO.Game.Data.GraphicEffectType) graphicEffectType, 0, 0, 1, 0,0, 0 , 0,0 ,0,0 ,0, 0, false, false, false, ClassicUO.Game.Data.GraphicEffectBlendMode.Normal);
+            em.CreateEffect((ClassicUO.Game.Data.GraphicEffectType) graphicEffectType, 0, 0, 1, 0,0, 0 , 0,0 ,0,0 ,0, 0, false, false, false, ClassicUO.Game.Data.GraphicEffectBlendMode.Normal, 0);
             
             Assert.IsType(type, em.Items);
 

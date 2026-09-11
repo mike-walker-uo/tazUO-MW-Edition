@@ -15,7 +15,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.GameObjects
 {
-    internal enum EnhancedSpellVisualKind : byte
+    public enum EnhancedSpellVisualKind : byte
     {
         None,
         EnergyBolt,

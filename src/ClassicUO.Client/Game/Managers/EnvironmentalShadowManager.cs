@@ -66,6 +66,22 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
+            // Shadows also provide day/night state to the ambience, water and
+            // terrain effects. Skip all work only when none of those systems
+            // can consume it.
+            if (!profile.ShadowsEnabled && !Showcase && !UI.AmbienceOverlay.Enabled)
+            {
+                _lastTick = 0;
+                _nextIndoorCheck = 0;
+                _isIndoors = false;
+                _opacity = 0f;
+                _projectionLength = 1f;
+                _projectionSkew = 1f;
+                Daylight = WeatherVisibility = AmbienceStrength = 1f;
+                Dusk = Night = Moonlight = 0f;
+                return;
+            }
+
             UpdateIndoorState();
             int environmentalLight = _previewLight >= 0 ? _previewLight : World.Light.RealOverall;
             CalculateSolarState(environmentalLight, out float day, out float dusk, out float night, out float moon);

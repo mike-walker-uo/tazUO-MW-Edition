@@ -83,7 +83,9 @@ namespace ClassicUO.Game.Managers
             BodyScaleManager.EnsureOplHooked();
             AutoSayThanksManager.EnsureHooked();
 
+#if ENABLE_LEGION_SCRIPTING
             Register("sb", (s)=>UIManager.Add(new ScriptBrowser()));
+#endif
 
             Register("damagetracker", (s) =>
             {
@@ -1034,10 +1036,12 @@ Register("pathpreview", (s) =>
                 UIManager.Add(new UI.Gumps.ProfileExportImportGump());
             });
 
+#if ENABLE_LEGION_SCRIPTING
             Register("updateapi", (s) =>
             {
                 LegionScripting.LegionScripting.DownloadAPIPy();
             });
+#endif
 
             Register
             (

@@ -41,6 +41,8 @@ namespace ClassicUO.Game.Managers
         private Dictionary<string, SpellRangeInfo> spellRangePowerWordCache = new Dictionary<string, SpellRangeInfo>();
 
         private bool loaded = false;
+        private int _loadGeneration;
+        private readonly SpellVisualRangeImportLifecycle _importLifecycle = new SpellVisualRangeImportLifecycle();
         private static SpellVisualRangeManager instance;
 
         private bool isCasting { get; set; } = false;
@@ -67,27 +69,29 @@ namespace ClassicUO.Game.Managers
 
         private void OnRawMessageReceived(object sender, MessageEventArgs e)
         {
-            Task.Run(() =>
+            if (
+                !loaded
+                || ProfileManager.CurrentProfile?.EnableSpellIndicators != true
+                || e?.Parent == null
+                || !ReferenceEquals(e.Parent, World.Player)
+                || string.IsNullOrEmpty(e.Text)
+            )
             {
-                if (loaded && e.Parent != null && ReferenceEquals(e.Parent, World.Player))
-                {
-                    if (spellRangePowerWordCache.TryGetValue(e.Text.Trim(), out SpellRangeInfo spell))
-                    {
-                        SetCasting(spell);
-                    }
-                }
-            });
+                return;
+            }
+
+            if (spellRangePowerWordCache.TryGetValue(e.Text.Trim(), out SpellRangeInfo spell))
+            {
+                SetCasting(spell);
+            }
         }
 
         public void OnClilocReceived(int cliloc)
         {
-            Task.Factory.StartNew(() =>
+            if (isCasting && stopAtClilocs.Contains(cliloc))
             {
-                if (isCasting && stopAtClilocs.Contains(cliloc))
-                {
-                    ClearCasting();
-                }
-            });
+                ClearCasting();
+            }
         }
 
         private void SetCasting(SpellRangeInfo spell)
@@ -123,6 +127,9 @@ namespace ClassicUO.Game.Managers
 
         public void OnSceneUnload()
         {
+            _loadGeneration++;
+            _importLifecycle.Cancel();
+            Save();
             EventSink.RawMessageReceived -= OnRawMessageReceived;
             instance = null;
         }
@@ -237,60 +244,86 @@ namespace ClassicUO.Game.Managers
         }
 
         #region Save and load
+        internal SpellVisualRangeImportRequest BeginConfigurationImport()
+        {
+            return _importLifecycle.Begin();
+        }
+
+        internal bool IsConfigurationImportCurrent(SpellVisualRangeImportRequest request)
+        {
+            return _importLifecycle.IsCurrent(request);
+        }
+
+        internal bool TryLoadConfigurationImport(SpellVisualRangeImportRequest request, string json)
+        {
+            if (!_importLifecycle.IsCurrent(request) || !LoadFromString(json))
+                return false;
+
+            // A successful explicit import owns the resulting configuration. Prevent the
+            // asynchronous initial file load from replacing it if that callback arrives later.
+            _loadGeneration++;
+            return true;
+        }
+
         private Timer saveTimer;
         private readonly object saveLock = new object();
+        private readonly object saveFileLock = new object();
         private volatile bool hasPendingChanges = false;
+        private string pendingSaveJson;
         private void Load()
         {
+            loaded = false;
             spellRangeCache.Clear();
-            Task.Factory.StartNew(() =>
-            {
-                if (!File.Exists(savePath))
-                {
-                    //CreateAndLoadDataFile();
-                    var assembly = GetType().Assembly;
+            int generation = ++_loadGeneration;
+            string targetPath = savePath;
+            var assembly = GetType().Assembly;
+            string resourceName = assembly.GetName().Name + ".Game.Managers.DefaultSpellIndicatorConfig.json";
 
-                    var resourceName = assembly.GetName().Name + ".Game.Managers.DefaultSpellIndicatorConfig.json";
-                    try
+            Task.Run(() =>
+            {
+                string json = null;
+                Exception loadError = null;
+
+                try
+                {
+                    if (File.Exists(targetPath))
+                    {
+                        json = File.ReadAllText(targetPath);
+                    }
+                    else
                     {
                         using Stream stream = assembly.GetManifestResourceStream(resourceName);
-
-                        using StreamReader reader = new StreamReader(stream);
-
-                        LoadFromString(reader.ReadToEnd());
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e.ToString());
-                        CreateAndLoadDataFile();
-                    }
-
-                    AfterLoad();
-                    loaded = true;
-                    Save();
-                }
-                else
-                {
-                    try
-                    {
-                        string data = File.ReadAllText(savePath);
-                        SpellRangeInfo[] fileData = JsonSerializer.Deserialize(data, SpellVisualRangeJsonContext.Default.SpellRangeInfoArray);
-
-                        foreach (var entry in fileData)
+                        if (stream != null)
                         {
-                            spellRangeCache.Add(entry.ID, entry);
+                            using var reader = new StreamReader(stream);
+                            json = reader.ReadToEnd();
                         }
-                        AfterLoad();
-                        loaded = true;
                     }
-                    catch
+                }
+                catch (Exception ex)
+                {
+                    loadError = ex;
+                }
+
+                MainThreadQueue.EnqueueAction(() =>
+                {
+                    if (generation != _loadGeneration) return;
+
+                    if (loadError != null)
                     {
+                        Log.Error(loadError.ToString());
+                    }
+
+                    if (string.IsNullOrEmpty(json) || !LoadFromString(json))
+                    {
+                        loaded = false;
+                        spellRangeCache.Clear();
                         CreateAndLoadDataFile();
                         AfterLoad();
                         loaded = true;
                     }
 
-                }
+                });
             });
         }
 
@@ -347,26 +380,58 @@ namespace ClassicUO.Game.Managers
 
         public bool LoadFromString(string json)
         {
+            Dictionary<int, SpellRangeInfo> oldCache = spellRangeCache;
+            Dictionary<int, SpellRangeInfo> oldOverrides = spellRangeOverrideCache;
+            Dictionary<string, SpellRangeInfo> oldPowerWords = spellRangePowerWordCache;
+            bool wasLoaded = loaded;
+
             try
             {
-                SpellRangeInfo[] fileData = JsonSerializer.Deserialize<SpellRangeInfo[]>(json);
+                if (!TryParseConfiguration(json, out Dictionary<int, SpellRangeInfo> newCache))
+                    return false;
 
                 loaded = false;
-                spellRangeCache.Clear();
-
-                foreach (var entry in fileData)
-                {
-                    spellRangeCache.Add(entry.ID, entry);
-                }
+                spellRangeCache = newCache;
+                spellRangeOverrideCache = new Dictionary<int, SpellRangeInfo>();
+                spellRangePowerWordCache = new Dictionary<string, SpellRangeInfo>();
                 AfterLoad();
-                LoadOverrides();
                 loaded = true;
                 return true;
             }
             catch (Exception ex)
             {
-                loaded = true;
+                spellRangeCache = oldCache;
+                spellRangeOverrideCache = oldOverrides;
+                spellRangePowerWordCache = oldPowerWords;
+                loaded = wasLoaded;
                 Console.WriteLine(ex.ToString());
+                return false;
+            }
+        }
+
+        internal static bool TryParseConfiguration(string json, out Dictionary<int, SpellRangeInfo> result)
+        {
+            result = null;
+            try
+            {
+                SpellRangeInfo[] entries = JsonSerializer.Deserialize<SpellRangeInfo[]>(json);
+                if (entries == null || entries.Length == 0)
+                    return false;
+
+                var parsed = new Dictionary<int, SpellRangeInfo>(entries.Length);
+                foreach (SpellRangeInfo entry in entries)
+                {
+                    if (entry == null || entry.ID < 0 || parsed.ContainsKey(entry.ID))
+                        return false;
+
+                    parsed.Add(entry.ID, entry);
+                }
+
+                result = parsed;
+                return true;
+            }
+            catch (Exception)
+            {
                 return false;
             }
         }
@@ -432,10 +497,7 @@ namespace ClassicUO.Game.Managers
                 spellRangeCache.Add(entry.Value.ID, SpellRangeInfo.FromSpellDef(entry.Value));
             }
 
-            Task.Factory.StartNew(() =>
-            {
-                Save();
-            });
+            DelayedSave();
         }
 
         public void DelayedSave()
@@ -443,46 +505,70 @@ namespace ClassicUO.Game.Managers
             lock (saveLock)
             {
                 hasPendingChanges = true;
+                var options = new JsonSerializerOptions() { WriteIndented = true };
+                pendingSaveJson = JsonSerializer.Serialize(spellRangeCache.Values.ToArray(), options);
 
                 // Cancel existing timer if it's running
                 saveTimer?.Dispose();
 
-                saveTimer = new Timer();
-                saveTimer.Interval = 500;
-                saveTimer.Elapsed += (_,_) => { PerformSave(); };
+                saveTimer = new Timer(500) { AutoReset = false };
+                saveTimer.Elapsed += (_,_) => PerformSave();
+                saveTimer.Start();
             }
         }
 
         private void PerformSave()
         {
-            lock (saveLock)
+            string directory = Path.GetDirectoryName(savePath);
+            string tempPath = savePath + ".tmp";
+            lock (saveFileLock)
             {
-                if (!hasPendingChanges)
-                    return;
+                string fileData;
+                lock (saveLock)
+                {
+                    if (!hasPendingChanges)
+                        return;
 
-                hasPendingChanges = false;
-            }
+                    fileData = pendingSaveJson;
+                }
 
-            string tempPath = null;
-            try
-            {
-                tempPath = Path.GetTempFileName();
-                var options = new JsonSerializerOptions() { WriteIndented = true };
-                string fileData = JsonSerializer.Serialize(spellRangeCache.Values.ToArray(), options);
-                File.WriteAllText(tempPath, fileData);
+                try
+                {
+                    if (!string.IsNullOrEmpty(directory))
+                        Directory.CreateDirectory(directory);
 
-                if (File.Exists(savePath))
-                    File.Delete(savePath);
-                File.Move(tempPath, savePath);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Save failed: {e}");
-            }
-            finally
-            {
-                if (tempPath != null && File.Exists(tempPath))
-                    File.Delete(tempPath);
+                    File.WriteAllText(tempPath, fileData);
+
+                    if (File.Exists(savePath))
+                        File.Replace(tempPath, savePath, null);
+                    else
+                        File.Move(tempPath, savePath);
+
+                    lock (saveLock)
+                    {
+                        if (ReferenceEquals(fileData, pendingSaveJson))
+                        {
+                            hasPendingChanges = false;
+                            pendingSaveJson = null;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Save failed: {e}");
+                }
+                finally
+                {
+                    try
+                    {
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error($"Failed to clean up temporary spell config '{tempPath}': {e}");
+                    }
+                }
             }
         }
 
@@ -491,11 +577,10 @@ namespace ClassicUO.Game.Managers
             lock (saveLock)
             {
                 saveTimer?.Dispose();
-                if (hasPendingChanges)
-                {
-                    PerformSave();
-                }
+                saveTimer = null;
             }
+
+            PerformSave();
         }
         #endregion
 
@@ -608,5 +693,60 @@ namespace ClassicUO.Game.Managers
             }
         }
         #endregion
+    }
+
+    internal readonly struct SpellVisualRangeImportRequest
+    {
+        internal SpellVisualRangeImportRequest(int generation, CancellationToken cancellationToken)
+        {
+            Generation = generation;
+            CancellationToken = cancellationToken;
+        }
+
+        internal int Generation { get; }
+        internal CancellationToken CancellationToken { get; }
+    }
+
+    internal sealed class SpellVisualRangeImportLifecycle
+    {
+        private readonly object _sync = new object();
+        private CancellationTokenSource _cancellation;
+        private int _generation;
+
+        internal SpellVisualRangeImportRequest Begin()
+        {
+            lock (_sync)
+            {
+                CancelCurrent();
+                _cancellation = new CancellationTokenSource();
+                return new SpellVisualRangeImportRequest(++_generation, _cancellation.Token);
+            }
+        }
+
+        internal bool IsCurrent(SpellVisualRangeImportRequest request)
+        {
+            lock (_sync)
+            {
+                return request.Generation == _generation
+                    && _cancellation != null
+                    && !request.CancellationToken.IsCancellationRequested;
+            }
+        }
+
+        internal void Cancel()
+        {
+            lock (_sync)
+            {
+                ++_generation;
+                CancelCurrent();
+            }
+        }
+
+        private void CancelCurrent()
+        {
+            _cancellation?.Cancel();
+            _cancellation?.Dispose();
+            _cancellation = null;
+        }
     }
 }

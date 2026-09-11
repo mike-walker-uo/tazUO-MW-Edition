@@ -17,6 +17,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using ClassicUO.Utility.Logging;
 using static ClassicUO.Game.Managers.AutoLootManager;
@@ -1044,6 +1045,20 @@ namespace ClassicUO.Game.UI.Gumps
                     valueChanged: (b) => { Settings.GlobalSettings.RunMouseInASeparateThread = b; }
                 ), true, page
             );
+
+            content.BlankLine();
+
+            var sessionLogCheckbox = new CheckboxWithLabel
+            (
+                "Session logging (restart required)", isChecked: Settings.GlobalSettings.SessionLog,
+                valueChanged: (b) =>
+                {
+                    Settings.GlobalSettings.SessionLog = b;
+                    Settings.GlobalSettings.Save();
+                }
+            );
+            content.AddToRight(sessionLogCheckbox, true, page);
+            sessionLogCheckbox.SetTooltip("Writes bounded session logs after restart. Crash reports are still saved when disabled.");
 
             content.BlankLine();
 
@@ -3406,24 +3421,49 @@ namespace ClassicUO.Game.UI.Gumps
                                     if (Uri.TryCreate(s, UriKind.Absolute, out var uri))
                                     {
                                         GameActions.Print(lang.GetTazUO.AttemptingToDownloadSpellConfig);
+                                        SpellVisualRangeManager manager = SpellVisualRangeManager.Instance;
+                                        SpellVisualRangeImportRequest importRequest = manager.BeginConfigurationImport();
 
-                                        Task.Factory.StartNew
-                                        (() =>
+                                        Task.Run
+                                        (async () =>
                                         {
+                                            string result = null;
+                                            string error = null;
                                             try
                                             {
                                                 using HttpClient httpClient = new HttpClient();
-                                                string result = httpClient.GetStringAsync(uri).Result;
-
-                                                if (SpellVisualRangeManager.Instance.LoadFromString(result))
-                                                {
-                                                    GameActions.Print(lang.GetTazUO.SuccesfullyDownloadedNewSpellConfig);
-                                                }
+                                                using HttpResponseMessage response = await httpClient.GetAsync(uri, importRequest.CancellationToken);
+                                                response.EnsureSuccessStatusCode();
+                                                result = await response.Content.ReadAsStringAsync();
+                                            }
+                                            catch (OperationCanceledException) when (importRequest.CancellationToken.IsCancellationRequested)
+                                            {
+                                                return;
                                             }
                                             catch (Exception ex)
                                             {
-                                                GameActions.Print(string.Format(lang.GetTazUO.FailedToDownloadTheSpellConfigExMessage, ex.Message));
+                                                error = ex.Message;
                                             }
+
+                                            MainThreadQueue.EnqueueAction(() =>
+                                            {
+                                                if (!manager.IsConfigurationImportCurrent(importRequest))
+                                                    return;
+
+                                                if (error != null)
+                                                {
+                                                    GameActions.Print(string.Format(lang.GetTazUO.FailedToDownloadTheSpellConfigExMessage, error));
+                                                }
+                                                else if (manager.TryLoadConfigurationImport(importRequest, result))
+                                                {
+                                                    manager.DelayedSave();
+                                                    GameActions.Print(lang.GetTazUO.SuccesfullyDownloadedNewSpellConfig);
+                                                }
+                                                else
+                                                {
+                                                    GameActions.Print(string.Format(lang.GetTazUO.FailedToDownloadTheSpellConfigExMessage, "Invalid configuration"));
+                                                }
+                                            });
                                         }
                                         );
                                     }

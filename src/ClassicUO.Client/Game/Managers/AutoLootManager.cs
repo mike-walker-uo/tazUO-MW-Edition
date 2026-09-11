@@ -63,6 +63,7 @@ namespace ClassicUO.Game.Managers
             _indexDirty = false;
         }
         private bool loaded = false;
+        private int _loadGeneration;
         private readonly string savePath = Path.Combine(ProfileManager.ProfilePath, "AutoLoot.json");
         private long nextLootTime = Time.Ticks;
         private long nextClearRecents = Time.Ticks + 5000;
@@ -260,6 +261,7 @@ namespace ClassicUO.Game.Managers
 
         public void OnSceneUnload()
         {
+            _loadGeneration++;
             EventSink.OPLOnReceive -= OnOPLReceived;
             EventSink.OnItemCreated -= OnItemCreatedOrUpdated;
             EventSink.OnItemUpdated -= OnItemCreatedOrUpdated;
@@ -383,35 +385,51 @@ namespace ClassicUO.Game.Managers
         {
             if (loaded) return;
 
-            Task.Factory.StartNew(() =>
-            {
-                var oldPath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Profiles", "AutoLoot.json");
-                if(File.Exists(oldPath))
-                    File.Move(oldPath, savePath);
+            int generation = ++_loadGeneration;
+            string targetPath = savePath;
 
-                if (!File.Exists(savePath))
+            Task.Run(() =>
+            {
+                List<AutoLootConfigEntry> loadedItems = null;
+                Exception loadError = null;
+
+                try
                 {
-                    autoLootItems = new List<AutoLootConfigEntry>();
-                    _indexDirty = true;
-                    loaded = true;
-                }
-                else
-                {
-                    try
+                    var oldPath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Profiles", "AutoLoot.json");
+                    if (File.Exists(oldPath) && !File.Exists(targetPath))
+                        File.Move(oldPath, targetPath);
+
+                    if (!File.Exists(targetPath))
                     {
-                        string data = File.ReadAllText(savePath);
-                        AutoLootConfigEntry[] tItem = JsonSerializer.Deserialize<AutoLootConfigEntry[]>(data);
-                        autoLootItems = tItem.ToList<AutoLootConfigEntry>();
-                        _indexDirty = true;
-                        loaded = true;
+                        loadedItems = new List<AutoLootConfigEntry>();
                     }
-                    catch
+                    else
+                    {
+                        string data = File.ReadAllText(targetPath);
+                        AutoLootConfigEntry[] items = JsonSerializer.Deserialize<AutoLootConfigEntry[]>(data);
+                        loadedItems = items?.ToList() ?? new List<AutoLootConfigEntry>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    loadError = ex;
+                }
+
+                MainThreadQueue.EnqueueAction(() =>
+                {
+                    if (generation != _loadGeneration) return;
+
+                    if (loadError != null)
                     {
                         GameActions.Print("There was an error loading your auto loot config file, please check it with a json validator.", 32);
                         loaded = false;
+                        return;
                     }
 
-                }
+                    autoLootItems = loadedItems;
+                    _indexDirty = true;
+                    loaded = true;
+                });
             });
         }
 

@@ -5,8 +5,8 @@
     <ApplicationIcon>cuoicon.ico</ApplicationIcon>
     <AssemblyName>ClassicUO</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
-    <AssemblyVersion>0.1</AssemblyVersion>
-    <FileVersion>0.1</FileVersion>
+    <AssemblyVersion>0.2</AssemblyVersion>
+    <FileVersion>0.2</FileVersion>
     <PackageProjectUrl>https://github.com/PlayTazUO/TazUO</PackageProjectUrl>
   </PropertyGroup>
 
@@ -43,7 +43,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\external\DiscordSocialSDK.Wrapper\DiscordSocialSDK.Wrapper\DiscordSocialSDK.Wrapper.csproj" />
     <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" />
     <ProjectReference Include="..\ClassicUO.Assets\ClassicUO.Assets.csproj" />
     <ProjectReference Include="..\ClassicUO.Renderer\ClassicUO.Renderer.csproj" />

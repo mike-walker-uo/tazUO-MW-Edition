@@ -2,7 +2,7 @@ using ClassicUO.Configuration;
 
 namespace ClassicUO.Game.UI
 {
-    internal enum OverheadEffectSizePreset
+    public enum OverheadEffectSizePreset
     {
         Small,
         Normal,

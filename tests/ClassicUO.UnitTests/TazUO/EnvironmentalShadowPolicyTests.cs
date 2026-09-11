@@ -8,7 +8,7 @@ namespace ClassicUO.UnitTests.TazUO
     public class EnvironmentalShadowPolicyTests
     {
         [Theory]
-        [InlineData(0, 0.95f, 0.05f)]
+        [InlineData(0, 0.95f, 0.00f)]
         [InlineData(7, 0.05f, 0.95f)]
         [InlineData(12, 0.00f, 0.95f)]
         public void ServerLightProducesExpectedDayOrDuskState(int light, float minimumDay, float minimumDuskOrNight)

@@ -12,7 +12,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.GameObjects
 {
-    internal enum CombatVisualKind : byte
+    public enum CombatVisualKind : byte
     {
         None,
         MagicArrow,

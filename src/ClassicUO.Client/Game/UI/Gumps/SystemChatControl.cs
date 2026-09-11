@@ -43,7 +43,6 @@ using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility.Logging;
-using ClassicUO.Utility.Platforms;
 using SDL2;
 using Control = ClassicUO.Game.UI.Controls.Control;
 using Label = ClassicUO.Game.UI.Controls.Label;
@@ -62,7 +61,6 @@ namespace ClassicUO.Game.UI.Gumps
         Guild,
         Alliance,
         ClientCommand,
-        UOAMChat,
         Prompt,
         UOChat,
         ServUOCommand,
@@ -219,12 +217,6 @@ namespace ClassicUO.Game.UI.Gumps
 
                         case ChatMode.ClientCommand:
                             AppendChatModePrefix(ResGumps.Command, 1161, TextBoxControl.Text);
-
-                            break;
-
-                        case ChatMode.UOAMChat:
-                            DisposeChatModePrefix();
-                            AppendChatModePrefix(ResGumps.UOAM, 83, TextBoxControl.Text);
 
                             break;
 
@@ -518,11 +510,6 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 }
             }
-            else if (Mode == ChatMode.ClientCommand && TextBoxControl.Text.Length == 1 && TextBoxControl.Text[0] == '-')
-            {
-                Mode = ChatMode.UOAMChat;
-            }
-
             base.Update();
         }
 
@@ -965,11 +952,6 @@ namespace ClassicUO.Game.UI.Gumps
                         {
                             CommandManager.Execute(tt[0], tt);
                         }
-
-                        break;
-
-                    case ChatMode.UOAMChat:
-                        UoAssist.SignalMessage(text);
 
                         break;
 

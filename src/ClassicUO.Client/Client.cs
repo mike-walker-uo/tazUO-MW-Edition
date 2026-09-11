@@ -39,7 +39,6 @@ using ClassicUO.Network.Encryption;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
-using ClassicUO.Utility.Platforms;
 using SDL2;
 using System;
 using System.Diagnostics;
@@ -81,8 +80,6 @@ namespace ClassicUO
                 }
 
                 Log.Trace("Done!");
-
-                UoAssist.Start();
 
                 Game.Run();
             }

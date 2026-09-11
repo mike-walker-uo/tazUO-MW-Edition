@@ -123,6 +123,7 @@ namespace ClassicUO
             }
 
             GraphicManager.ApplyChanges();
+            MainThreadHangDiagnostics.Start(GraphicsDevice.Adapter.Description);
 
             SetRefreshRate(Settings.GlobalSettings.FPS);
             _uoSpriteBatch = new UltimaBatcher2D(GraphicsDevice);
@@ -133,16 +134,37 @@ namespace ClassicUO
             base.Initialize();
         }
 
-        private const int MAX_PACKETS_PER_FRAME = 25;
+        private const int MIN_PACKETS_PER_FRAME = 25;
+        private const int MAX_PACKETS_PER_FRAME = 200;
+        private const int PACKET_BUDGET_MS = 2;
 
         private void ProcessNetworkPackets()
         {
             int packetsProcessed = 0;
-            while (packetsProcessed < MAX_PACKETS_PER_FRAME && AsyncNetClient.Socket.TryDequeuePacket(out byte[] message))
+            long deadline = Stopwatch.GetTimestamp()
+                + Stopwatch.Frequency * PACKET_BUDGET_MS / 1000;
+
+            while (packetsProcessed < MAX_PACKETS_PER_FRAME)
             {
-                var c = PacketHandlers.Handler.ParsePackets(message);
-                AsyncNetClient.Socket.Statistics.TotalPacketsReceived += (uint)c;
-                packetsProcessed++;
+                int count = PacketHandlers.Handler.ParsePendingPackets(1);
+
+                if (count == 0)
+                {
+                    if (!AsyncNetClient.Socket.TryDequeuePacket(out byte[] message))
+                        break;
+
+                    PacketHandlers.Handler.Append(message, false);
+                    continue;
+                }
+
+                AsyncNetClient.Socket.Statistics.TotalPacketsReceived += (uint)count;
+                packetsProcessed += count;
+
+                if (packetsProcessed >= MIN_PACKETS_PER_FRAME
+                    && Stopwatch.GetTimestamp() >= deadline)
+                {
+                    break;
+                }
             }
         }
 
@@ -207,7 +229,7 @@ namespace ClassicUO
             Fonts.Initialize(GraphicsDevice);
             SolidColorTextureCache.Initialize(GraphicsDevice);
             PNGLoader.Instance.GraphicsDevice = GraphicsDevice;
-            System.Threading.Tasks.Task loadResourceAssets = PNGLoader.Instance.LoadResourceAssets();
+            PNGLoader.Instance.LoadResourceAssets();
 
             Animations = new Renderer.Animations.Animations(GraphicsDevice);
             Arts = new Renderer.Arts.Art(GraphicsDevice);
@@ -227,15 +249,13 @@ namespace ClassicUO
             using var ms = new MemoryStream(bytes);
             _background = Texture2D.FromStream(GraphicsDevice, ms);
 
-            loadResourceAssets.Wait(10000);
             SetScene(new LoginScene());
             SetWindowPositionBySettings();
-            DiscordManager.Instance.FromSavedToken();
         }
 
         protected override void UnloadContent()
         {
-            DiscordManager.Instance.BeginDisconnect();
+            MainThreadHangDiagnostics.Stop();
             SDL_GetWindowBordersSize(Window.Handle, out int top, out int left, out _, out _);
 
             Settings.GlobalSettings.WindowPosition = new Point(
@@ -266,7 +286,6 @@ namespace ClassicUO
             SpeechesLoader.Instance.Dispose();
             Verdata.File?.Dispose();
             World.Map?.Destroy();
-            DiscordManager.Instance.FinalizeDisconnect();
 
             base.UnloadContent();
         }
@@ -275,6 +294,17 @@ namespace ClassicUO
         // last character name an external caller passed in.
         private string _lastTitleCharacter;
         private string _lastTitleString;
+        private string _cachedTitleCharacter;
+        private string _cachedTitleServer;
+        private string _cachedTitlePlayer;
+        private int _cachedTitleHits;
+        private int _cachedTitleHitsMax;
+        private int _cachedTitleMana;
+        private int _cachedTitleManaMax;
+        private int _cachedTitleStamina;
+        private int _cachedTitleStaminaMax;
+        private bool _cachedTitleInGame;
+        private bool _titleInputsInitialized;
 
         public void SetWindowTitle(string title)
         {
@@ -300,16 +330,52 @@ namespace ClassicUO
         {
             string title = _lastTitleCharacter;
             string server = ProfileManager.CurrentProfile?.ServerName;
-            string charName = title;
-            if (string.IsNullOrEmpty(charName) && World.Player != null && !string.IsNullOrEmpty(World.Player.Name))
-                charName = World.Player.Name;
+            string playerName = World.Player?.Name;
+            bool inGame = World.InGame && World.Player != null;
+            int hits = inGame ? World.Player.Hits : 0;
+            int hitsMax = inGame ? World.Player.HitsMax : 0;
+            int mana = inGame ? World.Player.Mana : 0;
+            int manaMax = inGame ? World.Player.ManaMax : 0;
+            int stamina = inGame ? World.Player.Stamina : 0;
+            int staminaMax = inGame ? World.Player.StaminaMax : 0;
+
+            if (
+                _titleInputsInitialized
+                && title == _cachedTitleCharacter
+                && server == _cachedTitleServer
+                && playerName == _cachedTitlePlayer
+                && inGame == _cachedTitleInGame
+                && hits == _cachedTitleHits
+                && hitsMax == _cachedTitleHitsMax
+                && mana == _cachedTitleMana
+                && manaMax == _cachedTitleManaMax
+                && stamina == _cachedTitleStamina
+                && staminaMax == _cachedTitleStaminaMax
+            )
+            {
+                return;
+            }
+
+            _titleInputsInitialized = true;
+            _cachedTitleCharacter = title;
+            _cachedTitleServer = server;
+            _cachedTitlePlayer = playerName;
+            _cachedTitleInGame = inGame;
+            _cachedTitleHits = hits;
+            _cachedTitleHitsMax = hitsMax;
+            _cachedTitleMana = mana;
+            _cachedTitleManaMax = manaMax;
+            _cachedTitleStamina = stamina;
+            _cachedTitleStaminaMax = staminaMax;
+
+            string charName = string.IsNullOrEmpty(title) ? playerName : title;
 
             string stats = null;
-            if (World.InGame && World.Player != null)
+            if (inGame)
             {
-                stats = "HP " + AsciiBar(World.Player.Hits, World.Player.HitsMax)
-                      + " M " + AsciiBar(World.Player.Mana, World.Player.ManaMax)
-                      + " S " + AsciiBar(World.Player.Stamina, World.Player.StaminaMax);
+                stats = "HP " + AsciiBar(hits, hitsMax)
+                      + " M " + AsciiBar(mana, manaMax)
+                      + " S " + AsciiBar(stamina, staminaMax);
             }
 
             string left;
@@ -513,41 +579,59 @@ namespace ClassicUO
 
         protected override void Update(GameTime gameTime)
         {
+            MainThreadHangDiagnostics.BeginFrame("update");
+            MainThreadHangDiagnostics.Mark("Update: time");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Other);
             Profiler.ExitContext("OutOfContext");
 
             Time.Ticks = (uint)gameTime.TotalGameTime.TotalMilliseconds;
             Time.Delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             Profiler.EnterContext("Mouse");
+            MainThreadHangDiagnostics.Mark("Update: mouse");
             Mouse.Update();
             Profiler.ExitContext("Mouse");
 
             Profiler.EnterContext("Packets");
+            MainThreadHangDiagnostics.Mark("Update: network packets");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Network);
             ProcessNetworkPackets();
             Profiler.ExitContext("Packets");
 
+            MainThreadHangDiagnostics.Mark("Update: Razor plugin tick");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Razor);
             Plugin.Tick();
 
             if(drawScene)
             {
                 Profiler.EnterContext("Update");
+                MainThreadHangDiagnostics.Mark("Update: scene");
+                MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Scene);
                 Scene.Update();
                 Profiler.ExitContext("Update");
             }
 
             Profiler.EnterContext("UI Update");
+            MainThreadHangDiagnostics.Mark("Update: UI");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.UI);
             UIManager.Update();
             Profiler.ExitContext("UI Update");
 
+#if ENABLE_LEGION_SCRIPTING
             Profiler.EnterContext("LScript");
             LegionScripting.LegionScripting.OnUpdate();
             Profiler.ExitContext("LScript");
+#endif
 
+            MainThreadHangDiagnostics.Mark("Update: main-thread queue");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Other);
             MainThreadQueue.ProcessQueue();
 
             if (Time.Ticks >= _nextSlowUpdate)
             {
                 _nextSlowUpdate = Time.Ticks + 500;
+                MainThreadHangDiagnostics.Mark("Update: slow UI");
+                MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.UI);
                 UIManager.SlowUpdate();
                 ApplyComposedWindowTitle();
             }
@@ -570,6 +654,7 @@ namespace ClassicUO
                     ? 1
                     : 0
             ];
+            MainThreadHangDiagnostics.EndStage();
             _suppressedDraw = false;
 
             if (_totalElapsed > x)
@@ -587,12 +672,15 @@ namespace ClassicUO
                 }
             }
 
+            MainThreadHangDiagnostics.Mark("Update: audio and cursor");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Other);
             GameCursor?.Update();
             Audio?.Update();
 
-            DiscordManager.Instance.Update();
-
+            MainThreadHangDiagnostics.Mark("Update: framework");
             base.Update(gameTime);
+            MainThreadHangDiagnostics.Mark("Update: complete");
+            MainThreadHangDiagnostics.EndFrame();
         }
 
         public static void UpdateBackgroundHueShader()
@@ -603,6 +691,9 @@ namespace ClassicUO
 
         protected override void Draw(GameTime gameTime)
         {
+            MainThreadHangDiagnostics.BeginFrame("draw");
+            MainThreadHangDiagnostics.Mark("Draw: background");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);
             Profiler.EndFrame();
             Profiler.BeginFrame();
             Profiler.ExitContext("OutOfContext");
@@ -617,11 +708,15 @@ namespace ClassicUO
             Profiler.ExitContext("Draw-Tiles");
 
             Profiler.EnterContext("Draw-Scene");
+            MainThreadHangDiagnostics.Mark("Draw: scene");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Scene);
             if (drawScene)
                 Scene.Draw(_uoSpriteBatch);
             Profiler.ExitContext("Draw-Scene");
 
             Profiler.EnterContext("Draw-UI");
+            MainThreadHangDiagnostics.Mark("Draw: UI");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.UI);
             UIManager.Draw(_uoSpriteBatch);
             Profiler.ExitContext("Draw-UI");
             Profiler.EnterContext("OutOfContext");
@@ -629,13 +724,21 @@ namespace ClassicUO
             SelectedObject.HealthbarObject = null;
             SelectedObject.SelectedContainer = null;
 
+            MainThreadHangDiagnostics.Mark("Draw: cursor");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);
             _uoSpriteBatch.Begin();
             GameCursor.Draw(_uoSpriteBatch);
             _uoSpriteBatch.End();
 
+            MainThreadHangDiagnostics.Mark("Draw: framework present");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);
             base.Draw(gameTime);
 
+            MainThreadHangDiagnostics.Mark("Draw: plugin commands");
+            MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Razor);
             Plugin.ProcessDrawCmdList(GraphicsDevice);
+            MainThreadHangDiagnostics.Mark("Draw: complete");
+            MainThreadHangDiagnostics.EndFrame();
         }
 
         protected override bool BeginDraw()
