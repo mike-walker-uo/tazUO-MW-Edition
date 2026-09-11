@@ -11,7 +11,7 @@ namespace ClassicUO.Configuration
         public MapLanguage MapLanguage { get; set; } = new MapLanguage();
         public TopBarGumpLanguage TopBarGump { get; set; } = new TopBarGumpLanguage();
 
-        public string TazuoVersionHistory { get; set; } = "TazUO Version History";
+        public string TazuoVersionHistory { get; set; } = "TazUO MW Edition Version History";
         public string CurrentVersion { get; set; } = "Current Version: ";
         public string TazUOWiki { get; set; } = "TazUO Wiki";
         public string TazUODiscord { get; set; } = "TazUO Discord";
