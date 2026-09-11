@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,7 +11,8 @@ namespace ClassicUO.Configuration
     {
         private static string savePath { get { return Path.Combine(CUOEnviroment.ExecutablePath, "Data", "UI"); } }
         private static readonly JsonSerializerOptions serializerOptions = new JsonSerializerOptions() { WriteIndented = true };
-        private static Dictionary<string, string> preload = new Dictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, string> preload =
+            new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public static string ReadJsonFile(string name)
         {
@@ -33,10 +34,9 @@ namespace ClassicUO.Configuration
         {
             string jsonData;
 
-            if (preload.TryGetValue(name, out var value))
+            if (preload.TryRemove(name, out var value))
             {
                 jsonData = value;
-                preload.Remove(name);
             }
             else
             {
@@ -85,7 +85,7 @@ namespace ClassicUO.Configuration
                     {
                         try
                         {
-                            preload.Add(Path.GetFileNameWithoutExtension(file), File.ReadAllText(file));
+                            preload[Path.GetFileNameWithoutExtension(file)] = File.ReadAllText(file);
                         }
                         catch { }
                     }

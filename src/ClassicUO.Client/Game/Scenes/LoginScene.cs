@@ -76,6 +76,7 @@ namespace ClassicUO.Game.Scenes
         private long _reconnectTime;
         private int _reconnectTryCounter = 1;
         private bool _autoLogin;
+        private volatile bool _connectionAttemptInProgress;
 
 
         public bool Reconnect { get; set; }
@@ -346,10 +347,12 @@ namespace ClassicUO.Game.Scenes
 
         public void Connect(string account, string password)
         {
-            if (CurrentLoginStep == LoginSteps.Connecting)
+            if (CurrentLoginStep == LoginSteps.Connecting || _connectionAttemptInProgress)
             {
                 return;
             }
+
+            _connectionAttemptInProgress = true;
 
             Account = account;
             Password = password;
@@ -383,16 +386,32 @@ namespace ClassicUO.Game.Scenes
             //    Log.Error("No Internet Access");
             //};
 
-            NetClient.Socket.Connected -= OnNetClientConnected;
-            NetClient.Socket.Disconnected -= OnNetClientDisconnected;
-            if (NetClient.Socket != null)
+            _ = ConnectAsync(Settings.GlobalSettings.IP, Settings.GlobalSettings.Port).Catch();
+        }
+
+        private async System.Threading.Tasks.Task ConnectAsync(string ip, ushort port)
+        {
+            try
             {
-                _ = NetClient.Socket.Disconnect().Catch();
+                AsyncNetClient previous = NetClient.Socket;
+                previous.Connected -= OnNetClientConnected;
+                previous.Disconnected -= OnNetClientDisconnected;
+                await previous.Disconnect();
+
+                var next = new AsyncNetClient();
+                await MainThreadQueue.InvokeOnMainThreadAsync(() =>
+                {
+                    previous.Dispose();
+                    AsyncNetClient.Socket = next;
+                    next.Connected += OnNetClientConnected;
+                    next.Disconnected += OnNetClientDisconnected;
+                });
+                await next.Connect(ip, port);
             }
-            AsyncNetClient.Socket = new AsyncNetClient();
-            NetClient.Socket.Connected += OnNetClientConnected;
-            NetClient.Socket.Disconnected += OnNetClientDisconnected;
-            _ = NetClient.Socket.Connect(Settings.GlobalSettings.IP, Settings.GlobalSettings.Port).Catch();
+            finally
+            {
+                MainThreadQueue.EnqueueAction(() => _connectionAttemptInProgress = false);
+            }
         }
 
 
@@ -465,9 +484,6 @@ namespace ClassicUO.Game.Scenes
 
                 CurrentLoginStep = LoginSteps.EnteringBritania;
                 NetClient.Socket.Send_SelectCharacter(index, Characters[index], NetClient.Socket.LocalIP);
-
-                if(!World.ServerName.Contains(Account) && !World.ServerName.Contains(Characters[index]))
-                    AnonMetrics.TrackLoginFireAndForget(World.ServerName);
             }
         }
 
@@ -733,23 +749,50 @@ namespace ClassicUO.Game.Scenes
             long ip = p.ReadUInt32LE(); // use LittleEndian here
             ushort port = p.ReadUInt16BE();
             uint seed = p.ReadUInt32BE();
-            
-            NetClient.Socket.Disconnect().Wait();
-            AsyncNetClient.Socket = new AsyncNetClient();
-            EncryptionHelper.Initialize(false, seed, (ENCRYPTION_TYPE)Settings.GlobalSettings.Encryption);
 
-            NetClient.Socket.Connect(new IPAddress(ip).ToString(), port).Wait();
+            if (_connectionAttemptInProgress) return;
+            _connectionAttemptInProgress = true;
+            _ = ConnectRelayAsync(ip, port, seed).Catch();
+        }
 
-            if (NetClient.Socket.IsConnected)
+        private async System.Threading.Tasks.Task ConnectRelayAsync(long ip, ushort port, uint seed)
+        {
+            try
             {
-                NetClient.Socket.EnableCompression();
-                unsafe
-                {
-                    Span<byte> b = stackalloc byte[4] { (byte)(seed >> 24), (byte)(seed >> 16), (byte)(seed >> 8), (byte)seed };
-                    NetClient.Socket.Send(b, true, true);
-                }
+                AsyncNetClient previous = NetClient.Socket;
+                previous.Connected -= OnNetClientConnected;
+                previous.Disconnected -= OnNetClientDisconnected;
+                await previous.Disconnect();
 
-                NetClient.Socket.Send_SecondLogin(Account, Password, seed);
+                var next = new AsyncNetClient();
+                await MainThreadQueue.InvokeOnMainThreadAsync(() =>
+                {
+                    previous.Dispose();
+                    AsyncNetClient.Socket = next;
+                    next.Disconnected += OnNetClientDisconnected;
+                    EncryptionHelper.Initialize(false, seed, (ENCRYPTION_TYPE)Settings.GlobalSettings.Encryption);
+                });
+
+                await next.Connect(new IPAddress(ip).ToString(), port);
+
+                if (next.IsConnected)
+                {
+                    await MainThreadQueue.InvokeOnMainThreadAsync(() =>
+                    {
+                        next.EnableCompression();
+                        unsafe
+                        {
+                            Span<byte> b = stackalloc byte[4] { (byte)(seed >> 24), (byte)(seed >> 16), (byte)(seed >> 8), (byte)seed };
+                            next.Send(b, true, true);
+                        }
+
+                        next.Send_SecondLogin(Account, Password, seed);
+                    });
+                }
+            }
+            finally
+            {
+                MainThreadQueue.EnqueueAction(() => _connectionAttemptInProgress = false);
             }
         }
 

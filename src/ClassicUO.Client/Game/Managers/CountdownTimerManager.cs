@@ -44,6 +44,7 @@ namespace ClassicUO.Game.Managers
     {
         private struct Entry { public long DueAt; public string Label; }
         private static readonly List<Entry> _q = new List<Entry>();
+        public static bool HasPending => _q.Count != 0;
 
         public static void Schedule(int seconds, string label)
         {

@@ -51,6 +51,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using ClassicUO.LegionScripting;
 using Constants = ClassicUO.Game.Constants;
 
@@ -87,70 +88,161 @@ namespace ClassicUO.Network
         private readonly PacketLogger _packetLogger = new PacketLogger();
         private readonly CircularBuffer _buffer = new CircularBuffer();
         private readonly CircularBuffer _pluginsBuffer = new CircularBuffer();
+        private bool _preferPluginsBuffer;
+
+        internal enum PacketReadStatus
+        {
+            Complete,
+            Incomplete,
+            Malformed
+        }
 
         public int ParsePackets(Span<byte> data)
         {
             Append(data, false);
 
-            return ParsePackets(_buffer, true) + ParsePackets(_pluginsBuffer, false);
+            return ParsePendingPackets(int.MaxValue);
         }
 
-        private int ParsePackets(CircularBuffer stream, bool allowPlugins)
+        public int ParsePendingPackets(int maxPackets)
         {
-            var packetsCount = 0;
+            if (maxPackets <= 0)
+                return 0;
 
-            lock (stream)
+            int packetsCount = 0;
+
+            while (packetsCount < maxPackets)
+            {
+                CircularBuffer preferred = _preferPluginsBuffer ? _pluginsBuffer : _buffer;
+                bool preferredAllowsPlugins = !_preferPluginsBuffer;
+                int parsed = ParsePackets(preferred, preferredAllowsPlugins, 1);
+
+                if (parsed == 0)
+                {
+                    CircularBuffer alternate = _preferPluginsBuffer ? _buffer : _pluginsBuffer;
+                    parsed = ParsePackets(alternate, !preferredAllowsPlugins, 1);
+
+                    if (parsed == 0)
+                        break;
+                }
+                else
+                {
+                    _preferPluginsBuffer = !_preferPluginsBuffer;
+                }
+
+                packetsCount += parsed;
+            }
+
+            return packetsCount;
+        }
+
+        public int PendingBytes
+        {
+            get
+            {
+                bool bufferTaken = false;
+                bool pluginsBufferTaken = false;
+
+                try
+                {
+                    Monitor.TryEnter(_buffer, ref bufferTaken);
+                    if (!bufferTaken)
+                        return -1;
+
+                    Monitor.TryEnter(_pluginsBuffer, ref pluginsBufferTaken);
+                    if (!pluginsBufferTaken)
+                        return -1;
+
+                    return _buffer.Length + _pluginsBuffer.Length;
+                }
+                finally
+                {
+                    if (pluginsBufferTaken)
+                        Monitor.Exit(_pluginsBuffer);
+                    if (bufferTaken)
+                        Monitor.Exit(_buffer);
+                }
+            }
+        }
+
+        private int ParsePackets(CircularBuffer stream, bool allowPlugins, int maxPackets)
+        {
+            int packetsCount = 0;
+
+            while (packetsCount < maxPackets)
             {
                 ref var packetBuffer = ref _readingBuffer;
+                byte packetID;
+                int offset;
+                int packetlength;
+                PacketReadStatus status;
 
-                while (stream.Length > 0)
+                lock (stream)
                 {
-                    if (
-                        !GetPacketInfo(
-                            stream,
-                            stream.Length,
-                            out var packetID,
-                            out int offset,
-                            out int packetlength
-                        )
-                    )
-                    {
-                        Log.Warn(
-                            $"Invalid ID: {packetID:X2} | off: {offset} | len: {packetlength} | stream.pos: {stream.Length}"
-                        );
+                    status = GetPacketInfo(
+                        stream,
+                        stream.Length,
+                        out packetID,
+                        out offset,
+                        out packetlength
+                    );
 
-                        break;
+                    if (status == PacketReadStatus.Incomplete)
+                        return packetsCount;
+
+                    if (status == PacketReadStatus.Malformed)
+                    {
+                        stream.Clear();
                     }
-
-                    if (stream.Length < packetlength)
+                    else
                     {
-                        Log.Warn(
-                            $"need more data ID: {packetID:X2} | off: {offset} | len: {packetlength} | stream.pos: {stream.Length}"
-                        );
+                        if (stream.Length < packetlength)
+                            return packetsCount;
 
-                        // need more data
-                        break;
-                    }
+                        while (packetlength > packetBuffer.Length)
+                        {
+                            Array.Resize(ref packetBuffer, packetBuffer.Length * 2);
+                        }
 
-                    while (packetlength > packetBuffer.Length)
-                    {
-                        Array.Resize(ref packetBuffer, packetBuffer.Length * 2);
-                    }
-
-                    _ = stream.Dequeue(packetBuffer, 0, packetlength);
-
-                    PacketLogger.Default?.Log(packetBuffer.AsSpan(0, packetlength), false);
-
-                    // TODO: the pluging function should allow Span<byte> or unsafe type only.
-                    // The current one is a bad style decision.
-                    // It will be fixed once the new plugin system is done.
-                    if (!allowPlugins || Plugin.ProcessRecvPacket(packetBuffer, ref packetlength))
-                    {
-                        AnalyzePacket(packetBuffer.AsSpan(0, packetlength), offset);
-
-                        ++packetsCount;
+                        _ = stream.Dequeue(packetBuffer, 0, packetlength);
                     }
                 }
+
+                if (status == PacketReadStatus.Malformed)
+                {
+                    Log.Error(
+                        $"Malformed {(allowPlugins ? "server" : "plugin")} packet "
+                        + $"0x{packetID:X2}: declared length {packetlength}, header length {offset}."
+                    );
+
+                    if (allowPlugins)
+                        AsyncNetClient.Socket.DisconnectForProtocolError();
+
+                    break;
+                }
+
+                PacketLogger.Default?.Log(packetBuffer.AsSpan(0, packetlength), false);
+
+                // Plugin callbacks may inject packets, so they must run without
+                // either receive buffer lock held.
+                bool processPacket = !allowPlugins
+                    || Plugin.ProcessRecvPacket(packetBuffer, ref packetlength);
+
+                if (processPacket && (packetlength < offset || packetlength > packetBuffer.Length))
+                {
+                    Log.Error(
+                        $"Plugin returned invalid length {packetlength} for packet "
+                        + $"0x{packetID:X2}; allowed range is {offset}..{packetBuffer.Length}."
+                    );
+                    processPacket = false;
+                }
+
+                if (processPacket)
+                {
+                    AnalyzePacket(packetBuffer.AsSpan(0, packetlength), offset);
+                }
+
+                ++packetsCount;
             }
 
             return packetsCount;
@@ -161,7 +253,21 @@ namespace ClassicUO.Network
             if (data.IsEmpty)
                 return;
 
-            (fromPlugins ? _pluginsBuffer : _buffer).Enqueue(data);
+            CircularBuffer stream = fromPlugins ? _pluginsBuffer : _buffer;
+
+            lock (stream)
+                stream.Enqueue(data);
+        }
+
+        public void Reset()
+        {
+            lock (_buffer)
+                _buffer.Clear();
+
+            lock (_pluginsBuffer)
+                _pluginsBuffer.Clear();
+
+            _preferPluginsBuffer = false;
         }
 
         private void AnalyzePacket(ReadOnlySpan<byte> data, int offset)
@@ -180,7 +286,7 @@ namespace ClassicUO.Network
             }
         }
 
-        private static bool GetPacketInfo(
+        internal static PacketReadStatus GetPacketInfo(
             CircularBuffer buffer,
             int bufferLen,
             out byte packetID,
@@ -194,7 +300,7 @@ namespace ClassicUO.Network
                 packetLen = 0;
                 packetOffset = 0;
 
-                return false;
+                return PacketReadStatus.Incomplete;
             }
 
             packetLen = PacketsTable.GetPacketLength(packetID = buffer[0]);
@@ -204,7 +310,7 @@ namespace ClassicUO.Network
             {
                 if (bufferLen < 3)
                 {
-                    return false;
+                    return PacketReadStatus.Incomplete;
                 }
 
                 var b0 = buffer[1];
@@ -214,7 +320,9 @@ namespace ClassicUO.Network
                 packetOffset = 3;
             }
 
-            return true;
+            return packetLen < packetOffset
+                ? PacketReadStatus.Malformed
+                : PacketReadStatus.Complete;
         }
 
         static PacketHandlers()
@@ -753,9 +861,6 @@ namespace ClassicUO.Network
 
                 if (mobile == World.Player)
                 {
-                    UoAssist.SignalHits();
-                    UoAssist.SignalStamina();
-                    UoAssist.SignalMana();
                     TitleBarStatsManager.UpdateTitleBar();
                 }
             }
@@ -1923,9 +2028,6 @@ namespace ClassicUO.Network
 
                 if (mobile == World.Player)
                 {
-                    UoAssist.SignalHits();
-                    UoAssist.SignalStamina();
-                    UoAssist.SignalMana();
                     TitleBarStatsManager.UpdateTitleBar();
                 }
             }
@@ -3675,7 +3777,6 @@ namespace ClassicUO.Network
 
             if (entity == World.Player)
             {
-                UoAssist.SignalHits();
                 SpellVisualRangeManager.Instance.ClearCasting();
                 TitleBarStatsManager.UpdateTitleBar();
             }
@@ -3695,7 +3796,6 @@ namespace ClassicUO.Network
 
             if (mobile == World.Player)
             {
-                UoAssist.SignalMana();
                 TitleBarStatsManager.UpdateTitleBar();
             }
         }
@@ -3716,7 +3816,6 @@ namespace ClassicUO.Network
 
             if (mobile == World.Player)
             {
-                UoAssist.SignalStamina();
                 TitleBarStatsManager.UpdateTitleBar();
             }
         }
@@ -5129,7 +5228,7 @@ namespace ClassicUO.Network
                 if (p.ReadBool())
                 {
                     // client can disconnect
-                    NetClient.Socket.Disconnect().Wait();
+                    _ = NetClient.Socket.Disconnect().Catch();
                     Client.Game.SetScene(new LoginScene());
                 }
                 else

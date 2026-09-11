@@ -31,7 +31,10 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 
 namespace ClassicUO.Utility.Logging
 {
@@ -66,18 +69,69 @@ namespace ClassicUO.Utility.Logging
 
         private bool _isLogging;
         private readonly object _syncObject = new object();
+        private BlockingCollection<PendingMessage> _pendingFileMessages;
+        private BlockingCollection<PendingMessage> _pendingConsoleMessages;
+        private Thread _fileWriterThread;
+        private Thread _consoleWriterThread;
+        private LogFile _logFile;
+
+        private sealed class PendingMessage
+        {
+            public DateTime Timestamp;
+            public LogTypes Type;
+            public string Text;
+            public string Indent;
+            public string FileText;
+            public bool Clear;
+        }
 
         // No volatile support for properties, let's use a private backing field.
         public LogTypes LogTypes { get; set; }
 
         public void Start(LogFile logFile = null)
         {
-            _isLogging = true;
+            lock (_syncObject)
+            {
+                _isLogging = true;
+                _logFile = logFile;
+                _pendingConsoleMessages = new BlockingCollection<PendingMessage>(2048);
+                _consoleWriterThread = new Thread(WriteConsole)
+                {
+                    IsBackground = true,
+                    Name = "CUO_CONSOLE_WRITER"
+                };
+                _consoleWriterThread.Start();
+
+                if (logFile != null)
+                {
+                    _pendingFileMessages = new BlockingCollection<PendingMessage>(2048);
+                    _fileWriterThread = new Thread(WriteLogFile)
+                    {
+                        IsBackground = true,
+                        Name = "CUO_LOG_WRITER"
+                    };
+                    _fileWriterThread.Start();
+                }
+            }
         }
 
         public void Stop()
         {
-            _isLogging = false;
+            Thread fileWriter;
+            Thread consoleWriter;
+            lock (_syncObject)
+            {
+                _isLogging = false;
+                _pendingFileMessages?.CompleteAdding();
+                _pendingConsoleMessages?.CompleteAdding();
+                fileWriter = _fileWriterThread;
+                consoleWriter = _consoleWriterThread;
+            }
+
+            Stopwatch stopTimer = Stopwatch.StartNew();
+            fileWriter?.Join(2000);
+            int remaining = Math.Max(0, 2000 - (int) stopTimer.ElapsedMilliseconds);
+            consoleWriter?.Join(remaining);
         }
 
         public void Message(LogTypes logType, string text)
@@ -98,7 +152,13 @@ namespace ClassicUO.Utility.Logging
 
         public void Clear()
         {
-            Console.Clear();
+            lock (_syncObject)
+            {
+                if (_isLogging)
+                {
+                    EnqueueLatest(_pendingConsoleMessages, new PendingMessage { Clear = true });
+                }
+            }
         }
 
         public void PushIndent()
@@ -125,32 +185,123 @@ namespace ClassicUO.Utility.Logging
 
             if ((LogTypes & type) == type)
             {
-                if (type == LogTypes.None)
+                DateTime timestamp = DateTime.UtcNow;
+                string prefix = type == LogTypes.None
+                    ? string.Empty
+                    : $"{timestamp:O} | {_logTypesInfo[type].Item2.Trim()} | ";
+                string indent = _indent > 0 ? new string('\t', _indent * 2) : string.Empty;
+                PendingMessage message = new PendingMessage
                 {
-                    if (_indent > 0)
-                    {
-                        Console.Write(new string('\t', _indent * 2));
-                    }
+                    Timestamp = timestamp,
+                    Type = type,
+                    Text = text,
+                    Indent = indent,
+                    FileText = prefix + indent + text
+                };
 
-                    Console.WriteLine(text);
+                if (_pendingFileMessages != null)
+                {
+                    if (!_pendingFileMessages.TryAdd(message))
+                    {
+                        _pendingFileMessages.TryTake(out _);
+                        message.FileText = "[Older queued log entry dropped.]\n" + message.FileText;
+                        _pendingFileMessages.TryAdd(message);
+                    }
                 }
-                else
+
+                EnqueueLatest(_pendingConsoleMessages, message);
+            }
+        }
+
+        private static void EnqueueLatest(BlockingCollection<PendingMessage> queue, PendingMessage message)
+        {
+            if (queue == null || queue.TryAdd(message))
+            {
+                return;
+            }
+
+            queue.TryTake(out _);
+            queue.TryAdd(message);
+        }
+
+        private void WriteLogFile()
+        {
+            Stopwatch flushTimer = Stopwatch.StartNew();
+
+            try
+            {
+                while (!_pendingFileMessages.IsCompleted)
                 {
-                    Console.Write(DateTime.UtcNow);
-                    Console.Write(" | ");
-                    ConsoleColor temp = Console.ForegroundColor;
-
-                    Console.ForegroundColor = _logTypesInfo[type].Item1;
-                    Console.Write(_logTypesInfo[type].Item2);
-                    Console.ForegroundColor = temp;
-                    Console.Write(" | ");
-
-                    if (_indent > 0)
+                    if (_pendingFileMessages.TryTake(out PendingMessage message, 1000))
                     {
-                        Console.Write(new string('\t', _indent * 2));
+                        try { _logFile.Write(message.FileText, false); } catch { }
                     }
 
-                    Console.WriteLine(text);
+                    if (flushTimer.ElapsedMilliseconds >= 1000)
+                    {
+                        try { _logFile.Flush(); } catch { }
+                        flushTimer.Restart();
+                    }
+                }
+            }
+            catch
+            {
+                // Logging must never terminate the client.
+            }
+            finally
+            {
+                try { _logFile.Dispose(); } catch { }
+            }
+        }
+
+        private void WriteConsole()
+        {
+            while (!_pendingConsoleMessages.IsCompleted)
+            {
+                if (!_pendingConsoleMessages.TryTake(out PendingMessage message, 1000))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (message.Clear)
+                    {
+                        Console.Clear();
+                    }
+                    else if (message.Type == LogTypes.None)
+                    {
+                        Console.Write(message.Indent);
+                        Console.WriteLine(message.Text);
+                    }
+                    else
+                    {
+                        Console.Write(message.Timestamp);
+                        Console.Write(" | ");
+                        ConsoleColor previousColor = default;
+                        bool colorChanged = false;
+                        try
+                        {
+                            previousColor = Console.ForegroundColor;
+                            Console.ForegroundColor = _logTypesInfo[message.Type].Item1;
+                            colorChanged = true;
+                        }
+                        catch { }
+
+                        Console.Write(_logTypesInfo[message.Type].Item2);
+
+                        if (colorChanged)
+                        {
+                            try { Console.ForegroundColor = previousColor; } catch { }
+                        }
+                        Console.Write(" | ");
+                        Console.Write(message.Indent);
+                        Console.WriteLine(message.Text);
+                    }
+                }
+                catch
+                {
+                    // Console availability must not affect file logging.
                 }
             }
         }

@@ -41,7 +41,6 @@ using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
-using ClassicUO.Utility.Platforms;
 using Microsoft.Xna.Framework;
 using MathHelper = ClassicUO.Utility.MathHelper;
 
@@ -557,8 +556,6 @@ namespace ClassicUO.Game.GameObjects
             }
             else if (WantUpdateMulti)
             {
-                UoAssist.SignalAddMulti((ushort)(Graphic | 0x4000), X, Y);
-
                 if (
                     MultiDistanceBonus == 0
                     || World.HouseManager.IsHouseInRange(Serial, World.ClientViewRange)

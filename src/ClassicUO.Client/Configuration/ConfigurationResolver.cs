@@ -30,6 +30,7 @@
 
 #endregion
 
+using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -76,8 +77,11 @@ namespace ClassicUO.Configuration
                     fileInfo.Directory.Create();
                 }
 
-                // Create temporary file in system temp directory
-                var tempFile = Path.GetTempFileName();
+                var tempFile = Path.Combine
+                (
+                    fileInfo.DirectoryName,
+                    "." + fileInfo.Name + "." + Guid.NewGuid().ToString("N") + ".tmp"
+                );
 
                 try
                 {
@@ -85,18 +89,29 @@ namespace ClassicUO.Configuration
                     File.WriteAllText(tempFile, json);
 
                     if (File.Exists(file))
-                        File.Delete(file);
-
-                    File.Move(tempFile, file);
+                    {
+                        File.Replace(tempFile, file, null);
+                    }
+                    else
+                    {
+                        File.Move(tempFile, file);
+                    }
                 }
                 catch
                 {
-                    // Clean up temp file if it exists
-                    if (File.Exists(tempFile))
+                    try
                     {
-                        File.Delete(tempFile);
+                        if (File.Exists(tempFile))
+                        {
+                            File.Delete(tempFile);
+                        }
                     }
-                    throw; // Re-throw the original exception
+                    catch
+                    {
+                        // Cleanup must not hide the save failure.
+                    }
+
+                    throw;
                 }
             }
             catch (IOException e)

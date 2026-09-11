@@ -49,6 +49,10 @@ namespace ClassicUO
 {
     internal static class Bootstrap
     {
+        private const int SESSION_LOG_RETENTION = 10;
+        private const long MAX_SESSION_LOG_BYTES = 5 * 1024 * 1024;
+        private static int _handlingUnhandledException;
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool SetDllDirectory(string lpPathName);
@@ -62,6 +66,7 @@ namespace ClassicUO
             DllMap.Initialise();
 #endif
 
+            // Keep startup diagnostics available before the selected settings file is known.
             Log.Start(LogTypes.All);
 
             CUOEnviroment.GameThread = Thread.CurrentThread;
@@ -69,6 +74,11 @@ namespace ClassicUO
             
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
+                if (Interlocked.Exchange(ref _handlingUnhandledException, 1) != 0)
+                {
+                    return;
+                }
+
                 System.Text.StringBuilder sb = new System.Text.StringBuilder();
                 sb.AppendLine("######################## [START LOG] ########################");
 
@@ -96,18 +106,24 @@ namespace ClassicUO
                 sb.AppendLine();
                 sb.AppendLine();
                 
-                HtmlCrashLogGen.Generate(sb.ToString());
-                
-                Log.Panic(e.ExceptionObject.ToString());
                 string path = Path.Combine(CUOEnviroment.ExecutablePath, "Logs");
 
-                if (!Directory.Exists(path))
-                    Directory.CreateDirectory(path);
-
-                using (LogFile crashfile = new LogFile(path, "crash.txt"))
+                // Preserve the plain-text report first. Browser/reporting failures must
+                // never prevent the primary diagnostic artifact from being written.
+                try
                 {
-                    crashfile.WriteAsync(sb.ToString()).RunSynchronously();
+                    using (LogFile crashfile = new LogFile(path, "crash.txt"))
+                    {
+                        crashfile.Write(sb.ToString());
+                    }
                 }
+                catch (Exception writeError)
+                {
+                    try { Console.Error.WriteLine(writeError); } catch { }
+                }
+
+                try { Log.Panic(e.ExceptionObject.ToString()); } catch { }
+                try { HtmlCrashLogGen.Generate(sb.ToString()); } catch { }
             };
 
             ReadSettingsFromArgs(args);
@@ -144,6 +160,14 @@ namespace ClassicUO
             {
                 Settings.GlobalSettings = new Settings();
                 Settings.GlobalSettings.Save();
+            }
+
+            if (Settings.GlobalSettings.SessionLog)
+            {
+                // Logger sinks are fixed at startup, so replace the early console-only
+                // instance once the settings file and command-line overrides are resolved.
+                Log.Stop();
+                StartLogging();
             }
 
             if (!CUOEnviroment.IsUnix)
@@ -270,6 +294,31 @@ namespace ClassicUO
             }
 
             Log.Trace("Closing...");
+            Log.Stop();
+        }
+
+        private static void StartLogging()
+        {
+            try
+            {
+                string directory = Path.Combine(CUOEnviroment.ExecutablePath, "Logs");
+                Directory.CreateDirectory(directory);
+
+                FileInfo[] oldLogs = new DirectoryInfo(directory).GetFiles("*_session.log");
+                Array.Sort(oldLogs, (left, right) => right.CreationTimeUtc.CompareTo(left.CreationTimeUtc));
+
+                for (int i = SESSION_LOG_RETENTION - 1; i < oldLogs.Length; i++)
+                {
+                    try { oldLogs[i].Delete(); } catch { }
+                }
+
+                Log.Start(LogTypes.All, new LogFile(directory, "session.log", MAX_SESSION_LOG_BYTES));
+            }
+            catch (Exception ex)
+            {
+                Log.Start(LogTypes.All);
+                try { Console.Error.WriteLine($"Unable to create session log: {ex}"); } catch { }
+            }
         }
 
         private static void ReadSettingsFromArgs(string[] args)
@@ -562,10 +611,6 @@ namespace ClassicUO
 
                         break;
                     
-                    case "nometrics":
-                        AnonMetrics.MetricsEnabled = false;
-                        Log.Info("Disabling anonymous metrics");
-                        break;
                 }
             }
         }

@@ -152,7 +152,7 @@ namespace ClassicUO.Game.UI.Gumps
             _dataBox.Clear();
             Rectangle barBounds = Client.Game.Gumps.GetGump((uint)DurabilityColors.RED).UV;
 
-            var items = World.DurabilityManager?.Durabilities ?? new List<DurabiltyProp>();
+            var items = World.DurabilityManager?.Durabilities ?? Enumerable.Empty<DurabiltyProp>();
 
             foreach (var durability in items.OrderBy(d => d.Percentage))
             {
@@ -185,13 +185,23 @@ namespace ClassicUO.Game.UI.Gumps
                 const int REPAIR_BTN_W = 56;
                 const int REPAIR_BTN_H = 18;
                 int repairBtnX = a.Width - REPAIR_BTN_W - 4;
+                ushort durabilityTextHue = durability.Percentage < 0.30f
+                    ? (ushort)0x21
+                    : durability.Percentage < 0.60f
+                        ? (ushort)0x35
+                        : CustomGumpThemeManager.TextHue;
 
+                string itemName = string.IsNullOrWhiteSpace(item.Name) ? item.Layer.ToString() : item.Name;
                 Label name;
                 a.Add(name = new Label(
-                    $"{(string.IsNullOrWhiteSpace(item.Name) ? item.Layer : item.Name)}",
+                    itemName,
                     true,
-                    CustomGumpThemeManager.TextHue,
+                    durabilityTextHue,
+                    maxwidth: repairBtnX - 8,
+                    style: FontStyle.Cropped,
                     ishtml: true));
+                name.AcceptMouseInput = true;
+                name.SetTooltip(itemName);
                 GumpPic red;
                 a.Add(red = new GumpPic(0, name.Y + name.Height + 5, (ushort)DurabilityColors.RED, 0));
 
@@ -218,7 +228,7 @@ namespace ClassicUO.Game.UI.Gumps
                     new Label(
                         $"{durability.Durabilty} / {durability.MaxDurabilty}",
                         true,
-                        CustomGumpThemeManager.TextHue)
+                        durabilityTextHue)
                     {
                         Y = red.Y - 2,
                         X = repairBtnX - 6 - durWidth

@@ -1118,7 +1118,9 @@ namespace ClassicUO.Configuration
                                     gump = new DurabilitysGump();
                                     break;
                                 case GumpType.ScriptManager:
+#if ENABLE_LEGION_SCRIPTING
                                     gump = new LegionScripting.ScriptManagerGump();
+#endif
                                     break;
                                 case GumpType.DamageTracker:
                                     gump = new DamageTrackerGump(x, y);

@@ -38,7 +38,6 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Map;
 using ClassicUO.Game.UI.Gumps;
-using ClassicUO.Utility.Platforms;
 using Microsoft.Xna.Framework;
 using MathHelper = ClassicUO.Utility.MathHelper;
 using ClassicUO.Configuration;
@@ -153,7 +152,6 @@ namespace ClassicUO.Game
                         Client.Game.GameCursor.Graphic = 0xFFFF;
                     }
 
-                    UoAssist.SignalMapChanged(value);
                 }
             }
         }
@@ -578,6 +576,7 @@ namespace ClassicUO.Game
             }
 
             OPL.Remove(serial);
+            DurabilityManager.Remove(serial);
             item.Destroy();
 
             if (forceRemove)
@@ -971,6 +970,7 @@ namespace ClassicUO.Game
             _effectManager.Clear();
             _toRemove.Clear();
             CorpseManager.Clear();
+            DurabilityManager.Clear();
             OPL.Clear();
             WMapManager.Clear();
             HouseManager?.Clear();

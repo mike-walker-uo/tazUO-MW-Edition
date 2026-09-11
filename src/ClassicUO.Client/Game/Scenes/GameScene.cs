@@ -266,7 +266,6 @@ namespace ClassicUO.Game.Scenes
             SpellVisualRangeManager.Instance.OnSceneLoad();
             AutoLootManager.Instance.OnSceneLoad();
             JournalPersistence.EnsureHookedAndLoad();
-            UpdateNotifier.CheckOnce();
             DressAgentManager.Instance.Load();
             FriendsListManager.Instance.OnSceneLoad();
             var _ = BandageManager.Instance;
@@ -276,8 +275,10 @@ namespace ClassicUO.Game.Scenes
                 XmlGumpHandler.TryAutoOpenByName(xml);
             }
 
+#if ENABLE_LEGION_SCRIPTING
             PersistentVars.Load();
             LegionScripting.LegionScripting.Init();
+#endif
             BuySellAgent.Load();
             OrganizerAgent.Load();
             GraphicsReplacement.Load();
@@ -448,8 +449,10 @@ namespace ClassicUO.Game.Scenes
             BuySellAgent.Unload();
             OrganizerAgent.Unload();
 
+#if ENABLE_LEGION_SCRIPTING
             PersistentVars.Unload();
             LegionScripting.LegionScripting.Unload();
+#endif
 
             ProfileManager.CurrentProfile.GameWindowPosition = new Point(
                 Camera.Bounds.X,
@@ -984,7 +987,10 @@ namespace ClassicUO.Game.Scenes
             if (rebuildCache)
             {
                 _nextCacheRebuild = (long)Time.Ticks + 50;
-                UI.MobileCache.Rebuild();
+                if (UI.MobileCache.IsNeeded)
+                    UI.MobileCache.Rebuild();
+                else
+                    UI.MobileCache.Clear();
                 FeatureDiagnostics.Guard("DismountTilt", UI.DismountTiltOverlay.Tick);
             }
             TazUOManagerScheduler.Tick();

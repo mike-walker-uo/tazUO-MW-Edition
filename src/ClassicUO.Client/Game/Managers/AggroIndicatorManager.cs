@@ -84,6 +84,7 @@ namespace ClassicUO.Game.Managers
         }
 
         public static IReadOnlyDictionary<uint, long> GetAll() => _aggressors;
+        public static bool HasAggressors => _aggressors.Count != 0;
 
         public static bool IsAggressor(uint serial)
         {

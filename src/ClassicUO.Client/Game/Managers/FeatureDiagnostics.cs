@@ -30,6 +30,7 @@ namespace ClassicUO.Game.Managers
         private static readonly object _sync = new object();
         private static readonly Dictionary<string, Entry> _entries =
             new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        private static volatile string[] _disabledNames = Array.Empty<string>();
 
         public static void Guard(string name, Action action)
         {
@@ -86,6 +87,7 @@ namespace ClassicUO.Game.Managers
                 if (!entry.Disabled && entry.FailureCount >= MAX_FAILURES)
                 {
                     entry.Disabled = true;
+                    RebuildDisabledNamesUnderLock();
                     disabledNow = true;
                 }
             }
@@ -102,10 +104,16 @@ namespace ClassicUO.Game.Managers
 
         public static bool IsDisabled(string name)
         {
-            lock (_sync)
+            if (name == null) return false;
+
+            string[] disabledNames = _disabledNames;
+            for (int i = 0; i < disabledNames.Length; i++)
             {
-                return name != null && _entries.TryGetValue(name, out Entry entry) && entry.Disabled;
+                if (string.Equals(name, disabledNames[i], StringComparison.OrdinalIgnoreCase))
+                    return true;
             }
+
+            return false;
         }
 
         public static Entry[] Snapshot()
@@ -138,13 +146,38 @@ namespace ClassicUO.Game.Managers
                 entry.Disabled = false;
                 entry.FailureCount = 0;
                 entry.FirstFailureAt = 0;
+                RebuildDisabledNamesUnderLock();
                 return true;
             }
         }
 
         public static void ResetSession()
         {
-            lock (_sync) _entries.Clear();
+            lock (_sync)
+            {
+                _entries.Clear();
+                _disabledNames = Array.Empty<string>();
+            }
+        }
+
+        private static void RebuildDisabledNamesUnderLock()
+        {
+            int count = 0;
+            foreach (Entry entry in _entries.Values)
+                if (entry.Disabled) count++;
+
+            if (count == 0)
+            {
+                _disabledNames = Array.Empty<string>();
+                return;
+            }
+
+            var disabledNames = new string[count];
+            int index = 0;
+            foreach (Entry entry in _entries.Values)
+                if (entry.Disabled) disabledNames[index++] = entry.Name;
+
+            _disabledNames = disabledNames;
         }
     }
 }

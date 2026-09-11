@@ -127,7 +127,7 @@ namespace ClassicUO.Game.Managers
 
         public static void Update()
         {
-            if (!World.InGame || World.Player == null)
+            if (!AmbienceOverlay.Enabled || !World.InGame || World.Player == null)
             {
                 return;
             }

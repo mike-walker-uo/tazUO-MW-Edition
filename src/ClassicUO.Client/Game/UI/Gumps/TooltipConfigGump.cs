@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -16,6 +15,14 @@ namespace ClassicUO.Game.UI.Gumps
         private const int WIDTH = 600, HEIGHT = 500;
         private VBoxContainer mainContainer;
         private VBoxContainer dataContainer;
+        private readonly Dictionary<Control, PendingSave> _pendingSaves = new Dictionary<Control, PendingSave>();
+        private readonly List<Control> _readySaves = new List<Control>();
+
+        private sealed class PendingSave
+        {
+            public long DueTime;
+            public Action Action;
+        }
 
         public TooltipConfigGump(int x = 100, int y = 100) : base(x, y, WIDTH, HEIGHT, ModernUIConstants.ModernUIPanel, ModernUIConstants.ModernUIPanel_BoderSize, true, WIDTH, HEIGHT)
         {
@@ -35,6 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void Build()
         {
+            FlushPendingSaves();
             Clear();
 
             mainContainer = new VBoxContainer(Width - (BorderSize * 2), 0, 5) {X = BorderSize, Y = BorderSize};
@@ -103,6 +111,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (e.Button == MouseButtonType.Left)
                 {
+                    FlushPendingSaves();
                     ToolTipOverrideData.ImportOverrideSettings();
                 }
             };
@@ -190,7 +199,7 @@ namespace ClassicUO.Game.UI.Gumps
                 AcceptKeyboardInput = true
             };
             searchTextInput.SetText(data.SearchText);
-            searchTextInput.TextChanged += (s, e) => SaveWithDelay(() =>
+            searchTextInput.TextChanged += (s, e) => SaveWithDelay(searchTextInput, () =>
             {
                 if (!string.IsNullOrEmpty(searchTextInput.Text))
                 {
@@ -198,7 +207,7 @@ namespace ClassicUO.Game.UI.Gumps
                     data.Save();
                     ShowSavedMessage(searchTextInput);
                 }
-            }, searchTextInput.Text);
+            });
             searchTextInput.SetTooltip("This is the search text for matching tooltip lines.");
 
             rowContainer.Add(searchTextInput);
@@ -210,12 +219,12 @@ namespace ClassicUO.Game.UI.Gumps
                 AcceptKeyboardInput = true
             };
             formatTextInput.SetText(data.FormattedText);
-            formatTextInput.TextChanged += (s, e) => SaveWithDelay(() =>
+            formatTextInput.TextChanged += (s, e) => SaveWithDelay(formatTextInput, () =>
             {
                 data.FormattedText = formatTextInput.Text;
                 data.Save();
                 ShowSavedMessage(formatTextInput);
-            }, formatTextInput.Text);
+            });
             formatTextInput.SetTooltip("This is what the matching tooltip line will be replaced with. See the wiki for more details!");
 
             rowContainer.Add(formatTextInput);
@@ -229,7 +238,7 @@ namespace ClassicUO.Game.UI.Gumps
             rowContainer.Add(minMaxLabel);
 
             var min1Input = CreateNumericInput(data.Min1.ToString(), 50, 20, minMaxLabel.X + minMaxLabel.Width + 3, 25);
-            min1Input.TextChanged += (s, e) => SaveWithDelay(() =>
+            min1Input.TextChanged += (s, e) => SaveWithDelay(min1Input, () =>
             {
                 if (int.TryParse(min1Input.Text, out int val))
                 {
@@ -237,11 +246,11 @@ namespace ClassicUO.Game.UI.Gumps
                     data.Save();
                     ShowSavedMessage(min1Input);
                 }
-            }, min1Input.Text);
+            });
             rowContainer.Add(min1Input);
 
             var max1Input = CreateNumericInput(data.Max1.ToString(), 50, 20, min1Input.X + min1Input.Width + 3, 25);
-            max1Input.TextChanged += (s, e) => SaveWithDelay(() =>
+            max1Input.TextChanged += (s, e) => SaveWithDelay(max1Input, () =>
             {
                 if (int.TryParse(max1Input.Text, out int val))
                 {
@@ -249,7 +258,7 @@ namespace ClassicUO.Game.UI.Gumps
                     data.Save();
                     ShowSavedMessage(max1Input);
                 }
-            }, max1Input.Text);
+            });
             rowContainer.Add(max1Input);
 
             var minMaxLabel2 = new Label("Min/Max", true, 0xFFFF)
@@ -260,7 +269,7 @@ namespace ClassicUO.Game.UI.Gumps
             rowContainer.Add(minMaxLabel2);
 
             var min2Input = CreateNumericInput(data.Min2.ToString(), 50, 20, minMaxLabel2.X + minMaxLabel2.Width + 3, 25);
-            min2Input.TextChanged += (s, e) => SaveWithDelay(() =>
+            min2Input.TextChanged += (s, e) => SaveWithDelay(min2Input, () =>
             {
                 if (int.TryParse(min2Input.Text, out int val))
                 {
@@ -268,11 +277,11 @@ namespace ClassicUO.Game.UI.Gumps
                     data.Save();
                     ShowSavedMessage(min2Input);
                 }
-            }, min2Input.Text);
+            });
             rowContainer.Add(min2Input);
 
             var max2Input = CreateNumericInput(data.Max2.ToString(), 50, 20, min2Input.X + min2Input.Width + 3, 25);
-            max2Input.TextChanged += (s, e) => SaveWithDelay(() =>
+            max2Input.TextChanged += (s, e) => SaveWithDelay(max2Input, () =>
             {
                 if (int.TryParse(max2Input.Text, out int val))
                 {
@@ -280,7 +289,7 @@ namespace ClassicUO.Game.UI.Gumps
                     data.Save();
                     ShowSavedMessage(max2Input);
                 }
-            }, max2Input.Text);
+            });
             rowContainer.Add(max2Input);
 
             var layerCombobox = new Combobox(max2Input.X + max2Input.Width + 5, max2Input.Y, 110,
@@ -306,6 +315,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (e.Button == MouseButtonType.Left)
                 {
+                    FlushPendingSaves();
                     data.Delete();
                     BuildTooltipData();
                 }
@@ -329,13 +339,60 @@ namespace ClassicUO.Game.UI.Gumps
             return input;
         }
 
-        private void SaveWithDelay(Action saveAction, string currentValue)
+        private void SaveWithDelay(Control control, Action saveAction)
         {
-            Task.Factory.StartNew(() =>
+            _pendingSaves[control] = new PendingSave
             {
-                System.Threading.Thread.Sleep(1500);
-                MainThreadQueue.EnqueueAction(saveAction);
-            });
+                DueTime = (long)Time.Ticks + 1500,
+                Action = saveAction
+            };
+        }
+
+        public override void Update()
+        {
+            base.Update();
+
+            if (_pendingSaves.Count == 0)
+                return;
+
+            long now = (long)Time.Ticks;
+            _readySaves.Clear();
+
+            foreach (var pending in _pendingSaves)
+            {
+                if (pending.Value.DueTime <= now)
+                    _readySaves.Add(pending.Key);
+            }
+
+            foreach (Control control in _readySaves)
+            {
+                if (_pendingSaves.TryGetValue(control, out PendingSave pending))
+                {
+                    _pendingSaves.Remove(control);
+                    pending.Action();
+                }
+            }
+        }
+
+        public override void Dispose()
+        {
+            FlushPendingSaves();
+            base.Dispose();
+        }
+
+        private void FlushPendingSaves()
+        {
+            if (_pendingSaves.Count == 0)
+                return;
+
+            Action[] actions = new Action[_pendingSaves.Count];
+            int index = 0;
+            foreach (PendingSave pending in _pendingSaves.Values)
+                actions[index++] = pending.Action;
+
+            _pendingSaves.Clear();
+            foreach (Action action in actions)
+                action();
         }
 
         private void ShowSavedMessage(Control control)
@@ -349,6 +406,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ClearAllTooltipData()
         {
+            _pendingSaves.Clear();
             ProfileManager.CurrentProfile.ToolTipOverride_SearchText = new List<string>();
             ProfileManager.CurrentProfile.ToolTipOverride_NewFormat = new List<string>();
             ProfileManager.CurrentProfile.ToolTipOverride_MinVal1 = new List<int>();

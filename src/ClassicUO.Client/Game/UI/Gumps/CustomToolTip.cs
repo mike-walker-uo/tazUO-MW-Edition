@@ -4,7 +4,6 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
-using System.Threading.Tasks;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -17,6 +16,8 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Item compareTo;
         private TextBox text;
         private readonly uint hue = 0xFFFF;
+        private int _loadAttempts;
+        private long _nextLoadAttempt;
 
         public event FinishedLoadingEvent OnOPLLoaded;
 
@@ -51,19 +52,22 @@ namespace ClassicUO.Game.UI.Gumps
             Height = text.Height;
             Width = text.Width;
 
-            LoadOPLData(0);
+            LoadOPLData();
         }
 
-        private void LoadOPLData(int attempt)
+        private void LoadOPLData()
         {
-            if (attempt > 4 || IsDisposed)
+            if (_loadAttempts >= 5 || IsDisposed)
                 return;
+
+            _loadAttempts++;
             if (item == null)
             {
                 Dispose();
                 return;
             }
 
+            bool loaded = false;
             if (World.OPL.Contains(item.Serial))
             {
                 if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
@@ -93,19 +97,26 @@ namespace ClassicUO.Game.UI.Gumps
                     Height = text.Height;
                     Width = text.Width;
                     OnOPLLoaded?.Invoke();
+                    _nextLoadAttempt = 0;
+                    loaded = true;
                 }
             }
-            else
+
+            if (!loaded && _loadAttempts < 5)
             {
-                Task.Factory.StartNew(() =>
-                {
-                    Task.Delay(1500).Wait();
-                    LoadOPLData(attempt++);
-                });
+                _nextLoadAttempt = (long)Time.Ticks + 1500;
             }
+        }
 
+        public override void Update()
+        {
+            base.Update();
 
-
+            if (!IsDisposed && _nextLoadAttempt != 0 && Time.Ticks >= _nextLoadAttempt)
+            {
+                _nextLoadAttempt = 0;
+                LoadOPLData();
+            }
         }
 
         private string FormatTooltip(string name, string data)
@@ -119,6 +130,14 @@ namespace ClassicUO.Game.UI.Gumps
                 append;
 
             return text;
+        }
+
+        public override void Dispose()
+        {
+            _nextLoadAttempt = 0;
+            text?.Dispose();
+            text = null;
+            base.Dispose();
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)

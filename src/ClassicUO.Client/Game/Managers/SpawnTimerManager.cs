@@ -52,6 +52,7 @@ namespace ClassicUO.Game.Managers
 
         private static readonly List<Timer> _timers = new List<Timer>();
         public static IReadOnlyList<Timer> All => _timers;
+        public static bool HasPending => _timers.Count != 0;
 
         public static void Add(string name, int seconds)
         {

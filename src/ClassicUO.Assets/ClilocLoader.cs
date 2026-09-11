@@ -88,13 +88,17 @@ namespace ClassicUO.Assets
 
                     if (!File.Exists(path))
                     {
-                        Log.Error($"cliloc not found: '{path}'");
-                        return;
+                        throw new FileNotFoundException($"Required cliloc file was not found: '{path}'.", path);
                     }
 
                     if (string.Compare(_cliloc, "cliloc.enu", StringComparison.InvariantCultureIgnoreCase) != 0)
                     {
                         string enupath = UOFileManager.GetUOFilePath("Cliloc.enu");
+                        if (!File.Exists(enupath))
+                        {
+                            throw new FileNotFoundException($"Required fallback cliloc file was not found: '{enupath}'.", enupath);
+                        }
+
                         ReadCliloc(enupath);
                     }
 
@@ -103,18 +107,25 @@ namespace ClassicUO.Assets
             );
         }
 
-        void ReadCliloc(string path)
+        private void ReadCliloc(string path)
         {
             var newFileFormat = UOFileManager.Version >= ClientVersion.CV_7010400;
-            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            byte[] buf = File.ReadAllBytes(path);
+            byte[] output;
 
-            int bytesRead;
-            var totalRead = 0;
-            var buf = new byte[fileStream.Length];
-            while ((bytesRead = fileStream.Read(buf, totalRead, Math.Min(4096, buf.Length - totalRead))) > 0)
-                totalRead += bytesRead;
+            try
+            {
+                output = newFileFormat ? ClassicUO.Utility.BwtDecompress.Decompress(buf) : buf;
+            }
+            catch (Exception ex)
+            {
+                throw InvalidCliloc(path, "decompression failed", ex);
+            }
 
-            var output = newFileFormat ? ClassicUO.Utility.BwtDecompress.Decompress(buf) : buf;
+            if (output == null || output.Length < 6)
+            {
+                throw InvalidCliloc(path, "file is shorter than its 6-byte header");
+            }
 
             using (var reader = new BinaryReader(new MemoryStream(output)))
             {
@@ -124,11 +135,23 @@ namespace ClassicUO.Assets
 
                 try
                 {
-                    while (reader.BaseStream.Length != reader.BaseStream.Position)
+                    while (reader.BaseStream.Position < reader.BaseStream.Length)
                     {
+                        long remaining = reader.BaseStream.Length - reader.BaseStream.Position;
+                        if (remaining < 7)
+                        {
+                            throw InvalidCliloc(path, $"truncated record header at offset {reader.BaseStream.Position}");
+                        }
+
                         int number = reader.ReadInt32();
                         byte flag = reader.ReadByte();
-                        int length = reader.ReadInt16();
+                        int length = reader.ReadUInt16();
+
+                        remaining = reader.BaseStream.Length - reader.BaseStream.Position;
+                        if (length > remaining)
+                        {
+                            throw InvalidCliloc(path, $"record {number} declares {length} bytes with only {remaining} remaining");
+                        }
 
                         if (length > buffer.Length)
                         {
@@ -137,7 +160,11 @@ namespace ClassicUO.Assets
                             buffer = System.Buffers.ArrayPool<byte>.Shared.Rent((length + 1023) & ~1023);
                         }
 
-                        reader.Read(buffer, 0, length);
+                        int bytesRead = reader.Read(buffer, 0, length);
+                        if (bytesRead != length)
+                        {
+                            throw InvalidCliloc(path, $"record {number} ended after {bytesRead} of {length} bytes");
+                        }
                         string text = string.Intern(Encoding.UTF8.GetString(buffer, 0, length));
 
                         _entries[number] = text;
@@ -148,6 +175,12 @@ namespace ClassicUO.Assets
                     System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
                 }
             }
+        }
+
+        private static InvalidDataException InvalidCliloc(string path, string reason, Exception inner = null)
+        {
+            string message = $"Invalid cliloc data in '{path}' ({reason}). Configured client version: {UOFileManager.Version}. Verify that the configured UO directory and client version match.";
+            return inner == null ? new InvalidDataException(message) : new InvalidDataException(message, inner);
         }
 
         public override void ClearResources()

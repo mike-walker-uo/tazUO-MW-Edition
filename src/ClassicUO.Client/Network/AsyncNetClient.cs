@@ -1,4 +1,5 @@
 using ClassicUO.Network.Encryption;
+using ClassicUO.Game.Managers;
 using ClassicUO.Utility.Logging;
 using System;
 using System.Net;
@@ -6,25 +7,31 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
-using System.Data;
 using System.IO;
 using System.Buffers;
+using System.Diagnostics;
 using SDL2;
 
 namespace ClassicUO.Network
 {
+    delegate void DataReceivedEventHandler(object sender, byte[] buffer, int offset, int count);
+
     sealed class AsyncSocketWrapper : IDisposable
     {
+        private const int CONNECT_TIMEOUT_MS = 15_000;
+
         private TcpClient _socket;
         private NetworkStream _stream;
         private CancellationTokenSource _cancellationTokenSource;
         private Task _receiveTask;
+        private int _disposed;
         public bool IsConnected => _socket?.Client?.Connected ?? false;
         public EndPoint LocalEndPoint => _socket?.Client?.LocalEndPoint;
 
         public event EventHandler OnConnected, OnDisconnected;
         public event EventHandler<SocketError> OnError;
-        public event EventHandler<byte[]> OnDataReceived;
+        // buffer is borrowed and valid only for the synchronous callback.
+        public event DataReceivedEventHandler OnDataReceived;
 
         public async Task<bool> ConnectAsync(string ip, int port, CancellationToken cancellationToken = default)
         {
@@ -37,7 +44,23 @@ namespace ClassicUO.Network
                 _socket.NoDelay = true;
                 _cancellationTokenSource = new CancellationTokenSource();
 
-                await _socket.ConnectAsync(ip, port);
+                Task connectTask = _socket.ConnectAsync(ip, port);
+                Task timeoutTask = Task.Delay(CONNECT_TIMEOUT_MS, cancellationToken);
+
+                if (await Task.WhenAny(connectTask, timeoutTask) != connectTask)
+                {
+                    CloseSocket();
+
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        Log.Error($"Connection to {ip}:{port} timed out.");
+                        OnError?.Invoke(this, SocketError.TimedOut);
+                    }
+
+                    return false;
+                }
+
+                await connectTask;
 
                 if (!IsConnected)
                 {
@@ -54,6 +77,20 @@ namespace ClassicUO.Network
                 OnConnected?.Invoke(this, EventArgs.Empty);
 
                 return true;
+            }
+            catch (SocketException) when (
+                cancellationToken.IsCancellationRequested
+                || _cancellationTokenSource?.IsCancellationRequested == true
+            )
+            {
+                return false;
+            }
+            catch (ObjectDisposedException) when (
+                cancellationToken.IsCancellationRequested
+                || _cancellationTokenSource?.IsCancellationRequested == true
+            )
+            {
+                return false;
             }
             catch (SocketException socketEx)
             {
@@ -79,11 +116,17 @@ namespace ClassicUO.Network
             try
             {
                 await _stream.WriteAsync(buffer, offset, count, cancellationToken);
-                await _stream.FlushAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
             }
             catch (Exception ex)
             {
                 Log.Error($"Error while sending {ex}");
+                CloseSocket();
                 OnError?.Invoke(this, SocketError.SocketError);
             }
         }
@@ -96,56 +139,56 @@ namespace ClassicUO.Network
             {
                 while (!cancellationToken.IsCancellationRequested && IsConnected)
                 {
-                    int toRead = Math.Min(buffer.Length, _socket.Client.Available);
-                    int bytesRead = -1;
-                    if(toRead > 0)
-                        bytesRead = await _stream.ReadAsync(buffer, 0, toRead, cancellationToken);
+                    int bytesRead = await _stream.ReadAsync(
+                        buffer,
+                        0,
+                        buffer.Length,
+                        cancellationToken
+                    );
 
                     if (bytesRead == 0)
                     {
                         OnDisconnected?.Invoke(this, EventArgs.Empty);
-                        Disconnect();
+                        CloseSocket();
 
                         break;
                     }
 
                     if (bytesRead > 0 && !cancellationToken.IsCancellationRequested)
                     {
-                        var data = new byte[bytesRead];
-                        Array.Copy(buffer, data, bytesRead);
-                        OnDataReceived?.Invoke(this, data);
+                        OnDataReceived?.Invoke(this, buffer, 0, bytesRead);
                     }
-
-                    await Task.Delay(1, cancellationToken);
                 }
+            }
+            catch (IOException) when (cancellationToken.IsCancellationRequested)
+            {
+                CloseSocket();
             }
             catch (IOException ioEx) when (ioEx.InnerException is SocketException socketEx)
             {
-                Disconnect();
+                CloseSocket();
 
                 switch (socketEx.SocketErrorCode)
                 {
-                    case SocketError.OperationAborted: OnError?.Invoke(this, SocketError.Success); break;
+                    case SocketError.OperationAborted: break;
                     default:
                         Log.Error($"Socket error in receive loop: {socketEx.SocketErrorCode} - {socketEx.Message}");
                         OnError?.Invoke(this, socketEx.SocketErrorCode); break;
                 }
 
             }
-            catch (OperationAbortedException)
-            {
-                Disconnect();
-                OnError?.Invoke(this, SocketError.Success);
-            }
             catch (OperationCanceledException)
             {
-                Disconnect();
-                OnError?.Invoke(this, SocketError.Success);
+                CloseSocket();
+            }
+            catch (ObjectDisposedException) when (cancellationToken.IsCancellationRequested)
+            {
+                CloseSocket();
             }
             catch (Exception ex)
             {
                 Log.Error($"Error in receive loop {ex}");
-                Disconnect();
+                CloseSocket();
                 OnError?.Invoke(this, SocketError.SocketError);
             }
             finally
@@ -154,27 +197,58 @@ namespace ClassicUO.Network
             }
         }
 
-        private bool _isDisconnecting;
         public void Disconnect()
         {
-            if (_isDisconnecting)
-                return;
+            CloseSocket();
+        }
 
-            _isDisconnecting = true;
+        public async Task WaitForReceiveCompletionAsync()
+        {
+            Task receiveTask = _receiveTask;
 
+            if (receiveTask != null && !receiveTask.IsCompleted)
+            {
+                try
+                {
+                    await receiveTask;
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private void CloseSocket()
+        {
             _cancellationTokenSource?.Cancel();
-            _receiveTask?.Wait(5000);
             _stream?.Close();
             _socket?.Close();
         }
 
         public void Dispose()
         {
-            _cancellationTokenSource?.Cancel();
-            _receiveTask?.Wait(5000);
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            CloseSocket();
             _stream?.Dispose();
             _socket?.Dispose();
-            _cancellationTokenSource?.Dispose();
+
+            CancellationTokenSource cancellation = _cancellationTokenSource;
+            Task receiveTask = _receiveTask;
+            if (receiveTask == null || receiveTask.IsCompleted)
+            {
+                cancellation?.Dispose();
+            }
+            else
+            {
+                receiveTask.ContinueWith(
+                    _ => cancellation?.Dispose(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default
+                );
+            }
         }
     }
 
@@ -182,16 +256,37 @@ namespace ClassicUO.Network
     {
         private const int BUFF_SIZE = 0x10000;
 
-        private readonly byte[] _compressedBuffer = new byte[4096];
         private readonly byte[] _uncompressedBuffer = new byte[BUFF_SIZE];
+        private readonly byte[] _sendingBuffer = new byte[4096];
         private readonly Huffman _huffman = new Huffman();
-        private bool _isCompressionEnabled;
+        private volatile bool _isCompressionEnabled;
         private readonly AsyncSocketWrapper _socket;
         private uint? _localIP;
         private readonly CircularBuffer _sendStream;
-        private readonly ConcurrentQueue<byte[]> _incomingMessages = new();
+        private readonly SemaphoreSlim _sendSignal = new SemaphoreSlim(0, 1);
+        private readonly ConcurrentQueue<IncomingMessage> _incomingMessages = new();
+        private readonly object _receiveSync = new object();
+        private readonly object _lifecycleSync = new object();
         private Task _networkTask;
-        private CancellationTokenSource _cancellationTokenSource = new();
+        private Task _disconnectTask;
+        private CancellationTokenSource _cancellationTokenSource;
+        private int _disposed;
+        private int _protocolDisconnectPending;
+        private int _sessionGeneration;
+        private int _incomingMessageCount;
+        private long _incomingBytes;
+
+        private readonly struct IncomingMessage
+        {
+            public IncomingMessage(byte[] data)
+            {
+                Data = data;
+                EnqueuedAt = Stopwatch.GetTimestamp();
+            }
+
+            public byte[] Data { get; }
+            public long EnqueuedAt { get; }
+        }
 
         public AsyncNetClient()
         {
@@ -203,11 +298,11 @@ namespace ClassicUO.Network
             _socket.OnConnected += (o, e) =>
             {
                 Statistics.Reset();
-                Connected?.Invoke(this, EventArgs.Empty);
+                MainThreadQueue.EnqueueAction(() => Connected?.Invoke(this, EventArgs.Empty));
             };
 
-            _socket.OnDisconnected += (o, e) => Disconnected?.Invoke(this, SocketError.Success);
-            _socket.OnError += (o, e) => Disconnected?.Invoke(this, e);
+            _socket.OnDisconnected += (o, e) => RaiseDisconnected(SocketError.Success);
+            _socket.OnError += (o, e) => RaiseDisconnected(e);
             _socket.OnDataReceived += OnDataReceived;
         }
 
@@ -250,10 +345,45 @@ namespace ClassicUO.Network
         public event EventHandler Connected;
         public event EventHandler<SocketError> Disconnected;
 
+        private void RaiseDisconnected(SocketError error)
+        {
+            MainThreadQueue.EnqueueAction(() => Disconnected?.Invoke(this, error));
+        }
+
         public async Task<bool> Connect(string ip, ushort port, CancellationToken cancellationToken = new ())
         {
-            _sendStream.Clear();
-            _huffman.Reset();
+            if (Volatile.Read(ref _disposed) != 0)
+                return false;
+
+            Task previousDisconnect;
+            lock (_lifecycleSync)
+            {
+                previousDisconnect = _disconnectTask;
+            }
+
+            if (previousDisconnect != null)
+                await previousDisconnect;
+
+            lock (_lifecycleSync)
+            {
+                if (_disconnectTask == previousDisconnect)
+                    _disconnectTask = null;
+            }
+
+            Interlocked.Increment(ref _sessionGeneration);
+            Interlocked.Exchange(ref _protocolDisconnectPending, 0);
+
+            lock (_sendStream)
+                _sendStream.Clear();
+
+            lock (_receiveSync)
+            {
+                _huffman.Reset();
+                _isCompressionEnabled = false;
+            }
+
+            ClearIncomingMessages();
+            PacketHandlers.Handler.Reset();
             Statistics.Reset();
 
             var success = await _socket.ConnectAsync(ip, port, cancellationToken);
@@ -267,41 +397,58 @@ namespace ClassicUO.Network
             return success;
         }
 
-        private bool _isDisconnecting;
-        public async Task Disconnect()
+        public Task Disconnect()
         {
-            if (_isDisconnecting)
-                return;
+            if (Volatile.Read(ref _disposed) != 0)
+                return Task.CompletedTask;
 
-            _isDisconnecting = true;
+            lock (_lifecycleSync)
+            {
+                return _disconnectTask ??= DisconnectCoreAsync();
+            }
+        }
 
+        private async Task DisconnectCoreAsync()
+        {
             SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_FALSE);
-            _isCompressionEnabled = false;
             Statistics.Reset();
 
             _cancellationTokenSource?.Cancel();
+            _socket.Disconnect();
+            await _socket.WaitForReceiveCompletionAsync();
 
             if(_networkTask != null)
             {
                 try
                 {
-                    await Task.WhenAny(_networkTask,Task.Delay(5000));
+                    await _networkTask;
                 }
                 catch { }
             }
 
-            ClearIncomingMessages();
+            lock (_sendStream)
+                _sendStream.Clear();
 
-            _socket.Disconnect();
-            _huffman.Reset();
-            _sendStream.Clear();
+            lock (_receiveSync)
+            {
+                _isCompressionEnabled = false;
+                _huffman.Reset();
+            }
+
+            ClearIncomingMessages();
+            PacketHandlers.Handler.Reset();
         }
 
         public void EnableCompression()
         {
-            _isCompressionEnabled = true;
-            _huffman.Reset();
-            _sendStream.Clear();
+            lock (_receiveSync)
+            {
+                _isCompressionEnabled = true;
+                _huffman.Reset();
+            }
+
+            lock (_sendStream)
+                _sendStream.Clear();
         }
 
         private async Task NetworkLoopAsync(CancellationToken cancellationToken)
@@ -310,45 +457,87 @@ namespace ClassicUO.Network
             {
                 try
                 {
-                    // Process outgoing data
+                    // Send immediately when signaled; wake twice per second
+                    // while idle so the statistics snapshot stays current.
+                    await _sendSignal.WaitAsync(500, cancellationToken);
                     await ProcessSendAsync(cancellationToken);
 
-                    // Update statistics
                     Statistics.Update();
-
-                    // Small delay to prevent excessive CPU usage
-                    await Task.Delay(1, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
-                    await Disconnect();
-                    Disconnected?.Invoke(this, SocketError.Success);
                     break;
                 }
                 catch (Exception ex)
                 {
-                    await Disconnect();
+                    _cancellationTokenSource?.Cancel();
+                    _socket.Disconnect();
                     Log.Error($"Network loop error: {ex}");
-                    Disconnected?.Invoke(this, SocketError.SocketError);
+                    RaiseDisconnected(SocketError.SocketError);
                     break;
                 }
             }
         }
 
-        private void OnDataReceived(object sender, byte[] data)
+        private void OnDataReceived(object sender, byte[] buffer, int offset, int count)
         {
+            bool decompressionFailed = false;
+            int sessionGeneration = Volatile.Read(ref _sessionGeneration);
+
             try
             {
-                Statistics.TotalBytesReceived += (uint)data.Length;
-
-                var span = data.AsSpan();
-                ProcessEncryption(span);
-                var decompressed = DecompressBuffer(span);
-
-                if (!decompressed.IsEmpty)
+                lock (_receiveSync)
                 {
-                    var message = decompressed.ToArray();
-                    _incomingMessages.Enqueue(message);
+                    if (!IsConnected || _cancellationTokenSource?.IsCancellationRequested == true)
+                        return;
+
+                    Statistics.TotalBytesReceived += (uint)count;
+
+                    var span = buffer.AsSpan(offset, count);
+                    ProcessEncryption(span);
+                    byte[] message;
+
+                    if (_isCompressionEnabled)
+                    {
+                        int size = _uncompressedBuffer.Length;
+
+                        if (!_huffman.Decompress(span, _uncompressedBuffer, ref size))
+                        {
+                            decompressionFailed = true;
+                            message = null;
+                        }
+                        else if (size == 0)
+                        {
+                            message = null;
+                        }
+                        else
+                        {
+                            message = _uncompressedBuffer.AsSpan(0, size).ToArray();
+                        }
+                    }
+                    else
+                    {
+                        message = span.ToArray();
+                    }
+
+                    if (message != null)
+                    {
+                        Interlocked.Increment(ref _incomingMessageCount);
+                        Interlocked.Add(ref _incomingBytes, message.Length);
+                        _incomingMessages.Enqueue(new IncomingMessage(message));
+                    }
+                }
+
+                if (decompressionFailed)
+                {
+                    Log.Error("Invalid compressed packet stream received from server.");
+
+                    if (Interlocked.CompareExchange(ref _protocolDisconnectPending, 1, 0) == 0)
+                    {
+                        MainThreadQueue.EnqueueAction(
+                            () => DisconnectForProtocolErrorCore(sessionGeneration)
+                        );
+                    }
                 }
             }
             catch (Exception ex)
@@ -359,14 +548,57 @@ namespace ClassicUO.Network
 
         public bool TryDequeuePacket(out byte[] packet)
         {
-            return _incomingMessages.TryDequeue(out packet);
+            if (_incomingMessages.TryDequeue(out IncomingMessage message))
+            {
+                packet = message.Data;
+                Interlocked.Decrement(ref _incomingMessageCount);
+                Interlocked.Add(ref _incomingBytes, -message.Data.Length);
+                return true;
+            }
+
+            packet = null;
+            return false;
+        }
+
+        public int IncomingMessageCount => Volatile.Read(ref _incomingMessageCount);
+        public long IncomingBytes => Interlocked.Read(ref _incomingBytes);
+
+        public long OldestIncomingMessageAgeMilliseconds
+        {
+            get
+            {
+                if (!_incomingMessages.TryPeek(out IncomingMessage message))
+                    return 0;
+
+                long elapsed = Stopwatch.GetTimestamp() - message.EnqueuedAt;
+                return elapsed * 1000 / Stopwatch.Frequency;
+            }
         }
 
         public void ClearIncomingMessages()
         {
-            while (_incomingMessages.TryDequeue(out _))
+            while (_incomingMessages.TryDequeue(out IncomingMessage message))
             {
+                Interlocked.Decrement(ref _incomingMessageCount);
+                Interlocked.Add(ref _incomingBytes, -message.Data.Length);
             }
+        }
+
+        internal void DisconnectForProtocolError()
+        {
+            if (Interlocked.CompareExchange(ref _protocolDisconnectPending, 1, 0) != 0)
+                return;
+
+            DisconnectForProtocolErrorCore(Volatile.Read(ref _sessionGeneration));
+        }
+
+        private void DisconnectForProtocolErrorCore(int sessionGeneration)
+        {
+            if (sessionGeneration != Volatile.Read(ref _sessionGeneration))
+                return;
+
+            RaiseDisconnected(SocketError.ProtocolNotSupported);
+            _ = Disconnect();
         }
 
         public void Send(Span<byte> message, bool ignorePlugin = false, bool skipEncryption = false)
@@ -394,6 +626,11 @@ namespace ClassicUO.Network
             lock (_sendStream)
             {
                 _sendStream.Enqueue(message);
+
+                if (_sendSignal.CurrentCount == 0)
+                {
+                    _sendSignal.Release();
+                }
             }
 
             Statistics.TotalBytesSent += (uint)message.Length;
@@ -413,62 +650,66 @@ namespace ClassicUO.Network
             if (!IsConnected)
                 return;
 
-            byte[] sendingBuffer = null;
-            int bytesToSend = 0;
-
             try
             {
-                lock (_sendStream)
+                while (IsConnected)
                 {
-                    if (_sendStream.Length > 0)
+                    int bytesToSend;
+
+                    lock (_sendStream)
                     {
-                        sendingBuffer = new byte[4096];
-
-                        int size = Math.Min(sendingBuffer.Length, _sendStream.Length);
-
-                        bytesToSend = _sendStream.Dequeue(sendingBuffer, 0, size);
+                        int size = Math.Min(_sendingBuffer.Length, _sendStream.Length);
+                        bytesToSend = _sendStream.Dequeue(_sendingBuffer, 0, size);
                     }
-                }
 
-                if (bytesToSend > 0 && sendingBuffer != null)
-                {
-                    await _socket.SendAsync(sendingBuffer, 0, bytesToSend, cancellationToken);
+                    if (bytesToSend <= 0)
+                    {
+                        break;
+                    }
+
+                    await _socket.SendAsync(
+                        _sendingBuffer,
+                        0,
+                        bytesToSend,
+                        cancellationToken
+                    );
                 }
             }
             catch (Exception ex)
             {
                 Log.Error($"Error in ProcessSendAsync: {ex}");
-                Disconnected?.Invoke(this, SocketError.SocketError);
+                throw;
             }
-        }
-
-        private Span<byte> DecompressBuffer(Span<byte> buffer)
-        {
-            if (!_isCompressionEnabled)
-                return buffer;
-
-            var size = 65536;
-
-            if (!_huffman.Decompress(buffer, _uncompressedBuffer, ref size))
-            {
-                _ = Disconnect();
-                Disconnected?.Invoke(this, SocketError.SocketError);
-
-                return Span<byte>.Empty;
-            }
-
-            return _uncompressedBuffer.AsSpan(0, size);
         }
 
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
             _cancellationTokenSource?.Cancel();
-            try
-            {
-                _networkTask?.Wait(5000);
-            }
-            catch { }
             _socket?.Dispose();
+
+            Task networkTask = _networkTask;
+            if (networkTask == null || networkTask.IsCompleted)
+            {
+                DisposeSynchronizationObjects();
+            }
+            else
+            {
+                networkTask.ContinueWith(
+                    _ => DisposeSynchronizationObjects(),
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default
+                );
+            }
+        }
+
+        private void DisposeSynchronizationObjects()
+        {
+            _sendSignal.Dispose();
+            _cancellationTokenSource?.Dispose();
         }
     }
 }

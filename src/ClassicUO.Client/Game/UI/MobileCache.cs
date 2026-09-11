@@ -7,6 +7,7 @@
 using System.Collections.Generic;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers;
 
 namespace ClassicUO.Game.UI
 {
@@ -19,33 +20,86 @@ namespace ClassicUO.Game.UI
         public static readonly List<Mobile> Pets = new List<Mobile>(16);
         public static readonly List<Item> GroundItems = new List<Item>(128);
 
+        public static bool IsNeeded => NeedsAllMobiles || NeedsHostiles || NeedsPets || NeedsGroundItems;
+
+        private static bool NeedsAllMobiles =>
+            GhostFadeOverlay.Enabled
+            || AmbienceOverlay.Enabled
+            || NotorietyDotOverlay.Enabled
+            || MobBloodOverlay.Enabled
+            || SpellAbilityEffectSettings.CustomEffectsEnabled
+                && (EffectsBundle.Death || EffectsBundle.SpeedLines
+                    || EffectsBundle.Knockback || EffectsBundle.StatusAura);
+
+        private static bool NeedsHostiles =>
+            HostileEdgeHighlight.Enabled
+            || OffscreenEnemyArrow.Enabled
+            || NearestHostileLine.Enabled
+            || CombatMobHpBars.Range > 0
+            || TargetingYouAura.Enabled;
+
+        private static bool NeedsPets =>
+            AutoBandageManager.Enabled
+            || PetBandageManager.Enabled
+            || ExternalBandageManager.Enabled
+            || PetHpBarsOverlay.Enabled;
+
+        private static bool NeedsGroundItems =>
+            AmbienceOverlay.Enabled
+            || GroundLootFinder.Range > 0
+            || HideTrashOverlay.Range > 0
+            || CorpseFadeOverlay.Enabled
+            || SpellAbilityEffectSettings.CustomEffectsEnabled && EffectsBundle.LootPillar;
+
         public static void Rebuild()
         {
+            bool needAll = NeedsAllMobiles;
+            bool needHostiles = NeedsHostiles;
+            bool needPets = NeedsPets;
+            bool needGroundItems = NeedsGroundItems;
+
             All.Clear();
             Hostiles.Clear();
             Pets.Clear();
             GroundItems.Clear();
-            foreach (var m in World.Mobiles.Values)
-            {
-                if (m != null && !m.IsDestroyed)
-                {
-                    All.Add(m);
-                    if (m != World.Player)
-                    {
-                        var notoriety = m.NotorietyFlag;
-                        if (!m.IsDead && notoriety != NotorietyFlag.Innocent &&
-                            notoriety != NotorietyFlag.Invulnerable &&
-                            notoriety != NotorietyFlag.Ally)
-                            Hostiles.Add(m);
 
-                        if (ShouldCachePet(false, m.IsDead, m.IsRenamable, notoriety))
-                            Pets.Add(m);
+            if (needAll || needHostiles || needPets)
+            {
+                foreach (var m in World.Mobiles.Values)
+                {
+                    if (m != null && !m.IsDestroyed)
+                    {
+                        if (needAll) All.Add(m);
+                        if (m != World.Player)
+                        {
+                            var notoriety = m.NotorietyFlag;
+                            if (needHostiles && !m.IsDead
+                                && notoriety != NotorietyFlag.Innocent
+                                && notoriety != NotorietyFlag.Invulnerable
+                                && notoriety != NotorietyFlag.Ally)
+                            {
+                                Hostiles.Add(m);
+                            }
+
+                            if (needPets && ShouldCachePet(false, m.IsDead, m.IsRenamable, notoriety))
+                            {
+                                Pets.Add(m);
+                            }
+                        }
                     }
                 }
             }
 
-            foreach (var item in World.Items.Values)
-                if (item != null && !item.IsDestroyed && item.OnGround) GroundItems.Add(item);
+            if (needGroundItems)
+            {
+                foreach (var item in World.Items.Values)
+                {
+                    if (item != null && !item.IsDestroyed && item.OnGround)
+                    {
+                        GroundItems.Add(item);
+                    }
+                }
+            }
         }
 
         internal static bool ShouldCachePet(bool isPlayer, bool isDead, bool isRenamable, NotorietyFlag notoriety)
