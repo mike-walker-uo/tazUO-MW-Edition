@@ -1,5 +1,8 @@
-# tazUO-MW-Edition
-Based on the Legacy version 4.5.22.0 of the wonderful tazUO (Custom client for Ultima Online) 
+# TazUO MW Edition
+
+Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
+
+[Download the latest release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/latest)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -14,16 +17,24 @@ It has many features, some of them are:
   - Skill Gain tracker, Damage tracker, Death recap
   - Integrated weapon, spellbook, shield, talisman switcher (like slayer bar)
   - Tracking "line" (not just arrow)
+  - Nearby speech history with search and filters
+  - Surface-aware and fantasy movement trails
+  - Performance HUD with ping and jitter history
+  - Profile recovery and safe graphics startup
+  - Individual opacity controls for supported gumps
+  - Tithing-point tracking and low-point warnings for Chivalry users
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
-Howto:
+## Installation
+
 1. Make a backup of your ClassicUO folder.
-2. Place the content of the "tazUO-MW-Edition-win-x64" folder in your ClassicUO or tazUO folder (where the ClassicUO.exe is located).
-3. Optional: Place the content of the "UOMusic" folder in your UO Folder > Music > Digital (drop the mp3s here)
-4. Start ClassicUO.exe.
-5. Optional: After login click on the "Scan" button on the Music Player gump.
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [latest release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/latest).
+3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
+4. Optional: Place the contents of the `UOMusic` folder in your UO folder under `Music/Digital`.
+5. Start `ClassicUO.exe`.
+6. Optional: After login, click **Scan** in the Music Player gump.
 
 
 some videos:
@@ -38,4 +49,3 @@ License:
 This project is a fork of software developed by andreakarasho:
 https://github.com/andreakarasho
 Licensed under the BSD-4-Clause license. See LICENSE.
-
