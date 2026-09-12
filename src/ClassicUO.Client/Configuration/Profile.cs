@@ -97,10 +97,18 @@ namespace ClassicUO.Configuration
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
         public byte CustomGumpTheme { get; set; }
+        public byte CustomGumpOpacity { get; set; } = 100;
+        public byte DurabilityGumpOpacity { get; set; } = 100;
+        public bool BoostGumpOpacityOnHover { get; set; }
+        public byte GumpHoverOpacityPercent { get; set; } = 100;
+        public byte SlayerBarOpacity { get; set; } = 100;
+        public bool SlayerBarCollapsed { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point GumpThemeSelectorPosition { get; set; } = new Point(180, 100);
         public bool VisualSilence { get; set; }
         public bool ClassicEffectsOnly { get; set; }
         public bool EnableFootstepsSound { get; set; } = true;
+        public bool FootstepGraphicsEnabled { get; set; } = true;
+        public bool BloodDecalsEnabled { get; set; } = false;
         public bool EnableCombatMusic { get; set; } = true;
         public bool ReproduceSoundsInBackground { get; set; }
 
@@ -112,6 +120,8 @@ namespace ClassicUO.Configuration
         public bool ForceUnicodeJournal { get; set; }
         public bool IgnoreAllianceMessages { get; set; }
         public bool IgnoreGuildMessages { get; set; }
+        public bool ExcludeOwnSpeechHistory { get; set; }
+        public bool ExcludePetSpeechHistory { get; set; }
 
         // hues
         public ushort SpeechHue { get; set; } = 0x02B2;
@@ -252,6 +262,7 @@ namespace ClassicUO.Configuration
         public int WaterStyleDefaultsVersion { get; set; }
         public int WaterIntensityDefaultsVersion { get; set; }
         public int CombatOverlayDefaultsVersion { get; set; }
+        public int FootstepVisualDefaultsVersion { get; set; }
         public bool EnableRepairBenchAutomation { get; set; }
         public byte HeavySnowIntensity { get; set; } = 40;
         public byte BlizzardIntensity { get; set; } = 55;
@@ -301,6 +312,7 @@ namespace ClassicUO.Configuration
         public int OverrideContainerLocationSetting { get; set; } // 0 = container position, 1 = top right of screen, 2 = last dragged position, 3 = remember every container
 
         [JsonConverter(typeof(Point2Converter))] public Point OverrideContainerLocationPosition { get; set; } = new Point(200, 200);
+        [JsonConverter(typeof(Point2Converter))] public Point LastCorpseContainerPosition { get; set; } = new Point(100, 100);
         public bool HueContainerGumps { get; set; } = true;
         public int DragSelectStartX { get; set; } = 100;
         public int DragSelectStartY { get; set; } = 100;
@@ -373,6 +385,7 @@ namespace ClassicUO.Configuration
         public byte ContainersScale { get; set; } = 100;
 
         public byte ContainerOpacity { get; set; } = 50;
+        public byte CorpseContainerOpacity { get; set; } = 50;
 
         public bool ScaleItemsInsideContainers { get; set; }
 
@@ -483,6 +496,7 @@ namespace ClassicUO.Configuration
         #region IMPROVED BUFF BAR
         public bool UseImprovedBuffBar { get; set; } = true;
         public ushort ImprovedBuffBarHue { get; set; } = 905;
+        public byte BuffBarOpacity { get; set; } = 100;
         #endregion
 
         #region DAMAGE NUMBER HUES
@@ -1130,6 +1144,9 @@ namespace ClassicUO.Configuration
                                     break;
                                 case GumpType.GuildChat:
                                     gump = new GuildChatGump(x, y);
+                                    break;
+                                case GumpType.NearbySpeechHistory:
+                                    gump = new NearbySpeechGump(x, y);
                                     break;
                                 case GumpType.PetStatusPanel:
                                     gump = new PetStatusPanelGump(x, y);

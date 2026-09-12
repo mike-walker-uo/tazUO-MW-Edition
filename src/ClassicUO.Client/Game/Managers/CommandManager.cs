@@ -61,6 +61,7 @@ namespace ClassicUO.Game.Managers
             // haven't been opened yet.
             UI.Gumps.GlobalChatHistory.EnsureHooked();
             UI.Gumps.GuildChatHistory.EnsureHooked();
+            UI.Gumps.NearbySpeechHistory.EnsureHooked();
             SkillCapTracker.EnsureHooked();
             DamageTypeTagManager.Hook();
             ReflectCounterManager.Hook();
@@ -118,6 +119,30 @@ namespace ClassicUO.Game.Managers
                     return;
                 }
                 UIManager.Add(new UI.Gumps.GuildChatGump(220, 220));
+            });
+
+            Register("speechhistory", (s) =>
+            {
+                var existing = UIManager.GetGump<UI.Gumps.NearbySpeechGump>();
+
+                if (s != null && s.Length >= 2 && s[1].Trim().Equals("clear", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (existing != null && !existing.IsDisposed)
+                        existing.ClearHistory();
+                    else
+                        UI.Gumps.NearbySpeechHistory.Instance.Clear();
+
+                    GameActions.Print("Nearby speech history cleared.", 0x35);
+                    return;
+                }
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.Dispose();
+                    return;
+                }
+
+                UIManager.Add(new UI.Gumps.NearbySpeechGump(240, 240));
             });
 
             Register("targetenemy", (s) => TargetOrAttackNearestEnemy(false));
@@ -970,6 +995,13 @@ namespace ClassicUO.Game.Managers
                     return;
                 }
                 if (existing == null || existing.IsDisposed) UIManager.Add(new UI.Gumps.PerfHudGump(120, 80));
+            });
+
+            Register("profilerecovery", (s) =>
+            {
+                var existing = UIManager.GetGump<UI.Gumps.ProfileRecoveryGump>();
+                if (existing != null && !existing.IsDisposed) { existing.BringOnTop(); return; }
+                UIManager.Add(new UI.Gumps.ProfileRecoveryGump());
             });
 
             Register("skillgains", (s) =>
@@ -2902,6 +2934,13 @@ Register("pathpreview", (s) =>
                     ? !UI.MoveTrailOverlay.Enabled
                     : s[1].Trim().Equals("on", System.StringComparison.OrdinalIgnoreCase);
                 UI.MoveTrailOverlay.SetEnabled(on);
+            });
+
+            Register("trailfx", (s) =>
+            {
+                var existing = UIManager.GetGump<UI.Gumps.TrailEffectsGump>();
+                if (existing != null && !existing.IsDisposed) existing.Dispose();
+                UIManager.Add(new UI.Gumps.TrailEffectsGump());
             });
 
             Register("weightalert", (s) =>

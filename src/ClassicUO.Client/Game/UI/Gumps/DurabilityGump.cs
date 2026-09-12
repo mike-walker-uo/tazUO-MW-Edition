@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using ClassicUO.Assets;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
@@ -84,6 +85,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public DurabilitysGump() : base(lastX, lastY, lastWidth, lastHeight, ModernUIConstants.ModernUIPanel, ModernUIConstants.ModernUIPanel_BoderSize, true, 200, 200)
         {
+            DrawNineSliceBackground = false;
             LayerOrder = UILayer.Default;
             CanCloseWithRightClick = true;
             CanMove = true;
@@ -107,10 +109,14 @@ namespace ClassicUO.Game.UI.Gumps
         {
             Clear();
 
+            float opacityScale = GetOpacityScale();
+            Alpha = opacityScale;
+
             Add(_bgOverlay = CustomGumpThemeManager.CreateBackground(
                 Width,
                 Height,
                 0.78f));
+            _bgOverlay.OpacityScaleOverride = opacityScale;
 
             BuildHeader();
 
@@ -180,6 +186,7 @@ namespace ClassicUO.Game.UI.Gumps
                     Height = a.Height - 2
                 };
                 CustomGumpThemeManager.ApplyDataSurface(rowBackground, 0.30f);
+                rowBackground.Alpha *= GetOpacityScale();
                 a.Add(rowBackground);
 
                 const int REPAIR_BTN_W = 56;
@@ -253,6 +260,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _dataBox.Add(a);
             }
+        }
+
+        private static float GetOpacityScale() =>
+            (ProfileManager.CurrentProfile?.DurabilityGumpOpacity ?? 100) / 100f;
+
+        internal static void UpdateAllOpacity()
+        {
+            foreach (DurabilitysGump gump in UIManager.Gumps.OfType<DurabilitysGump>())
+                gump.Build();
         }
 
         // Repair Bench item graphics. 0xA27F is the SA Repair Bench.

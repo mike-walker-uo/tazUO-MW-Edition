@@ -7,6 +7,7 @@
 #endregion
 
 using System;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
@@ -110,55 +111,39 @@ namespace ClassicUO.Game.UI
 
             var w = scene.Weather;
             bool snowing = w.IsActive && w.Type == WeatherType.WT_SNOW;
-            bool raining = w.IsActive && (w.Type == WeatherType.WT_RAIN || w.Type == WeatherType.WT_STORM_APPROACH);
             bool coldAir = snowing || w.Coldness > 0.25f
                 || World.Season == Season.Winter && EnvironmentalShadowManager.Night > 0.35f;
 
             ScanEnvironment();
             UpdateAmbientSound(w);
 
-            // Footprints: drop a smudge on the tile we just left while it
-            // snows (tracks in snow) or rains (wet prints).
+            // Keep movement-sensitive biome state current. Footstep decals are
+            // handled independently by SceneryInteractionManager.
             int px = World.Player.X, py = World.Player.Y;
             if (px != _lastTileX || py != _lastTileY)
             {
-                ScenerySurface previousSurface = _lastTileX == int.MinValue
-                    ? ScenerySurface.None
-                    : SceneryInteractionManager.ClassifySurface(
-                        _lastTileX, _lastTileY, World.Player.Z);
-                bool keepsTracks = previousSurface == ScenerySurface.Dirt
-                    || previousSurface == ScenerySurface.Sand
-                    || previousSurface == ScenerySurface.Snow;
-                if (_lastTileX != int.MinValue
-                    && (keepsTracks || snowing || raining || w.Wetness > 0.18f))
-                {
-                    scene.GroundDecals.AddAtTile(
-                        _lastTileX,
-                        _lastTileY,
-                        World.Player.Z,
-                        2,
-                        GroundDecalKind.Footprint
-                    );
-                }
                 _lastTileX = px;
                 _lastTileY = py;
                 _onSand = IsSandTile(px, py);
             }
 
             // Blood pools: decal under freshly dead mobiles.
-            foreach (var m in MobileCache.All)
+            if (ProfileManager.CurrentProfile.BloodDecalsEnabled)
             {
-                if (m == null || m.IsDestroyed || !m.IsDead) continue;
-                if (m == World.Player) continue;
-                if (m.Distance > 18) continue;
-                if (!_knownDead.Add(m.Serial)) continue;
-                scene.GroundDecals.AddAtTile(
-                    m.X,
-                    m.Y,
-                    m.Z,
-                    (byte)RandomHelper.GetValue(3, 5),
-                    GroundDecalKind.Blood
-                );
+                foreach (var m in MobileCache.All)
+                {
+                    if (m == null || m.IsDestroyed || !m.IsDead) continue;
+                    if (m == World.Player) continue;
+                    if (m.Distance > 18) continue;
+                    if (!_knownDead.Add(m.Serial)) continue;
+                    scene.GroundDecals.AddAtTile(
+                        m.X,
+                        m.Y,
+                        m.Z,
+                        (byte)RandomHelper.GetValue(3, 5),
+                        GroundDecalKind.Blood
+                    );
+                }
             }
             if (_knownDead.Count > 300) _knownDead.Clear();
 

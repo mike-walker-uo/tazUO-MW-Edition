@@ -745,6 +745,48 @@ namespace ClassicUO.Game.UI.Gumps
             PositionHelper.PositionControl(s.FullControl);
             PositionHelper.BlankLine();
 
+            var trailEffectsButton = new NiceButton(
+                0, 0, 190, 25, ButtonAction.Activate, "Configure movement trails")
+            {
+                IsSelectable = false,
+                DisplayBorder = true
+            };
+            trailEffectsButton.MouseUp += (sender, args) =>
+            {
+                if (args.Button == Input.MouseButtonType.Left)
+                    UIManager.Add(new TrailEffectsGump());
+            };
+            options.Add
+            (
+                s = new SettingsOption("", trailEffectsButton, MainContent.RightWidth, (int)PAGE.Sound)
+            );
+            PositionHelper.PositionControl(s.FullControl);
+            PositionHelper.BlankLine();
+
+            options.Add
+            (
+                s = new SettingsOption
+                (
+                    "", new CheckboxWithLabel("Surface-aware footstep graphics", 0, profile.FootstepGraphicsEnabled, (b) => { profile.FootstepGraphicsEnabled = b; }), MainContent.RightWidth,
+                    (int)PAGE.Sound
+                )
+            );
+
+            PositionHelper.PositionControl(s.FullControl);
+            PositionHelper.BlankLine();
+
+            options.Add
+            (
+                s = new SettingsOption
+                (
+                    "", new CheckboxWithLabel("Blood ground decals", 0, profile.BloodDecalsEnabled, (b) => { profile.BloodDecalsEnabled = b; }), MainContent.RightWidth,
+                    (int)PAGE.Sound
+                )
+            );
+
+            PositionHelper.PositionControl(s.FullControl);
+            PositionHelper.BlankLine();
+
 
             options.Add
             (
@@ -2753,31 +2795,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.BlankLine();
 
-            content.AddToRight
-            (
-                new SliderWithLabel
-                    (lang.GetTazUO.GridItemBorderOpacity, 0, ThemeSettings.SLIDER_WIDTH, 0, 100, profile.GridBorderAlpha, (i) => { profile.GridBorderAlpha = (byte)i; }), true, page
-            );
-
-            content.Indent();
             content.AddToRight(new ModernColorPickerWithLabel(lang.GetTazUO.BorderColor, profile.GridBorderHue, (h) => { profile.GridBorderHue = h; }), true, page);
-            content.RemoveIndent();
 
             content.BlankLine();
-
-            content.AddToRight
-            (
-                new SliderWithLabel
-                (
-                    lang.GetTazUO.ContainerOpacity, 0, ThemeSettings.SLIDER_WIDTH, 0, 100, profile.ContainerOpacity, (i) =>
-                    {
-                        profile.ContainerOpacity = (byte)i;
-                        GridContainer.UpdateAllGridContainers();
-                    }
-                ), true, page
-            );
-
-            content.Indent();
 
             content.AddToRight
             (
@@ -2802,8 +2822,6 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 ), true, page
             );
-
-            content.RemoveIndent();
 
             content.BlankLine();
 
@@ -2935,20 +2953,6 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
-                (
-                    lang.GetTazUO.JournalOpacity, 0, ThemeSettings.SLIDER_WIDTH, 0, 100, profile.JournalOpacity, (i) =>
-                    {
-                        profile.JournalOpacity = (byte)i;
-                        ResizableJournal.UpdateJournalOptions();
-                    }
-                ), true, page
-            );
-
-            content.Indent();
-
-            content.AddToRight
-            (
                 new ModernColorPickerWithLabel
                 (
                     lang.GetTazUO.JournalBackgroundColor, profile.AltJournalBackgroundHue, (h) =>
@@ -2959,7 +2963,6 @@ namespace ClassicUO.Game.UI.Gumps
                 ), true, page
             );
 
-            content.RemoveIndent();
             content.BlankLine();
 
             content.AddToRight
@@ -3363,12 +3366,6 @@ namespace ClassicUO.Game.UI.Gumps
             content.AddToRight(new ModernColorPickerWithLabel(lang.GetTazUO.HotkeyTextHue, profile.SpellIcon_HotkeyHue, (h) => { profile.SpellIcon_HotkeyHue = h; }), true, page);
             content.RemoveIndent();
             content.BlankLine();
-
-            content.AddToRight
-            (
-                new CheckboxWithLabel
-                    (lang.GetTazUO.EnableGumpOpacityAdjustViaAltScroll, 0, profile.EnableAlphaScrollingOnGumps, (b) => { profile.EnableAlphaScrollingOnGumps = b; }), true, page
-            );
 
             content.BlankLine();
             content.AddToRight(new CheckboxWithLabel(lang.GetTazUO.EnableAdvancedShopGump, 0, profile.UseModernShopGump, (b) => { profile.UseModernShopGump = b; }), true, page);
@@ -4143,6 +4140,137 @@ namespace ClassicUO.Game.UI.Gumps
             content.AddToRight(GenHotKeyDisplay("World Map - Pathfind", "CTRL RIGHT-CLICK", ewidth), true, page);
             content.AddToRight(GenHotKeyDisplay("World Map - Add Marker", "CTRL CLICK", ewidth), true, page);
             content.AddToRight(GenHotKeyDisplay("Screen shot gump/tooltip only", "CTRL PRINTSCREEN", ewidth), true, page);
+
+            #endregion
+
+            #region Gump opacity
+
+            page = ((int)PAGE.TUOOptions + 1012);
+            content.AddToLeft(SubCategoryButton("Gump opacity", page, content.LeftWidth));
+            content.ResetRightSide();
+
+            content.AddToRight
+            (
+                new CheckboxWithLabel
+                    (lang.GetTazUO.EnableGumpOpacityAdjustViaAltScroll, 0, profile.EnableAlphaScrollingOnGumps, (b) => { profile.EnableAlphaScrollingOnGumps = b; }), true, page
+            );
+
+            content.BlankLine();
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Custom utility/chat gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    20, 100, profile.CustomGumpOpacity,
+                    CustomGumpThemeManager.SetOpacity
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Durability gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    10, 100, profile.DurabilityGumpOpacity, (i) =>
+                    {
+                        profile.DurabilityGumpOpacity = (byte)i;
+                        DurabilitysGump.UpdateAllOpacity();
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    lang.GetTazUO.ContainerOpacity, 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.ContainerOpacity, (i) =>
+                    {
+                        profile.ContainerOpacity = (byte)i;
+                        GridContainer.UpdateAllGridContainers();
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Corpse container opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.CorpseContainerOpacity, (i) =>
+                    {
+                        profile.CorpseContainerOpacity = (byte)i;
+                        GridContainer.UpdateAllGridContainers();
+                        ContainerGump.UpdateAllCorpseOpacity();
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                    (lang.GetTazUO.GridItemBorderOpacity, 0, ThemeSettings.SLIDER_WIDTH, 0, 100, profile.GridBorderAlpha, (i) => { profile.GridBorderAlpha = (byte)i; }), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    lang.GetTazUO.JournalOpacity, 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.JournalOpacity, (i) =>
+                    {
+                        profile.JournalOpacity = (byte)i;
+                        ResizableJournal.UpdateJournalOptions();
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Buff/debuff bar opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    10, 100, profile.BuffBarOpacity,
+                    (i) => { profile.BuffBarOpacity = (byte)i; }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Slayer/equipment bar opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.SlayerBarOpacity,
+                    (i) =>
+                    {
+                        profile.SlayerBarOpacity = (byte)i;
+                        PaperDollBackpackEquipmentGump.UpdateAllOptions();
+                    }
+                ), true, page
+            );
+
+            content.BlankLine();
+
+            content.AddToRight
+            (
+                new CheckboxWithLabel
+                (
+                    "Set gump opacity while hovered", 0,
+                    profile.BoostGumpOpacityOnHover,
+                    (enabled) => { profile.BoostGumpOpacityOnHover = enabled; }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    "Opacity while hovered (%)", 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.GumpHoverOpacityPercent,
+                    (i) => { profile.GumpHoverOpacityPercent = (byte)i; }
+                ), true, page
+            );
 
             #endregion
 

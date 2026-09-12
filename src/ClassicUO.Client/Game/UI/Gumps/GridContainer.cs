@@ -60,7 +60,7 @@ namespace ClassicUO.Game.UI.Gumps
         #endregion
 
         #region private static vars
-        private static int lastX = 100, lastY = 100, lastCorpseX = 100, lastCorpseY = 100;
+        private static int lastX = 100, lastY = 100;
         private static int gridItemSize { get { return (int)Math.Round(50 * (ProfileManager.CurrentProfile.GridContainersScale / 100f)); } }
         private static int borderWidth = 4;
         #endregion
@@ -166,8 +166,9 @@ namespace ClassicUO.Game.UI.Gumps
             lastWidth = Width = savedSize.X;
             lastHeight = Height = savedSize.Y;
 
-            X = isCorpse ? lastCorpseX : lastX = lastPos.X;
-            Y = isCorpse ? lastCorpseY : lastY = lastPos.Y;
+            Point corpsePosition = ProfileManager.CurrentProfile.LastCorpseContainerPosition;
+            X = isCorpse ? corpsePosition.X : lastX = lastPos.X;
+            Y = isCorpse ? corpsePosition.Y : lastY = lastPos.Y;
 
             if (isCorpse)
             {
@@ -194,10 +195,10 @@ namespace ClassicUO.Game.UI.Gumps
                 Height = Height - (borderWidth * 2),
                 X = borderWidth,
                 Y = borderWidth,
-                Alpha = (float)ProfileManager.CurrentProfile.ContainerOpacity / 100,
+                Alpha = GetBackgroundOpacity(),
                 Hue = ProfileManager.CurrentProfile.Grid_UseContainerHue ? container.Hue : ProfileManager.CurrentProfile.AltGridContainerBackgroundHue
             };
-            CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha);
+            CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha, false);
 
             backgroundTexture = new GumpPicTiled(0);
             #endregion
@@ -369,7 +370,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Width = searchBox.Width,
                 Height = searchBox.Height
             };
-            CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.5f);
+            CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.5f, false);
             searchBox.Add(searchBackground);
             Add(searchBox);
             Add(searchClearButton);
@@ -613,14 +614,19 @@ namespace ClassicUO.Game.UI.Gumps
             base.OnMove(x, y);
             gridContainerEntry.X = X;
             gridContainerEntry.Y = Y;
+
+            if (isCorpse && ProfileManager.CurrentProfile != null)
+            {
+                ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+            }
         }
 
         public override void Dispose()
         {
             if (isCorpse)
             {
-                lastCorpseX = X;
-                lastCorpseY = Y;
+                if (ProfileManager.CurrentProfile != null)
+                    ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
             }
             else
             {
@@ -733,19 +739,20 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void OptionsUpdated()
         {
-            float newAlpha = ProfileManager.CurrentProfile.ContainerOpacity / 100f;
+            float newAlpha = GetBackgroundOpacity();
             ushort newHue = ProfileManager.CurrentProfile.Grid_UseContainerHue
                 ? container.Hue
                 : ProfileManager.CurrentProfile.AltGridContainerBackgroundHue;
 
             background.Hue = newHue;
-            CustomGumpThemeManager.ApplyDataSurface(background, newAlpha);
+            CustomGumpThemeManager.ApplyDataSurface(background, newAlpha, false);
             backgroundTexture.Hue = newHue;
             backgroundTexture.Alpha = newAlpha;
             BorderControl.Hue = newHue;
             BorderControl.Alpha = newAlpha;
+            gridSlotManager?.UpdateBackgroundOpacity(newAlpha);
 
-            CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.5f);
+            CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.5f, false);
             containerNameLabel.Hue = CustomGumpThemeManager.DataTextHue;
             searchBox.Hue = CustomGumpThemeManager.DataTextHue;
             CustomGumpThemeManager.StyleDataButton(searchClearButton);
@@ -757,6 +764,15 @@ namespace ClassicUO.Game.UI.Gumps
                 : ANCHOR_TYPE.DISABLED;
 
             BuildBorder();
+        }
+
+        private float GetBackgroundOpacity()
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile == null)
+                return 0.5f;
+
+            return (isCorpse ? profile.CorpseContainerOpacity : profile.ContainerOpacity) / 100f;
         }
 
         public static void UpdateAllGridContainers()
@@ -942,7 +958,8 @@ namespace ClassicUO.Game.UI.Gumps
                 background = new AlphaBlendControl(0.25f)
                 {
                     Width = size,
-                    Height = size
+                    Height = size,
+                    Alpha = 0.25f * gridContainer.GetBackgroundOpacity()
                 };
 
                 Width = Height = size;
@@ -950,6 +967,11 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(background);
 
                 SetGridItem(_item);
+            }
+
+            internal void UpdateBackgroundOpacity(float opacity)
+            {
+                background.Alpha = 0.25f * opacity;
             }
 
             public void AddText(string text, ushort hue)
@@ -1550,6 +1572,12 @@ namespace ClassicUO.Game.UI.Gumps
                     return item;
 
                 return null;
+            }
+
+            public void UpdateBackgroundOpacity(float opacity)
+            {
+                foreach (GridItem item in gridSlots.Values)
+                    item.UpdateBackgroundOpacity(opacity);
             }
 
             public void RebuildContainer(List<Item> filteredItems, string searchText = "", bool overrideSort = false)

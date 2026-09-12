@@ -339,7 +339,9 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case InfoBarVars.NameNotoriety: return World.Player.Name;
 
-                case InfoBarVars.TithingPoints: return World.Player.TithingPoints.ToString();
+                case InfoBarVars.TithingPoints:
+                    TithingManager.RequestRefreshIfStale();
+                    return TithingManager.DisplayValue;
 
                 default: return "";
             }

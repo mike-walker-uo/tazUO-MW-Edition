@@ -10,6 +10,58 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private static readonly string[] updateTexts =
         {
+            "/c[white][0.3]/cd\n" +
+            """
+            - Added nearby player-speech history with session clearing
+            - Added nearby-speech filters for the player and owned pets
+            - Removed the speech-composer field from nearby speech history
+            - Added adjustable utility and chat gump background opacity while preserving container opacity
+            - Added separate corpse-container and buff/debuff-bar opacity controls
+            - Added durability-gump opacity and an absolute 0-100% hover-opacity target
+            - Consolidated individual gump-opacity controls on a dedicated options page
+            - Showed a gump's real opacity while Alt is held for opacity adjustment
+            - Excluded classic and modern paperdolls from hover-opacity changes
+            - Added slayer/equipment-bar opacity and collapse controls
+            - Extended Alt+mouse-wheel opacity adjustment through modern gump child controls
+            - Preserved Alt-scroll opacity when script gumps rebuild their controls
+            - Fixed zero-opacity corpse grid slots and buff-bar hover flickering
+            - Applied buff-bar hover opacity consistently across all rows without fading icons or text
+            - Saved the last corpse-container position across client restarts
+            - Matched the durability-gump background to the selected custom theme
+            - Added freshness-aware tithing display and low-tithing warnings for Chivalry users
+            - Added value-based performance HUD colors
+            - Kept Perf HUD ping values green through 150 ms
+            - Wrapped long Perf HUD stall diagnostics within the panel
+            - Improved login-screen alignment for the MW Edition logo and version information
+            - Made the base -speechhistory command directly pinnable in the command palette
+            - Added an expanded performance HUD with frame time, 1% low FPS, ping/jitter history, network queue, GC, and stall diagnostics
+            - Added profile and gump-layout recovery snapshots with an in-game recovery gump
+            - Added safe graphics startup mode with the -safegraphics argument
+            - Added startup checks for missing or incomplete Ultima Online data
+            - Added visible surface-aware footstep effects for water, snow, grass, sand, mud, dirt, wood, stone, mines, and dungeons
+            - Added mount-aware boot, hoof, claw, and large-creature tracks with surface particles
+            - Added selectable blood, shadow, arcane, fire, frost, poison, holy, necromantic, lightning, petal, leaf, rune, stardust, ethereal, rainbow, and lava movement trails
+            - Replaced generated fantasy-trail symbols with varied native UO artwork
+            - Reworked inconsistent fantasy trails with larger coherent native-UO effect frames and removed tree artwork from Falling Leaves
+            - Increased Fire, Poison, and Lava Cracks trails to normal effect size
+            - Added the -trailfx gump for trail style, intensity, lifetime, surface-track, and particle controls
+            - Preserved the trail-effects gump position when changing its options
+            - Disabled blood splatter, blood trail, and blood ground decals by default
+            - Reduced unnecessary feature-settings disk writes
+            - Added event-handler fault isolation so one optional feature cannot interrupt other handlers
+            - Added incoming network queue limits to prevent runaway memory use during stalls
+
+            Bug fixes
+            - Fixed startup recovery when global settings cannot be loaded
+            - Fixed disabled movement trails continuing to collect positions
+            - Fixed legacy blood-trail settings remaining enabled after an upgrade
+            - Fixed footstep decals disappearing when the full ambience overlay is disabled
+            - Fixed Alt+mouse-wheel and hover opacity changes fading gump text
+            - Fixed zero-opacity gumps retaining a forced 10% background
+            - Fixed corpse grid slots ignoring corpse-container opacity
+            - Fixed buff-bar hover opacity flickering
+            """ +
+            "\n",
             "/c[white][0.21]/cd\n" +
             """
             - Replaced the original TazUO history with MW Edition release notes

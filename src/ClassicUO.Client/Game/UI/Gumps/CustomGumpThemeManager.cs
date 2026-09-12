@@ -52,6 +52,15 @@ namespace ClassicUO.Game.UI.Gumps
 
         internal static int ThemeCount => (int)CustomGumpTheme.Necropolis + 1;
 
+        internal static float OpacityScale
+        {
+            get
+            {
+                int opacity = ProfileManager.CurrentProfile?.CustomGumpOpacity ?? 100;
+                return Math.Max(20, Math.Min(100, opacity)) / 100f;
+            }
+        }
+
         internal static ushort TitleHue => Current == CustomGumpTheme.Classic
             ? (ushort)0x0386
             : (ushort)0x0481;
@@ -89,8 +98,9 @@ namespace ClassicUO.Game.UI.Gumps
             internal readonly Color OriginalMaterialAccent;
             internal float Alpha;
             internal bool PreserveHue;
+            internal bool ApplyCustomOpacity;
 
-            internal ThemeSurface(AlphaBlendControl control, float alpha)
+            internal ThemeSurface(AlphaBlendControl control, float alpha, bool applyCustomOpacity)
             {
                 Control = new WeakReference<AlphaBlendControl>(control);
                 OriginalColor = control.BaseColor;
@@ -101,6 +111,7 @@ namespace ClassicUO.Game.UI.Gumps
                 OriginalMaterialStyle = control.MaterialStyle;
                 OriginalMaterialAccent = control.MaterialAccent;
                 Alpha = alpha;
+                ApplyCustomOpacity = applyCustomOpacity;
             }
         }
 
@@ -222,9 +233,13 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        internal static ThemedGumpBackground CreateBackground(int width, int height, float minimalAlpha)
+        internal static ThemedGumpBackground CreateBackground(
+            int width,
+            int height,
+            float minimalAlpha,
+            bool applyCustomOpacity = true)
         {
-            return new ThemedGumpBackground(width, height, minimalAlpha, Current);
+            return new ThemedGumpBackground(width, height, minimalAlpha, Current, applyCustomOpacity);
         }
 
         internal static void StyleButton(NiceButton button)
@@ -277,15 +292,22 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        internal static void ApplyDataSurface(AlphaBlendControl control, float alpha)
+        internal static void ApplyDataSurface(
+            AlphaBlendControl control,
+            float alpha,
+            bool applyCustomOpacity = true)
         {
             if (control == null)
             {
                 return;
             }
 
-            ThemeSurface surface = RegisterSurface(control, alpha);
-            control.Alpha = Math.Max(alpha, MinimumSurfaceAlpha(Current));
+            ThemeSurface surface = RegisterSurface(control, alpha, applyCustomOpacity);
+            float opacityScale = applyCustomOpacity ? OpacityScale : 1f;
+            float surfaceAlpha = applyCustomOpacity
+                ? Math.Max(alpha, MinimumSurfaceAlpha(Current))
+                : alpha;
+            control.Alpha = surfaceAlpha * opacityScale;
 
             if (Current == CustomGumpTheme.TazUO)
             {
@@ -516,13 +538,16 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             ushort hue = control.Hue;
-            ThemeSurface surface = RegisterSurface(control, alpha);
+            ThemeSurface surface = RegisterSurface(control, alpha, true);
             surface.PreserveHue = true;
             ApplyDataSurface(control, alpha);
             control.Hue = hue;
         }
 
-        private static ThemeSurface RegisterSurface(AlphaBlendControl control, float alpha)
+        private static ThemeSurface RegisterSurface(
+            AlphaBlendControl control,
+            float alpha,
+            bool applyCustomOpacity)
         {
             for (int i = _themeSurfaces.Count - 1; i >= 0; i--)
             {
@@ -535,11 +560,12 @@ namespace ClassicUO.Game.UI.Gumps
                 if (ReferenceEquals(target, control))
                 {
                     _themeSurfaces[i].Alpha = alpha;
+                    _themeSurfaces[i].ApplyCustomOpacity = applyCustomOpacity;
                     return _themeSurfaces[i];
                 }
             }
 
-            var surface = new ThemeSurface(control, alpha);
+            var surface = new ThemeSurface(control, alpha, applyCustomOpacity);
             _themeSurfaces.Add(surface);
             return surface;
         }
@@ -559,19 +585,22 @@ namespace ClassicUO.Game.UI.Gumps
                 if (surface.PreserveHue)
                 {
                     ushort hue = control.Hue;
-                    ApplyDataSurface(control, surface.Alpha);
+                    ApplyDataSurface(control, surface.Alpha, surface.ApplyCustomOpacity);
                     control.Hue = hue;
                 }
                 else
                 {
-                    ApplyDataSurface(control, surface.Alpha);
+                    ApplyDataSurface(control, surface.Alpha, surface.ApplyCustomOpacity);
                 }
             }
         }
 
-        internal static void ApplyInputSurface(AlphaBlendControl control, float alpha = 0.65f)
+        internal static void ApplyInputSurface(
+            AlphaBlendControl control,
+            float alpha = 0.65f,
+            bool applyCustomOpacity = true)
         {
-            ApplyDataSurface(control, alpha);
+            ApplyDataSurface(control, alpha, applyCustomOpacity);
 
             if (control != null && Current != CustomGumpTheme.Minimal && Current != CustomGumpTheme.TazUO)
             {
@@ -771,6 +800,17 @@ namespace ClassicUO.Game.UI.Gumps
             RefreshOpenGumps();
         }
 
+        internal static void SetOpacity(int opacity)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile == null)
+                return;
+
+            profile.CustomGumpOpacity = (byte)Math.Max(20, Math.Min(100, opacity));
+            RefreshRegisteredSurfaces();
+            DurabilitysGump.UpdateAllOpacity();
+        }
+
         private static void RefreshOpenGumps()
         {
             RefreshRegisteredSurfaces();
@@ -782,6 +822,7 @@ namespace ClassicUO.Game.UI.Gumps
             Refresh(UIManager.GetGump<BandageOptionsGump>(), () => new BandageOptionsGump());
             Refresh(UIManager.GetGump<GlobalChatGump>(), () => new GlobalChatGump());
             Refresh(UIManager.GetGump<GuildChatGump>(), () => new GuildChatGump());
+            Refresh(UIManager.GetGump<NearbySpeechGump>(), () => new NearbySpeechGump());
             Refresh(UIManager.GetGump<GumpThemeSelectorGump>(), () => new GumpThemeSelectorGump());
             Refresh(UIManager.GetGump<DurabilitysGump>(), () => new DurabilitysGump());
 
@@ -883,11 +924,22 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly AlphaBlendControl[] _edges;
         private readonly int _margin;
 
-        internal ThemedGumpBackground(int width, int height, float minimalAlpha, CustomGumpTheme theme)
+        private readonly bool _applyCustomOpacity;
+        private readonly float _fillAlpha;
+        private float _lastOpacityScale = -1f;
+        internal float OpacityScaleOverride { get; set; } = 1f;
+
+        internal ThemedGumpBackground(
+            int width,
+            int height,
+            float minimalAlpha,
+            CustomGumpTheme theme,
+            bool applyCustomOpacity)
         {
             Width = width;
             Height = height;
             AcceptMouseInput = false;
+            _applyCustomOpacity = applyCustomOpacity;
 
             ushort frameGraphic = 0;
             float fillAlpha = minimalAlpha;
@@ -1064,6 +1116,7 @@ namespace ClassicUO.Game.UI.Gumps
                 BaseColor = fillColor
             };
             CustomGumpThemeManager.ApplyMaterial(_fill, theme);
+            _fillAlpha = fillAlpha;
             Add(_fill);
 
             if (theme != CustomGumpTheme.Minimal && theme != CustomGumpTheme.TazUO)
@@ -1085,12 +1138,33 @@ namespace ClassicUO.Game.UI.Gumps
                 for (int i = 0; i < _edges.Length; i++) Add(_edges[i]);
                 SyncSize();
             }
+
+            ApplyOpacity();
         }
 
         public override void Update()
         {
+            ApplyOpacity();
             SyncSize();
             base.Update();
+        }
+
+        private void ApplyOpacity()
+        {
+            float scale = (_applyCustomOpacity ? CustomGumpThemeManager.OpacityScale : 1f)
+                * MathHelper.Clamp(OpacityScaleOverride, 0f, 1f);
+            if (Math.Abs(scale - _lastOpacityScale) < 0.001f)
+                return;
+
+            _lastOpacityScale = scale;
+            _fill.Alpha = _fillAlpha * scale;
+            if (_frame != null) _frame.Alpha = scale;
+            if (_header != null) _header.Alpha = 0.20f * scale;
+            if (_edges != null)
+            {
+                for (int i = 0; i < _edges.Length; i++)
+                    _edges[i].Alpha = 0.55f * scale;
+            }
         }
 
         private static AlphaBlendControl Edge(Color color)

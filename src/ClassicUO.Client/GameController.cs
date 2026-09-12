@@ -125,7 +125,7 @@ namespace ClassicUO
             GraphicManager.ApplyChanges();
             MainThreadHangDiagnostics.Start(GraphicsDevice.Adapter.Description);
 
-            SetRefreshRate(Settings.GlobalSettings.FPS);
+            SetRefreshRate(CUOEnviroment.SafeGraphicsMode ? 60 : Settings.GlobalSettings.FPS);
             _uoSpriteBatch = new UltimaBatcher2D(GraphicsDevice);
 
             _filter = HandleSdlEvent;
@@ -579,6 +579,7 @@ namespace ClassicUO
 
         protected override void Update(GameTime gameTime)
         {
+            FrameTimingMetrics.Record(gameTime.ElapsedGameTime.TotalMilliseconds);
             MainThreadHangDiagnostics.BeginFrame("update");
             MainThreadHangDiagnostics.Mark("Update: time");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Other);

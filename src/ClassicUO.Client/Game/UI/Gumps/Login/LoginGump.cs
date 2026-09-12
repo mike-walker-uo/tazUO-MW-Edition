@@ -167,7 +167,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x034E, font: 9)
                     {
-                        X = 286,
+                        X = 266,
                         Y = 453
                     }
                 );
@@ -176,7 +176,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x034E, font: 9)
                     {
-                        X = 286,
+                        X = 266,
                         Y = 465
                     }
                 );
@@ -268,7 +268,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x0481, font: 9)
                     {
-                        X = 286,
+                        X = 266,
                         Y = 453
                     }
                 );
@@ -277,7 +277,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x0481, font: 9)
                     {
-                        X = 286,
+                        X = 266,
                         Y = 465
                     }
                 );
@@ -325,7 +325,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 Add
                 (
-                    new EmbeddedGumpPic(250, 445, mwLogoTexture)
+                    new EmbeddedGumpPic(230, 445, mwLogoTexture)
                     {
                         Width = 34,
                         Height = 34,

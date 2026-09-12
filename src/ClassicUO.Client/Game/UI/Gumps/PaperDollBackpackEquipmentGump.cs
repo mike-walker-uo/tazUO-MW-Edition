@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
@@ -20,6 +22,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const int PADDING = 5;
         private const int CATEGORY_GAP = 4;
         private const int OWNER_GAP = 3;
+        private const int COLLAPSE_WIDTH = 18;
         private const uint SCAN_INTERVAL = 500;
 
         private readonly PaperDollGump _owner;
@@ -84,6 +87,20 @@ namespace ClassicUO.Game.UI.Gumps
             CollectBackpackItems(weapons, shields, talismans, spellbooks);
 
             int signature = CalculateSignature(weapons, shields, talismans, spellbooks);
+            bool collapsed = ProfileManager.CurrentProfile?.SlayerBarCollapsed ?? false;
+
+            if (collapsed)
+            {
+                Clear();
+                Width = 24;
+                Height = 24;
+                AddBackground();
+                AddCollapseButton(true);
+                _contentSignature = signature;
+                UpdatePosition();
+                return;
+            }
+
             int categoryCount = (weapons.Count > 0 ? 1 : 0)
                 + (shields.Count > 0 ? 1 : 0)
                 + (talismans.Count > 0 ? 1 : 0)
@@ -108,11 +125,12 @@ namespace ClassicUO.Game.UI.Gumps
                 Math.Max(weapons.Count, Math.Max(shields.Count, Math.Max(talismans.Count, spellbooks.Count)))
             );
 
-            Width = PADDING * 2 + totalColumns * CELL + CATEGORY_GAP * (categoryCount - 1);
+            Width = PADDING * 2 + COLLAPSE_WIDTH + totalColumns * CELL + CATEGORY_GAP * (categoryCount - 1);
             Height = PADDING * 2 + HEADER_HEIGHT + visibleRows * CELL;
 
             Clear();
-            Add(CustomGumpThemeManager.CreateBackground(Width, Height, 0.88f));
+            AddBackground();
+            AddCollapseButton(false);
 
             int column = 0;
             int category = 0;
@@ -154,7 +172,7 @@ namespace ClassicUO.Game.UI.Gumps
             int categoryIndex)
         {
             int categoryOffset = categoryIndex * CATEGORY_GAP;
-            int startX = PADDING + firstColumn * CELL + categoryOffset;
+            int startX = PADDING + COLLAPSE_WIDTH + firstColumn * CELL + categoryOffset;
             int categoryWidth = columnCount * CELL;
             Label label = new Label(caption, true, CustomGumpThemeManager.TitleHue, font: 1);
             label.X = startX + (categoryWidth - label.Width) / 2;
@@ -255,8 +273,47 @@ namespace ClassicUO.Game.UI.Gumps
                 hash = AddItemsToSignature(hash, talismans, 3);
                 hash = AddItemsToSignature(hash, spellbooks, 4);
                 hash = hash * 31 + (int)CustomGumpThemeManager.Current;
+                hash = hash * 31 + (ProfileManager.CurrentProfile?.SlayerBarCollapsed == true ? 1 : 0);
+                hash = hash * 31 + (ProfileManager.CurrentProfile?.SlayerBarOpacity ?? 100);
                 return hash;
             }
+        }
+
+        private void AddBackground()
+        {
+            ThemedGumpBackground background = CustomGumpThemeManager.CreateBackground(Width, Height, 0.88f, false);
+            background.OpacityScaleOverride = GetOpacityScale();
+            Add(background);
+        }
+
+        private void AddCollapseButton(bool collapsed)
+        {
+            NiceButton button = new NiceButton(4, 3, 16, 16, ButtonAction.Default, collapsed ? "+" : "-")
+            {
+                IsSelectable = false,
+                AlwaysShowBackground = true,
+                DisplayBorder = true
+            };
+            CustomGumpThemeManager.StyleDataButton(button);
+            button.SetTooltip(collapsed ? "Expand slayer/equipment bar" : "Collapse slayer/equipment bar");
+            button.MouseUp += (sender, e) =>
+            {
+                if (e.Button != MouseButtonType.Left || ProfileManager.CurrentProfile == null)
+                    return;
+
+                ProfileManager.CurrentProfile.SlayerBarCollapsed = !ProfileManager.CurrentProfile.SlayerBarCollapsed;
+                BuildContents();
+            };
+            Add(button);
+        }
+
+        private static float GetOpacityScale() =>
+            (ProfileManager.CurrentProfile?.SlayerBarOpacity ?? 100) / 100f;
+
+        internal static void UpdateAllOptions()
+        {
+            foreach (PaperDollBackpackEquipmentGump gump in UIManager.Gumps.OfType<PaperDollBackpackEquipmentGump>())
+                gump.BuildContents();
         }
 
         private static int AddItemsToSignature(int hash, List<Item> items, int category)
@@ -324,12 +381,12 @@ namespace ClassicUO.Game.UI.Gumps
                 AcceptMouseInput = true;
                 CanMove = false;
 
-                AlphaBlendControl background = new AlphaBlendControl(0.60f)
+                AlphaBlendControl background = new AlphaBlendControl(0.60f * GetOpacityScale())
                 {
                     Width = Width,
                     Height = Height
                 };
-                CustomGumpThemeManager.ApplyDataSurface(background, 0.60f);
+                CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha, false);
                 Add(background);
                 SetTooltip(item.Serial);
             }

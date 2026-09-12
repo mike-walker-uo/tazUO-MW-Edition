@@ -20,10 +20,18 @@ namespace ClassicUO.Game.UI.Gumps
         private int _lastDisplayedSeconds = int.MinValue;
         private int startX, startY;
         private readonly bool isBuffBar;
+        private readonly float _backgroundBaseAlpha;
+        private readonly float _foregroundBaseAlpha;
+        private float _lastBuffOpacityScale = -1f;
 
         private GumpPic gumpPic;
 
         public BuffIconType buffIconType;
+
+        internal bool IsBuffBar => isBuffBar;
+
+        internal bool IsHoverOpacitySurface(Control control) =>
+            ReferenceEquals(control, background);
 
         public CoolDownBar(TimeSpan _duration, string _name, ushort _hue, int x, int y, ushort graphic = ushort.MaxValue, BuffIconType type = BuffIconType.Unknown2, bool isBuffBar = false) : base(0, 0)
         {
@@ -48,12 +56,14 @@ namespace ClassicUO.Game.UI.Gumps
             background.Width = COOL_DOWN_WIDTH;
             background.Height = COOL_DOWN_HEIGHT;
             background.Hue = _hue;
-            CustomGumpThemeManager.ApplyDataSurface(background, 0.3f);
+            CustomGumpThemeManager.ApplyDataSurface(background, 0.3f, false);
+            _backgroundBaseAlpha = background.Alpha;
 
             foreground = new AlphaBlendControl(0.8f);
             foreground.Width = COOL_DOWN_WIDTH;
             foreground.Height = COOL_DOWN_HEIGHT;
             foreground.Hue = _hue;
+            _foregroundBaseAlpha = foreground.Alpha;
             #endregion
 
             if (graphic != ushort.MaxValue)
@@ -92,12 +102,14 @@ namespace ClassicUO.Game.UI.Gumps
             Add(foreground);
             Add(textLabel);
             Add(cooldownLabel);
+            ApplyBuffBarOpacity();
             #endregion
         }
 
         public override void Update()
         {
             base.Update();
+            ApplyBuffBarOpacity();
 
             if (
                 !isBuffBar &&
@@ -110,6 +122,20 @@ namespace ClassicUO.Game.UI.Gumps
                 startX = X;
                 startY = Y;
             }
+        }
+
+        private void ApplyBuffBarOpacity()
+        {
+            if (!isBuffBar)
+                return;
+
+            float scale = (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100) / 100f;
+            if (Math.Abs(scale - _lastBuffOpacityScale) < 0.001f)
+                return;
+
+            background.Alpha = _backgroundBaseAlpha * scale;
+            foreground.Alpha = _foregroundBaseAlpha * scale;
+            _lastBuffOpacityScale = scale;
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -140,19 +166,23 @@ namespace ClassicUO.Game.UI.Gumps
 
             base.Draw(batcher, x, y);
 
+            float borderAlpha = isBuffBar
+                ? (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100) / 100f
+                : 1f;
+
             batcher.DrawRectangle(
                     SolidColorTextureCache.GetTexture(Color.Black),
                     x, y,
                     COOL_DOWN_WIDTH,
                     COOL_DOWN_HEIGHT,
-                    ShaderHueTranslator.GetHueVector(background.Hue, false, 1f)
+                    ShaderHueTranslator.GetHueVector(background.Hue, false, borderAlpha)
                 );
             batcher.DrawRectangle(
                 SolidColorTextureCache.GetTexture(Color.Black),
                 x + 1, y + 1,
                 COOL_DOWN_WIDTH - 2,
                 COOL_DOWN_HEIGHT - 2,
-                ShaderHueTranslator.GetHueVector(background.Hue, false, 1f)
+                ShaderHueTranslator.GetHueVector(background.Hue, false, borderAlpha)
             );
 
             return true;

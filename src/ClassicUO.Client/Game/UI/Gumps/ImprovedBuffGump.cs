@@ -16,6 +16,7 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _direction = false;
         private ushort _graphic = 2091;
         private DataBox _box;
+        private float _lastOpacity = -1f;
 
         public ImprovedBuffGump() : base(0, 0)
         {
@@ -45,6 +46,16 @@ namespace ClassicUO.Game.UI.Gumps
         {
             BuffBarManager.RemoveBuffType(graphic);
             BuffBarManager.UpdatePositions(_direction, _box);
+        }
+
+        internal bool IsHoverOpacitySurface(Control control)
+        {
+            if (ReferenceEquals(control, _background))
+                return true;
+
+            return control?.Parent is CoolDownBar buffBar
+                && buffBar.IsBuffBar
+                && buffBar.IsHoverOpacitySurface(control);
         }
 
         private void SwitchDirections()
@@ -85,6 +96,15 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Update()
         {
             base.Update();
+            if (_background != null)
+            {
+                float opacity = (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100) / 100f;
+                if (Math.Abs(opacity - _lastOpacity) > 0.001f)
+                {
+                    _background.Alpha = opacity;
+                    _lastOpacity = opacity;
+                }
+            }
         }
 
         public override void OnButtonClick(int buttonID)
@@ -100,6 +120,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _background = new GumpPic(0, 0, _graphic, 0);
             _background.Width = CoolDownBar.COOL_DOWN_WIDTH;
+            _lastOpacity = (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100) / 100f;
+            _background.Alpha = _lastOpacity;
 
             _button = new Button(0, 0x7585, 0x7589, 0x7589)
             {

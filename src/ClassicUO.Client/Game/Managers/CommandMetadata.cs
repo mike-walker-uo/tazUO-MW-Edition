@@ -95,6 +95,7 @@ namespace ClassicUO.Game.Managers
             // --- UI ---
             { "globalchat",     new Entry { Category="UI", Description="Open global chat.", Usage="" } },
             { "guildchat",      new Entry { Category="UI", Description="Open guild chat.", Usage="" } },
+            { "speechhistory",  new Entry { Category="UI", Description="Open nearby speech history. Use Clear inside the gump to reset it.", Usage="" } },
             { "damagetracker",  new Entry { Category="UI", Description="Open damage tracker gump.", Usage="" } },
             { "options",        new Entry { Category="UI", Description="Open modern options gump.", Usage="" } },
             { "optlink",        new Entry { Category="UI", Description="Jump to a specific options page.", Usage="<name>" } },
@@ -182,6 +183,7 @@ namespace ClassicUO.Game.Managers
             { "pathcolor",     new Entry { Category="Movement", Description="Set path preview hue.", Usage="<hue>" } },
             { "dismounttilt",  new Entry { Category="Movement", Description="Tilt-pulse on dismount.", Usage="on|off" } },
             { "trail",         new Entry { Category="Movement", Description="Show recent move trail.", Usage="on|off" } },
+            { "trailfx",       new Entry { Category="Movement", Description="Open surface-track, particle, and fantasy movement-trail controls.", Usage="" } },
             { "jump",          new Entry { Category="Movement", Description="Jump to coordinates (gm).", Usage="<x> <y>" } },
             { "recall",        new Entry { Category="Movement", Description="Recall to a marked rune.", Usage="<rune>" } },
             { "mark",          new Entry { Category="Movement", Description="Mark a rune.", Usage="" } },
@@ -290,6 +292,7 @@ namespace ClassicUO.Game.Managers
             { "nativechat",    new Entry { Category="Misc", Description="Replace recognized server global-chat gumps.", Usage="on|off" } },
             { "repairauto",    new Entry { Category="Misc", Description="Enable recognized repair-bench auto-selection.", Usage="on|off" } },
             { "diagnostics",   new Entry { Category="Debug/Tools", Description="Show feature failures or re-enable a failed feature.", Usage="[reenable <name>]" } },
+            { "profilerecovery", new Entry { Category="Debug/Tools", Description="Restore a recent profile and gump-layout snapshot after restart.", Usage="" } },
         };
 
         private static readonly HashSet<string> _builtInNames =

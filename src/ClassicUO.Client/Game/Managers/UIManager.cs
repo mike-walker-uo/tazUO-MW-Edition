@@ -283,7 +283,18 @@ namespace ClassicUO.Game.Managers
         {
             if (MouseOverControl != null && MouseOverControl.AcceptMouseInput)
             {
-                MouseOverControl.InvokeMouseWheel(isup ? MouseEventType.WheelScrollUp : MouseEventType.WheelScrollDown);
+                MouseEventType delta = isup ? MouseEventType.WheelScrollUp : MouseEventType.WheelScrollDown;
+                Control root = MouseOverControl.RootParent ?? MouseOverControl;
+                if (Keyboard.Alt
+                    && ProfileManager.CurrentProfile?.EnableAlphaScrollingOnGumps == true
+                    && root is Gump gump
+                    && gump.AllowsOpacityAdjustment)
+                {
+                    gump.InvokeMouseWheel(delta);
+                    return;
+                }
+
+                MouseOverControl.InvokeMouseWheel(delta);
             }
         }
 

@@ -96,7 +96,7 @@ namespace ClassicUO.Game.UI.Gumps
             WantUpdateSize = true;
             CanCloseWithRightClick = true;
             _background = new AlphaBlendControl();
-            CustomGumpThemeManager.ApplyDataSurface(_background, _background.Alpha);
+            CustomGumpThemeManager.ApplyDataSurface(_background, _background.Alpha, false);
             //_background.Width = MAX_WIDTH;
             //_background.Height = MAX_HEIGHT;
             Add(_background);
@@ -521,7 +521,7 @@ namespace ClassicUO.Game.UI.Gumps
                 amount.IsVisible = amount.IsEnabled = amount.MaxValue > 1;
 
                 AlphaBlendControl background = new AlphaBlendControl();
-                CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha);
+                CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha, false);
                 background.Y = 15;
                 background.Width = size;
                 background.Height = size;

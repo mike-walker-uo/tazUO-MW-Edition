@@ -264,7 +264,7 @@ namespace ClassicUO.Game.Managers
             ToolTipOverrideData[] result = GetAllToolTipOverrides();
 
             // Event hook before processing
-            EventSink.PreProcessTooltip?.Invoke(ref itemPropertiesData);
+            EventSink.InvokePreProcessTooltip(ref itemPropertiesData);
 
             // --------------------------------
             // Apply header override (item name)
@@ -347,7 +347,7 @@ namespace ClassicUO.Game.Managers
             }
 
             // Final hook
-            EventSink.PostProcessTooltip?.Invoke(ref tooltip);
+            EventSink.InvokePostProcessTooltip(ref tooltip);
 
             return tooltip;
         }

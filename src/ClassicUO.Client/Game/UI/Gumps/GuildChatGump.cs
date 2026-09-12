@@ -42,7 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
     internal static class GuildChatHistory
     {
         public static readonly ChatHistoryStore Instance =
-            new ChatHistoryStore(t => t == MessageType.Guild || t == MessageType.Alliance, 1000);
+            new ChatHistoryStore((MessageType t) => t == MessageType.Guild || t == MessageType.Alliance, 1000);
 
         public static void EnsureHooked() => Instance.EnsureHooked();
     }

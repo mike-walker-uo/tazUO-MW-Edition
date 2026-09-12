@@ -38,6 +38,7 @@ namespace ClassicUO.Game.Managers
         private static readonly Dictionary<string, Binding> _byKey =
             new Dictionary<string, Binding>(StringComparer.OrdinalIgnoreCase);
         private static long _nextAutosave;
+        private static string _lastSavedSnapshot;
 
         static TazUOFeatureSettings()
         {
@@ -114,12 +115,16 @@ namespace ClassicUO.Game.Managers
             Bind(typeof(PoisonCureManager), "SpellName");
             Bind(typeof(ReagentWatcherManager), "Threshold");
             Bind(typeof(SkillCapTracker), "WarnDelta");
+            Bind(typeof(SceneryInteractionManager), "SurfaceParticlesEnabled");
             Bind(typeof(TargetRangeWarnManager), "WarnDistance");
             Bind(typeof(UI.CombatMobHpBars), "Range");
             Bind(typeof(UI.GroundLootFinder), "Range");
             Bind(typeof(UI.HideTrashOverlay), "Range");
             Bind(typeof(UI.RangeIndicator), "Range");
             Bind(typeof(UI.TileGridOverlay), "Range");
+            Bind(typeof(UI.MoveTrailOverlay), "Style");
+            Bind(typeof(UI.MoveTrailOverlay), "IntensityPercent");
+            Bind(typeof(UI.MoveTrailOverlay), "LifetimeMs");
         }
 
         private static void BindEnabled(params Type[] types)
@@ -166,18 +171,28 @@ namespace ClassicUO.Game.Managers
                     FeatureDiagnostics.RecordFailure("FeatureSettings:" + parts[0], ex);
                 }
             }
+
+            _lastSavedSnapshot = BuildSnapshot(out _);
         }
 
         public static void Save()
         {
-            var lines = new List<string>(_bindings.Count);
+            string snapshot = BuildSnapshot(out List<string> lines);
+            if (string.Equals(snapshot, _lastSavedSnapshot, StringComparison.Ordinal)) return;
+            ProfileDataStore.WriteAllLines(FILENAME, lines);
+            _lastSavedSnapshot = snapshot;
+        }
+
+        private static string BuildSnapshot(out List<string> lines)
+        {
+            lines = new List<string>(_bindings.Count);
             foreach (Binding binding in _bindings)
             {
                 object value = binding.Get();
                 lines.Add(binding.Key + "\t" + SerializeValue(value, binding.ValueType));
             }
             lines.Sort(StringComparer.Ordinal);
-            ProfileDataStore.WriteAllLines(FILENAME, lines);
+            return string.Join("\n", lines);
         }
 
         public static void Tick()
@@ -191,6 +206,7 @@ namespace ClassicUO.Game.Managers
         {
             foreach (Binding binding in _bindings) binding.Set(binding.DefaultValue);
             _nextAutosave = 0;
+            _lastSavedSnapshot = null;
         }
 
         private static object ConvertValue(string text, Type type)

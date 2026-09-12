@@ -15,6 +15,7 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData(0x0000, "cave floor", true, 0f, ScenerySurface.Mine)]
         [InlineData(0x0000, "flagstone", true, 0f, ScenerySurface.Dungeon)]
         [InlineData(0x0000, "stone", false, 0f, ScenerySurface.Stone)]
+        [InlineData(0x0000, "swamp mud", false, 0f, ScenerySurface.Mud)]
         [InlineData(0x0016, "sand", false, 0.5f, ScenerySurface.Snow)]
         [InlineData(0x0000, "soil", false, 0f, ScenerySurface.Dirt)]
         public void LandMetadataSelectsExpectedMaterial(
@@ -26,6 +27,14 @@ namespace ClassicUO.UnitTests.TazUO
         {
             SceneryInteractionManager.ClassifyLandMaterial((ushort)graphic, name, dungeon, snowCover)
                 .Should().Be(expected);
+        }
+
+        [Theory]
+        [InlineData("wooden planks", ScenerySurface.Wood)]
+        [InlineData("marsh boardwalk", ScenerySurface.Mud)]
+        public void StaticMetadataSelectsTrailSurface(string name, ScenerySurface expected)
+        {
+            SceneryInteractionManager.ClassifyStaticMaterial(name, false).Should().Be(expected);
         }
 
         [Fact]

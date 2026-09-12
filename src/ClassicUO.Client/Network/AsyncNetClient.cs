@@ -255,6 +255,8 @@ namespace ClassicUO.Network
     internal sealed class AsyncNetClient : IDisposable
     {
         private const int BUFF_SIZE = 0x10000;
+        private const int MAX_INCOMING_MESSAGES = 8192;
+        private const long MAX_INCOMING_BYTES = 32L * 1024 * 1024;
 
         private readonly byte[] _uncompressedBuffer = new byte[BUFF_SIZE];
         private readonly byte[] _sendingBuffer = new byte[4096];
@@ -522,9 +524,18 @@ namespace ClassicUO.Network
 
                     if (message != null)
                     {
-                        Interlocked.Increment(ref _incomingMessageCount);
-                        Interlocked.Add(ref _incomingBytes, message.Length);
+                        int queuedMessages = Interlocked.Increment(ref _incomingMessageCount);
+                        long queuedBytes = Interlocked.Add(ref _incomingBytes, message.Length);
                         _incomingMessages.Enqueue(new IncomingMessage(message));
+
+                        if ((queuedMessages > MAX_INCOMING_MESSAGES || queuedBytes > MAX_INCOMING_BYTES)
+                            && Interlocked.CompareExchange(ref _protocolDisconnectPending, 1, 0) == 0)
+                        {
+                            Log.Error($"Incoming network queue limit exceeded: messages={queuedMessages}, bytes={queuedBytes}.");
+                            MainThreadQueue.EnqueueAction(
+                                () => DisconnectForProtocolErrorCore(sessionGeneration)
+                            );
+                        }
                     }
                 }
 

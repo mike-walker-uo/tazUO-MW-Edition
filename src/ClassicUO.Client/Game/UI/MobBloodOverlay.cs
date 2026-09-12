@@ -48,7 +48,7 @@ namespace ClassicUO.Game.UI
     /// </summary>
     public static class MobBloodOverlay
     {
-        public static bool Enabled = true;
+        public static bool Enabled = false;
 
         private struct Splatter
         {

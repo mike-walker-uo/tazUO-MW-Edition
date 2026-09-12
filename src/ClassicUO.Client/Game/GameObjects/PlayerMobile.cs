@@ -145,6 +145,8 @@ namespace ClassicUO.Game.GameObjects
         public Lock StrLock;
         public short SwingSpeedIncrease;
         public uint TithingPoints;
+        public bool TithingPointsReceived;
+        public long TithingPointsLastUpdate;
         public ushort Weight;
         public ushort WeightMax;
 

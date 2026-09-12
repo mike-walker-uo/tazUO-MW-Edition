@@ -163,7 +163,7 @@ namespace ClassicUO.Game.Managers
         private static int _intensityPercent = DEFAULT_INTENSITY_PERCENT;
 
         private static Profile Profile => ProfileManager.CurrentProfile;
-        private static bool Enabled => AmbienceOverlay.Enabled && Profile != null;
+        private static bool Enabled => !CUOEnviroment.SafeGraphicsMode && AmbienceOverlay.Enabled && Profile != null;
         internal static bool ArtworkEnabled => _artworkEnabled;
         internal static bool AtmosphereEnabled => _atmosphereEnabled;
         internal static int IntensityPercent => _intensityPercent;
