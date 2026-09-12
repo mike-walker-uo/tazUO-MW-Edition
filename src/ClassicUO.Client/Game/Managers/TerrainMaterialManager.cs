@@ -250,7 +250,7 @@ namespace ClassicUO.Game.Managers
             _maskSpriteCount = 0;
             _captureBounds = Rectangle.Empty;
             _snowCover = weather?.SnowCover ?? 0f;
-            _captureActive = stencilAvailable && AmbienceOverlay.Enabled && Profile != null
+            _captureActive = !CUOEnviroment.SafeGraphicsMode && stencilAvailable && AmbienceOverlay.Enabled && Profile != null
                 && SceneryInteractionManager.Quality > SceneryInteractionManager.QUALITY_LOW
                 && (HasVisibleIntensity() || _debugEnabled)
                 && World.InGame && World.Player != null;

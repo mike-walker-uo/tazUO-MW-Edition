@@ -124,10 +124,10 @@ namespace ClassicUO.Game.Managers
         private static bool _loaded;
 
         internal static bool VisualSilenceEnabled =>
-            ProfileManager.CurrentProfile?.VisualSilence == true;
+            CUOEnviroment.SafeGraphicsMode || ProfileManager.CurrentProfile?.VisualSilence == true;
 
         internal static bool ClassicEffectsOnlyEnabled =>
-            ProfileManager.CurrentProfile?.ClassicEffectsOnly == true;
+            CUOEnviroment.SafeGraphicsMode || ProfileManager.CurrentProfile?.ClassicEffectsOnly == true;
 
         internal static bool CustomEffectsEnabled =>
             !VisualSilenceEnabled && !ClassicEffectsOnlyEnabled;

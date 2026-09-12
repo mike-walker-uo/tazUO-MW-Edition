@@ -69,29 +69,36 @@ namespace ClassicUO.Game.UI.Gumps
         public uint MasterGumpSerial { get; set; }
 
         public float AlphaOffset = 0;
+        private readonly Dictionary<Control, float> _hoverAlpha = new Dictionary<Control, float>();
+        private bool _hoverOpacityActive;
+        private float _hoverOpacityTarget = 1f;
+        private uint _nextHoverOpacityRefresh;
+        private uint _lastHoverOpacityTick;
+
+        internal bool AllowsOpacityAdjustment =>
+            !(this is ContainerGump)
+            && !(this is GridContainer)
+            && !(this is GridLootGump)
+            && !(this is PaperDollBackpackEquipmentGump);
 
         protected override void OnMouseWheel(MouseEventType delta)
         {
             base.OnMouseWheel(delta);
 
-            if (Keyboard.Alt && ProfileManager.CurrentProfile.EnableAlphaScrollingOnGumps)
+            if (Keyboard.Alt
+                && ProfileManager.CurrentProfile?.EnableAlphaScrollingOnGumps == true
+                && AllowsOpacityAdjustment)
             {
-                if (delta == MouseEventType.WheelScrollUp && Alpha < 0.99)
+                RemoveHoverOpacityBoost();
+                if (delta == MouseEventType.WheelScrollUp && HasAdjustableAlpha(this, true))
                 {
                     AlphaOffset += 0.02f;
-                    Alpha += 0.02f;
-                    foreach (Control c in Children)
-                    {
-                        c.Alpha += 0.02f;
-                        if (c.Alpha > 1) c.Alpha = 1;
-                    }
+                    AdjustAlphaRecursive(this, 0.02f);
                 }
-                else if (Alpha > 0.1)
+                else if (delta == MouseEventType.WheelScrollDown && HasAdjustableAlpha(this, false))
                 {
                     AlphaOffset -= 0.02f;
-                    Alpha -= 0.02f;
-                    foreach (Control c in Children)
-                        c.Alpha -= 0.02f;
+                    AdjustAlphaRecursive(this, -0.02f);
                 }
             }
         }
@@ -132,7 +139,159 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             base.Update();
+            UpdateHoverOpacityBoost();
         }
+
+        public override void Add(Control control, int page = 0)
+        {
+            base.Add(control, page);
+
+            if (Math.Abs(AlphaOffset) > 0.001f)
+                AdjustAlphaRecursive(control, AlphaOffset);
+        }
+
+        private static void AdjustAlphaRecursive(Control control, float delta)
+        {
+            if (ShouldAdjustOpacity(control) && (delta > 0f || control.Alpha > 0f))
+                control.Alpha = MathHelper.Clamp(control.Alpha + delta, 0f, 1f);
+            foreach (Control child in control.Children)
+                AdjustAlphaRecursive(child, delta);
+        }
+
+        private static bool HasAdjustableAlpha(Control control, bool increase)
+        {
+            if (ShouldAdjustOpacity(control)
+                && (increase ? control.Alpha < 0.99f : control.Alpha > 0.001f))
+                return true;
+
+            foreach (Control child in control.Children)
+            {
+                if (HasAdjustableAlpha(child, increase))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool ShouldAdjustOpacity(Control control) =>
+            !(control is Label)
+            && !(control is CroppedText)
+            && !(control is TextBox)
+            && !(control is StbTextBox)
+            && !(control is TTFTextInputField)
+            && !(control is HtmlControl)
+            && !(control is Button)
+            && !(control is Checkbox)
+            && !(control is HSliderBar)
+            && !(control is ColorSelectorControl);
+
+        private void UpdateHoverOpacityBoost()
+        {
+            bool enabled = (ProfileManager.CurrentProfile?.BoostGumpOpacityOnHover ?? false)
+                && !Keyboard.Alt
+                && !(this is PaperDollGump)
+                && !(this is ModernPaperdoll)
+                && (!(this is CoolDownBar coolDownBar) || !coolDownBar.IsBuffBar);
+            Control hovered = UIManager.MouseOverControl;
+            bool directlyHovered = enabled && IsHoverTarget(hovered);
+            if (directlyHovered)
+                _lastHoverOpacityTick = Time.Ticks;
+
+            bool isHovered = directlyHovered || enabled && _hoverOpacityActive
+                && Time.Ticks - _lastHoverOpacityTick <= 150;
+
+            if (isHovered && !_hoverOpacityActive)
+            {
+                _hoverAlpha.Clear();
+                _hoverOpacityTarget = GetHoverOpacityTarget();
+                ApplyHoverOpacityBoost(this);
+                _hoverOpacityActive = true;
+                _nextHoverOpacityRefresh = Time.Ticks + 100;
+            }
+            else if (isHovered && Math.Abs(_hoverOpacityTarget - GetHoverOpacityTarget()) > 0.001f)
+            {
+                RemoveHoverOpacityBoost();
+                _hoverOpacityTarget = GetHoverOpacityTarget();
+                ApplyHoverOpacityBoost(this);
+                _hoverOpacityActive = true;
+                _nextHoverOpacityRefresh = Time.Ticks + 100;
+            }
+            else if (isHovered && Time.Ticks >= _nextHoverOpacityRefresh)
+            {
+                RefreshHoverOpacityBoost(this);
+                _nextHoverOpacityRefresh = Time.Ticks + 100;
+            }
+            else if (!isHovered && _hoverOpacityActive)
+            {
+                RemoveHoverOpacityBoost();
+            }
+        }
+
+        private void ApplyHoverOpacityBoost(Control control)
+        {
+            if (ShouldAdjustHoverOpacity(control))
+            {
+                _hoverAlpha[control] = control.Alpha;
+                control.Alpha = _hoverOpacityTarget;
+            }
+
+            foreach (Control child in control.Children)
+                ApplyHoverOpacityBoost(child);
+        }
+
+        private void RefreshHoverOpacityBoost(Control control)
+        {
+            if (ShouldAdjustHoverOpacity(control))
+            {
+                if (_hoverAlpha.ContainsKey(control))
+                {
+                    if (Math.Abs(control.Alpha - _hoverOpacityTarget) > 0.001f)
+                        _hoverAlpha[control] = control.Alpha;
+                }
+                else
+                {
+                    _hoverAlpha[control] = control.Alpha;
+                }
+
+                control.Alpha = _hoverOpacityTarget;
+            }
+
+            foreach (Control child in control.Children)
+                RefreshHoverOpacityBoost(child);
+        }
+
+        private bool IsHoverTarget(Control hovered)
+        {
+            if (hovered == null)
+                return false;
+
+            return hovered == this || hovered.RootParent == this;
+        }
+
+        private bool ShouldAdjustHoverOpacity(Control control)
+        {
+            if (this is ImprovedBuffGump buffGump)
+                return buffGump.IsHoverOpacitySurface(control);
+
+            return ShouldAdjustOpacity(control);
+        }
+
+        private void RemoveHoverOpacityBoost()
+        {
+            if (!_hoverOpacityActive)
+                return;
+
+            foreach (KeyValuePair<Control, float> pair in _hoverAlpha)
+            {
+                if (!pair.Key.IsDisposed)
+                    pair.Key.Alpha = pair.Value;
+            }
+            _hoverAlpha.Clear();
+            _hoverOpacityActive = false;
+            _hoverOpacityTarget = 1f;
+        }
+
+        private static float GetHoverOpacityTarget() =>
+            (ProfileManager.CurrentProfile?.GumpHoverOpacityPercent ?? 100) / 100f;
 
         public override void Dispose()
         {
@@ -251,9 +410,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (float.TryParse(xml.GetAttribute("alphaOffset"), out float alpha))
             {
                 AlphaOffset = alpha;
-                Alpha += alpha;
-                foreach (Control c in Children)
-                    c.Alpha += alpha;
+                AdjustAlphaRecursive(this, alpha);
             }
         }
 

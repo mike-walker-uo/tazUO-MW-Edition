@@ -340,8 +340,9 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (page == 1 && _spellBookType == SpellBookType.Chivalry)
                     {
+                        TithingManager.RequestRefreshIfStale();
                         Label label = new Label(
-                            ResGumps.TithingPointsAvailable + World.Player.TithingPoints,
+                            ResGumps.TithingPointsAvailable + TithingManager.DisplayValue,
                             false,
                             0x0288,
                             font: 6
@@ -841,6 +842,16 @@ namespace ClassicUO.Game.UI.Gumps
             AssignGraphic(item);
 
             CreateBook();
+        }
+
+        internal static void RefreshTithingDisplays()
+        {
+            foreach (Gump gump in UIManager.Gumps)
+            {
+                if (gump is SpellbookGump spellbook
+                    && spellbook.SpellBookType == SpellBookType.Chivalry)
+                    spellbook.RequestUpdateContents();
+            }
         }
 
         private void OnIconDoubleClick(object sender, MouseDoubleClickEventArgs e)

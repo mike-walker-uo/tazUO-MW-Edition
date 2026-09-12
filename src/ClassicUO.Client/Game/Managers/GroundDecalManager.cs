@@ -18,6 +18,14 @@ namespace ClassicUO.Game.Managers
         Blood
     }
 
+    internal enum GroundTrackShape : byte
+    {
+        Boots,
+        Hooves,
+        Claws,
+        Large
+    }
+
     internal sealed class GroundDecalManager
     {
         private const int MAX_DECALS = 900;
@@ -29,6 +37,7 @@ namespace ClassicUO.Game.Managers
         private int _decalIndex;
         private uint _nextWeatherDecal;
         private static Texture2D _puddleBlob;
+        private static readonly Texture2D[,] _footprintTextures = new Texture2D[11, 4];
 
         public void AddFromScreen(
             float screenX,
@@ -65,7 +74,13 @@ namespace ClassicUO.Game.Managers
             AddAtTile(tileX, tileY, tileZ, size, kind);
         }
 
-        public void AddAtTile(float tileX, float tileY, sbyte tileZ, byte size, GroundDecalKind kind)
+        public void AddAtTile(
+            float tileX,
+            float tileY,
+            sbyte tileZ,
+            byte size,
+            GroundDecalKind kind,
+            GroundTrackShape trackShape = GroundTrackShape.Boots)
         {
             int x = (int)tileX;
             int y = (int)tileY;
@@ -82,6 +97,7 @@ namespace ClassicUO.Game.Managers
             decal.TileZ = tileZ;
             decal.Size = size;
             decal.Kind = kind;
+            decal.TrackShape = trackShape;
             decal.Surface = surface;
             decal.Map = (byte)World.MapIndex;
             decal.Born = Time.Ticks;
@@ -107,7 +123,6 @@ namespace ClassicUO.Game.Managers
             byte map = (byte)World.MapIndex;
 
             Texture2D snowTexture = SolidColorTextureCache.GetTexture(Color.White);
-            Texture2D footprintTexture = SolidColorTextureCache.GetTexture(new Color(60, 55, 50, 255));
             Texture2D bloodTexture = SolidColorTextureCache.GetTexture(new Color(110, 12, 12, 255));
             Rectangle rectangle = new Rectangle(0, 0, 1, 1);
 
@@ -126,14 +141,14 @@ namespace ClassicUO.Game.Managers
                     ? 150_000u : decal.Surface == ScenerySurface.Dirt ? 70_000u
                         : decal.Surface == ScenerySurface.Sand ? 50_000u : 100_000u;
                 uint life = decal.Kind == GroundDecalKind.Footprint
-                    ? 20_000u
+                    ? 35_000u
                     : decal.Kind == GroundDecalKind.Blood
                         ? 60_000u
                         : decal.Kind == GroundDecalKind.Puddle
                             ? puddleLife
                             : DEFAULT_LIFE_MS;
                 uint fade = decal.Kind == GroundDecalKind.Footprint
-                    ? 8_000u
+                    ? 12_000u
                     : decal.Kind == GroundDecalKind.Blood
                         ? 20_000u
                         : decal.Kind == GroundDecalKind.Puddle
@@ -183,7 +198,7 @@ namespace ClassicUO.Game.Managers
                         : decal.Surface == ScenerySurface.Dirt ? 0.34f
                         : decal.Surface == ScenerySurface.Sand ? 0.26f : 0.44f
                     : decal.Kind == GroundDecalKind.Footprint
-                        ? 0.30f
+                        ? 0.78f
                         : decal.Kind == GroundDecalKind.Blood
                             ? 0.45f
                             : 0.75f;
@@ -212,9 +227,15 @@ namespace ClassicUO.Game.Managers
                         texture = GetPuddleBlob();
                         break;
                     case GroundDecalKind.Footprint:
-                        rectangle.Width = 3;
-                        rectangle.Height = 2;
-                        texture = footprintTexture;
+                        int trackWidth = decal.TrackShape == GroundTrackShape.Boots ? 10
+                            : decal.TrackShape == GroundTrackShape.Hooves ? 12
+                            : decal.TrackShape == GroundTrackShape.Claws ? 13 : 14;
+                        int trackHeight = decal.TrackShape == GroundTrackShape.Boots ? 6 : 8;
+                        rectangle.X -= trackWidth / 2;
+                        rectangle.Y -= trackHeight / 2;
+                        rectangle.Width = trackWidth;
+                        rectangle.Height = trackHeight;
+                        texture = GetFootprintTexture(decal.Surface, decal.TrackShape);
                         break;
                     case GroundDecalKind.Blood:
                         float bloodGrowth = Math.Min(1f, age / 5000f) * 0.5f + 0.9f;
@@ -232,6 +253,65 @@ namespace ClassicUO.Game.Managers
                 Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
                 batcher.Draw(texture, rectangle, hue);
             }
+        }
+
+        private static Texture2D GetFootprintTexture(
+            ScenerySurface surface,
+            GroundTrackShape shape)
+        {
+            int index = (int)surface;
+            if (index < 0 || index >= _footprintTextures.GetLength(0)) index = 0;
+            int shapeIndex = (int)shape;
+            Texture2D texture = _footprintTextures[index, shapeIndex];
+            if (texture != null && !texture.IsDisposed) return texture;
+
+            Color color;
+            switch (surface)
+            {
+                case ScenerySurface.Grass: color = new Color(45, 70, 38, 255); break;
+                case ScenerySurface.Sand: color = new Color(115, 88, 50, 255); break;
+                case ScenerySurface.Snow: color = new Color(105, 125, 140, 255); break;
+                case ScenerySurface.Mud: color = new Color(58, 42, 28, 255); break;
+                case ScenerySurface.Stone: color = new Color(65, 65, 62, 255); break;
+                case ScenerySurface.Mine:
+                case ScenerySurface.Dungeon: color = new Color(52, 48, 45, 255); break;
+                default: color = new Color(60, 50, 40, 255); break;
+            }
+
+            const int width = 8;
+            const int height = 6;
+            var data = new Color[width * height];
+
+            if (shape == GroundTrackShape.Boots)
+            {
+                FillTrack(data, width, color, 1, 0, 2, 0, 0, 1, 1, 1, 2, 1,
+                    1, 2, 2, 2, 5, 3, 6, 3, 5, 4, 6, 4, 7, 4, 5, 5, 6, 5);
+            }
+            else if (shape == GroundTrackShape.Hooves)
+            {
+                FillTrack(data, width, color, 1, 0, 2, 0, 0, 1, 3, 1, 1, 2, 2, 2,
+                    5, 3, 6, 3, 4, 4, 7, 4, 5, 5, 6, 5);
+            }
+            else if (shape == GroundTrackShape.Claws)
+            {
+                FillTrack(data, width, color, 0, 0, 2, 0, 4, 0, 1, 1, 2, 1, 3, 1, 2, 2,
+                    4, 3, 5, 3, 6, 3, 3, 4, 5, 4, 7, 4, 5, 5);
+            }
+            else
+            {
+                FillTrack(data, width, color, 0, 1, 1, 1, 3, 0, 4, 0, 6, 1, 7, 1,
+                    1, 3, 2, 3, 5, 3, 6, 3, 2, 4, 3, 4, 4, 4, 5, 4, 3, 5, 4, 5);
+            }
+
+            texture = new Texture2D(Client.Game.GraphicsDevice, width, height);
+            texture.SetData(data);
+            return _footprintTextures[index, shapeIndex] = texture;
+        }
+
+        private static void FillTrack(Color[] data, int width, Color color, params int[] coordinates)
+        {
+            for (int i = 0; i + 1 < coordinates.Length; i += 2)
+                data[coordinates[i + 1] * width + coordinates[i]] = color;
         }
 
         private static Texture2D GetPuddleBlob()
@@ -275,6 +355,7 @@ namespace ClassicUO.Game.Managers
             public byte Size;
             public byte Map;
             public GroundDecalKind Kind;
+            public GroundTrackShape TrackShape;
             public ScenerySurface Surface;
             public uint Born;
             public uint NextHeatCheck;

@@ -151,15 +151,19 @@ namespace ClassicUO
             }
 
             Settings.GlobalSettings = ConfigurationResolver.Load<Settings>(globalSettingsPath, SettingsJsonContext.Default);
-            CUOEnviroment.IsOutlands = Settings.GlobalSettings.ShardType == 2;
-
-            ReadSettingsFromArgs(args);
-
-            // still invalid, cannot load settings
             if (Settings.GlobalSettings == null)
             {
                 Settings.GlobalSettings = new Settings();
                 Settings.GlobalSettings.Save();
+            }
+            CUOEnviroment.IsOutlands = Settings.GlobalSettings.ShardType == 2;
+
+            ReadSettingsFromArgs(args);
+
+            if (CUOEnviroment.SafeGraphicsMode)
+            {
+                Environment.SetEnvironmentVariable("FNA3D_FORCE_DRIVER", "OpenGL");
+                Log.Warn("Safe graphics mode enabled: OpenGL, 60 FPS, and optional graphics effects disabled.");
             }
 
             if (Settings.GlobalSettings.SessionLog)
@@ -274,9 +278,13 @@ namespace ClassicUO
 
                 //PlatformHelper.LaunchBrowser(ResGeneral.ClassicUOLink);
             }
+            else if (!StartupHealthCheck.TryValidate(Settings.GlobalSettings.UltimaOnlineDirectory, out string startupError))
+            {
+                Client.ShowErrorMessage("Startup health check failed:\n\n" + startupError);
+            }
             else
             {
-                switch (Settings.GlobalSettings.ForceDriver)
+                switch (CUOEnviroment.SafeGraphicsMode ? (byte)1 : Settings.GlobalSettings.ForceDriver)
                 {
                     case 1: // OpenGL
                         Environment.SetEnvironmentVariable("FNA3D_FORCE_DRIVER", "OpenGL");
@@ -360,6 +368,11 @@ namespace ClassicUO
                     case "highdpi":
                         CUOEnviroment.IsHighDPI = true;
 
+                        break;
+
+                    case "safegraphics":
+                    case "safe-graphics":
+                        CUOEnviroment.SafeGraphicsMode = true;
                         break;
 
                     case "username":

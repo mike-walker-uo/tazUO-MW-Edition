@@ -971,6 +971,7 @@ namespace ClassicUO.Game
             _toRemove.Clear();
             CorpseManager.Clear();
             DurabilityManager.Clear();
+            TithingManager.Reset();
             OPL.Clear();
             WMapManager.Clear();
             HouseManager?.Clear();

@@ -820,7 +820,9 @@ namespace ClassicUO.Network
                             World.Player.Luck = p.ReadUInt16BE();
                             World.Player.DamageMin = (short)p.ReadUInt16BE();
                             World.Player.DamageMax = (short)p.ReadUInt16BE();
-                            World.Player.TithingPoints = p.ReadUInt32BE();
+                            uint tithingPoints = p.ReadUInt32BE();
+                            World.Player.TithingPoints = tithingPoints;
+                            TithingManager.OnStatusReceived(tithingPoints);
                         }
 
                         if (type >= 6)
@@ -2324,6 +2326,8 @@ namespace ClassicUO.Network
                         break;
                     }
                 }
+
+                TithingManager.OnSkillsUpdated();
             }
         }
 
@@ -2486,7 +2490,7 @@ namespace ClassicUO.Network
                 var scene = new GameScene();
                 Client.Game.SetScene(scene);
 
-                GameActions.RequestMobileStatus(World.Player);
+                TithingManager.RequestRefresh(true);
                 NetClient.Socket.Send_OpenChat("");
 
                 NetClient.Socket.Send_SkillsRequest(World.Player);

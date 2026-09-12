@@ -236,8 +236,8 @@ namespace ClassicUO.Game.Scenes
             Weather = new Weather(GroundDecals);
             EnvironmentalShadowManager.Reset();
             EnvironmentalShadowManager.Update(Weather);
-            AmbientWeatherManager.Configure(ProfileManager.CurrentProfile.AmbientWeatherEnabled);
-            UI.AmbienceOverlay.Configure(ProfileManager.CurrentProfile.AmbienceOverlayEnabled);
+            AmbientWeatherManager.Configure(!CUOEnviroment.SafeGraphicsMode && ProfileManager.CurrentProfile.AmbientWeatherEnabled);
+            UI.AmbienceOverlay.Configure(!CUOEnviroment.SafeGraphicsMode && ProfileManager.CurrentProfile.AmbienceOverlayEnabled);
 
             WorldViewportGump viewport = new WorldViewportGump(this);
             UIManager.Add(viewport, false);
@@ -956,6 +956,7 @@ namespace ClassicUO.Game.Scenes
             }
 
             World.Update();
+            TithingManager.Update();
             DayCyclePreviewManager.Update();
             EnvironmentControlManager.Update();
             EnvironmentShowcaseManager.Update(Weather);

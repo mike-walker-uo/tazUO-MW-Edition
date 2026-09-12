@@ -38,6 +38,8 @@ namespace ClassicUO.Game.Managers
         private static bool _measuringStage;
         private static string _frameKind;
         private static string _worstFrameKind;
+        public static string LastWorstFrameSummary { get; private set; } = "none";
+        public static long LastWorstFrameMilliseconds { get; private set; }
 
         public static void Start(string graphicsAdapter)
         {
@@ -48,6 +50,8 @@ namespace ClassicUO.Game.Managers
             _lastShortStallReport = Stopwatch.GetTimestamp();
             _shortStallCount = 0;
             _worstFrameTicks = 0;
+            LastWorstFrameSummary = "none";
+            LastWorstFrameMilliseconds = 0;
 
             string processArchitecture = Environment.GetEnvironmentVariable(
                 "PROCESSOR_ARCHITECTURE"
@@ -125,6 +129,10 @@ namespace ClassicUO.Game.Managers
                 return;
 
             _lastShortStallReport = now;
+            LastWorstFrameMilliseconds = _worstFrameTicks * 1000 / Stopwatch.Frequency;
+            LastWorstFrameSummary = $"{_worstFrameKind} {LastWorstFrameMilliseconds}ms"
+                + $" (net {WorstStageMilliseconds(FrameStage.Network)}, Razor {WorstStageMilliseconds(FrameStage.Razor)},"
+                + $" UI {WorstStageMilliseconds(FrameStage.UI)}, scene {WorstStageMilliseconds(FrameStage.Scene)}, render {WorstStageMilliseconds(FrameStage.Render)})";
             Log.Warn(
                 $"Short main-thread frame stalls: count={_shortStallCount}, worstFrame={_worstFrameKind}, "
                 + $"worstActiveWork={_worstFrameTicks * 1000 / Stopwatch.Frequency}ms, "

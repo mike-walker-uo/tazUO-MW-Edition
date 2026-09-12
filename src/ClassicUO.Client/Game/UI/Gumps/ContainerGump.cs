@@ -32,6 +32,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -237,6 +238,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Width = _gumpPicContainer.Width = (int)(_gumpPicContainer.Width * scale);
             Height = _gumpPicContainer.Height = (int)(_gumpPicContainer.Height * scale);
+            UpdateCorpseOpacity();
 
             if (showGridToggle)
             {
@@ -257,6 +259,22 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Add(returnToGridView);
             }
+        }
+
+        internal void UpdateCorpseOpacity()
+        {
+            if (_gumpPicContainer == null || Graphic != CORPSES_GUMP)
+                return;
+
+            float alpha = (ProfileManager.CurrentProfile?.CorpseContainerOpacity ?? 50) / 100f;
+            _gumpPicContainer.Alpha = alpha;
+            if (_eyeGumpPic != null) _eyeGumpPic.Alpha = alpha;
+        }
+
+        internal static void UpdateAllCorpseOpacity()
+        {
+            foreach (ContainerGump gump in UIManager.Gumps.OfType<ContainerGump>())
+                gump.UpdateCorpseOpacity();
         }
 
         private void HitBoxOnMouseUp(object sender, MouseEventArgs e)
@@ -761,6 +779,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (item != null)
             {
+                if ((Graphic == CORPSES_GUMP || item.IsCorpse) && ProfileManager.CurrentProfile != null)
+                    ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+
                 if (
                     World.Player != null
                     && ProfileManager.CurrentProfile?.OverrideContainerLocationSetting == 3
@@ -781,6 +802,15 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             base.Dispose();
+        }
+
+        protected override void OnMove(int x, int y)
+        {
+            base.OnMove(x, y);
+
+            Item item = World.Items.Get(LocalSerial);
+            if ((Graphic == CORPSES_GUMP || item?.IsCorpse == true) && ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
         }
 
         protected override void CloseWithRightClick()

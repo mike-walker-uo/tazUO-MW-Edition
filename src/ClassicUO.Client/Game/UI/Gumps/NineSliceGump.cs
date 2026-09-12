@@ -23,6 +23,8 @@ public class NineSliceGump : Gump
     private int _cornerSize = 10;
     private ushort _hue;
 
+    protected bool DrawNineSliceBackground { get; set; } = true;
+
     public ushort Hue
     {
         get => _hue;
@@ -297,9 +299,11 @@ public class NineSliceGump : Gump
             return false;
         }
 
-        Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, false, Alpha, true);
-
-        DrawNineSlice(batcher, x, y, hueVector);
+        if (DrawNineSliceBackground)
+        {
+            Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, false, Alpha, true);
+            DrawNineSlice(batcher, x, y, hueVector);
+        }
 
         if (_resizable && _hoveredCorner != ResizeCorner.None)
         {

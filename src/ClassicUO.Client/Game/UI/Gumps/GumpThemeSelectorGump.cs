@@ -155,7 +155,7 @@ namespace ClassicUO.Game.UI.Gumps
             bool selected = theme == CustomGumpThemeManager.Current;
             ushort textHue = CustomGumpThemeManager.GetTextHue(theme);
 
-            Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme)
+            Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme, true)
             {
                 X = x,
                 Y = y

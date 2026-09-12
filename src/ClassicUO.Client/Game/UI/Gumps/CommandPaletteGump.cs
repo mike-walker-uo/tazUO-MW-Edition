@@ -640,6 +640,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case "reflectcount": return ReflectCounterManager.Enabled;
                 case "targetingyou": return UI.TargetingYouAura.Enabled;
                 case "trail": return UI.MoveTrailOverlay.Enabled;
+                case "trailfx": return UIManager.GetGump<TrailEffectsGump>() != null;
                 case "warborder": return UI.WarModeBorder.Enabled;
                 case "arrowline": return UI.QuestArrowLine.Enabled;
                 case "containerbadge": return UI.OpenContainerBadge.Enabled;
@@ -664,6 +665,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case "gumpthemes": return UIManager.GetGump<GumpThemeSelectorGump>() != null;
                 case "globalchat": return UIManager.GetGump<GlobalChatGump>() != null;
                 case "guildchat": return UIManager.GetGump<GuildChatGump>() != null;
+                case "speechhistory": return UIManager.GetGump<NearbySpeechGump>() != null;
                 case "damagetracker": return UIManager.GetGump<DamageTrackerGump>() != null;
                 case "options": return UIManager.GetGump<ModernOptionsGump>() != null;
                 case "perfhud": return UIManager.GetGump<PerfHudGump>() != null;

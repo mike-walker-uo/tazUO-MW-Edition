@@ -1033,6 +1033,7 @@ namespace ClassicUO.Game
                 LastSpellIndex = index;
                 SpellVisualRangeManager.Instance.ClearCasting();
                 Socket.Send_CastSpellFromBook(index, bookSerial);
+                TithingManager.NotifySpellCast(index);
             }
         }
 
@@ -1046,6 +1047,7 @@ namespace ClassicUO.Game
                 EnhancedSpellVisualTrigger.ObserveCastRequest(index);
                 SpellVisualRangeManager.Instance.ClearCasting();
                 Socket.Send_CastSpell(index);
+                TithingManager.NotifySpellCast(index);
 
                 // Record action for script recording
                 var name = SpellDefinition.FullIndexGetSpell(index).Name;

@@ -24,6 +24,7 @@ namespace ClassicUO.Game.Managers
             WaterEnhancementManager.ApplyProfile(ProfileManager.CurrentProfile);
             TerrainMaterialManager.ApplyProfile(ProfileManager.CurrentProfile);
             TazUOFeatureSettings.Load();
+            ApplyFootstepVisualDefaults(ProfileManager.CurrentProfile);
             ApplyCombatOverlayDefaults(ProfileManager.CurrentProfile);
             AutomationCoordinator.ResetForProfile(ProfileManager.CurrentProfile?.AutomationEnabled ?? true);
             BandageSettings.EnsureLoaded();
@@ -84,6 +85,21 @@ namespace ClassicUO.Game.Managers
 
             UI.HealReceivedPulse.Enabled = false;
             profile.CombatOverlayDefaultsVersion = 3;
+        }
+
+        internal static void ApplyFootstepVisualDefaults(Profile profile)
+        {
+            if (profile == null || profile.FootstepVisualDefaultsVersion >= 1) return;
+
+            // The former defaults were persisted as enabled in existing profiles.
+            // Reset them once so upgrades receive the new blood-free defaults.
+            UI.MoveTrailOverlay.Enabled = false;
+            UI.MoveTrailOverlay.ResetSession();
+            UI.MobBloodOverlay.Enabled = false;
+            UI.MobBloodOverlay.ResetSession();
+            profile.BloodDecalsEnabled = false;
+            profile.FootstepGraphicsEnabled = true;
+            profile.FootstepVisualDefaultsVersion = 1;
         }
 
         public static void OnSceneUnload()
@@ -179,6 +195,7 @@ namespace ClassicUO.Game.Managers
             UI.CorpseFadeOverlay.ResetSession();
             UI.Gumps.GlobalChatHistory.Instance.Clear();
             UI.Gumps.GuildChatHistory.Instance.Clear();
+            UI.Gumps.NearbySpeechHistory.Instance.Clear();
 
             TazUOFeatureSettings.ResetToDefaults();
             DayCyclePreviewManager.ResetSession();

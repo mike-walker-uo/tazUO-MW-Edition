@@ -34,6 +34,7 @@ using System.IO;
 using ClassicUO.Game.UI.Gumps.GridHighLight;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
+using ClassicUO.Game.Managers;
 
 namespace ClassicUO.Configuration
 {
@@ -50,6 +51,7 @@ namespace ClassicUO.Configuration
             string fileToLoad = Path.Combine(path, "profile.json");
 
             ProfilePath = path;
+            CrashRecoveryManager.ApplyPendingRestore(path);
             CurrentProfile = ConfigurationResolver.Load<Profile>(fileToLoad, ProfileJsonContext.DefaultToUse) ?? NewFromDefault();
 
             CurrentProfile.Username = username;

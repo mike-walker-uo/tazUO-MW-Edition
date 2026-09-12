@@ -26,7 +26,9 @@ namespace ClassicUO.Game.Managers
         Mine,
         Dungeon,
         Snow,
-        Water
+        Water,
+        Mud,
+        Wood
     }
 
     internal static class SceneryInteractionManager
@@ -37,6 +39,7 @@ namespace ClassicUO.Game.Managers
 
         private const int MAX_PARTICLES = 160;
         private const int MAX_LIGHTS = 80;
+        public static bool SurfaceParticlesEnabled { get; set; } = true;
 
         private enum ParticleKind : byte
         {
@@ -47,7 +50,9 @@ namespace ClassicUO.Game.Managers
             Snow,
             Water,
             WetStone,
-            Wake
+            Wake,
+            Mud,
+            WoodDust
         }
 
         private struct Particle
@@ -165,10 +170,28 @@ namespace ClassicUO.Game.Managers
 
         public static void OnPlayerMoved(int x, int y, sbyte z, bool running)
         {
-            if (!AmbienceOverlay.Enabled || World.Player == null) return;
+            if (World.Player == null || ProfileManager.CurrentProfile == null) return;
+            if (CUOEnviroment.SafeGraphicsMode) return;
 
             ScenerySurface surface = ClassifySurface(x, y, z);
-            Weather weather = Client.Game.GetScene<GameScene>()?.Weather;
+            GameScene scene = Client.Game.GetScene<GameScene>();
+            if (ProfileManager.CurrentProfile.FootstepGraphicsEnabled
+                && surface != ScenerySurface.None
+                && surface != ScenerySurface.Water
+                && surface != ScenerySurface.Wood)
+            {
+                scene?.GroundDecals.AddAtTile(
+                    x,
+                    y,
+                    z,
+                    2,
+                    GroundDecalKind.Footprint,
+                    GetPlayerTrackShape());
+            }
+
+            if (!SurfaceParticlesEnabled) return;
+
+            Weather weather = scene?.Weather;
             ParticleKind kind;
             switch (surface)
             {
@@ -176,6 +199,8 @@ namespace ClassicUO.Game.Managers
                 case ScenerySurface.Snow: kind = ParticleKind.Snow; break;
                 case ScenerySurface.Grass: kind = ParticleKind.Grass; break;
                 case ScenerySurface.Sand: kind = ParticleKind.Sand; break;
+                case ScenerySurface.Mud: kind = ParticleKind.Mud; break;
+                case ScenerySurface.Wood: kind = ParticleKind.WoodDust; break;
                 case ScenerySurface.Mine:
                 case ScenerySurface.Dungeon:
                 case ScenerySurface.Stone:
@@ -186,6 +211,26 @@ namespace ClassicUO.Game.Managers
 
             int count = ScaleCount(running ? 4 : 2);
             Spawn(x, y, z, kind, false, count);
+        }
+
+        private static GroundTrackShape GetPlayerTrackShape()
+        {
+            Mobile player = World.Player;
+            if (player?.IsMounted != true) return GroundTrackShape.Boots;
+
+            Item mount = player.Mount;
+            string mountName = mount?.Name;
+            if (string.IsNullOrEmpty(mountName) && mount != null) mountName = mount.ItemData.Name;
+            string name = (mountName ?? string.Empty).ToLowerInvariant();
+            if (name.Contains("horse") || name.Contains("mare") || name.Contains("llama")
+                || name.Contains("unicorn") || name.Contains("ki-rin") || name.Contains("kirin")
+                || name.Contains("ridgeback"))
+                return GroundTrackShape.Hooves;
+            if (name.Contains("beetle") || name.Contains("ostard") || name.Contains("dragon")
+                || name.Contains("reptalon") || name.Contains("hiryu") || name.Contains("wolf")
+                || name.Contains("saurosaurus"))
+                return GroundTrackShape.Claws;
+            return GroundTrackShape.Large;
         }
 
         private static void Spawn(int x, int y, sbyte z, ParticleKind kind, bool foreground, int count)
@@ -255,6 +300,9 @@ namespace ClassicUO.Game.Managers
             string name = tileName?.ToLowerInvariant() ?? string.Empty;
             if (snowCover > 0.18f || name.Contains("snow") || name.Contains("ice"))
                 return ScenerySurface.Snow;
+            if (name.Contains("mud") || name.Contains("swamp") || name.Contains("bog")
+                || name.Contains("marsh"))
+                return ScenerySurface.Mud;
             if (IsSandGraphic(graphic) || name.Contains("sand") || name.Contains("desert")
                 || name.Contains("dune"))
                 return ScenerySurface.Sand;
@@ -278,7 +326,11 @@ namespace ClassicUO.Game.Managers
             if (dungeon) return ScenerySurface.Dungeon;
             if (name.Contains("sand")) return ScenerySurface.Sand;
             if (name.Contains("grass") || name.Contains("moss")) return ScenerySurface.Grass;
-            if (name.Contains("dirt") || name.Contains("soil") || name.Contains("mud")
+            if (name.Contains("mud") || name.Contains("swamp") || name.Contains("bog")
+                || name.Contains("marsh")) return ScenerySurface.Mud;
+            if (name.Contains("wood") || name.Contains("wooden") || name.Contains("plank")
+                || name.Contains("board") || name.Contains("deck")) return ScenerySurface.Wood;
+            if (name.Contains("dirt") || name.Contains("soil")
                 || name.Contains("earth")) return ScenerySurface.Dirt;
             return ScenerySurface.Stone;
         }
@@ -511,16 +563,23 @@ namespace ClassicUO.Game.Managers
 
         public static void DrawBackground(UltimaBatcher2D batcher, Rectangle bounds)
         {
-            if (!AmbienceOverlay.Enabled || World.Player == null) return;
-            DrawContactShadows(batcher, bounds);
-            DrawParticles(batcher, bounds, false);
-            DrawCanopySunbeams(batcher, bounds);
+            if (World.Player == null) return;
+            if (SurfaceParticlesEnabled)
+            {
+                DrawParticles(batcher, bounds, false);
+                if (!AmbienceOverlay.Enabled) DrawParticles(batcher, bounds, true);
+            }
+            if (AmbienceOverlay.Enabled)
+            {
+                DrawContactShadows(batcher, bounds);
+                DrawCanopySunbeams(batcher, bounds);
+            }
         }
 
         public static void DrawForeground(UltimaBatcher2D batcher, Rectangle bounds)
         {
             if (!AmbienceOverlay.Enabled || World.Player == null) return;
-            DrawParticles(batcher, bounds, true);
+            if (SurfaceParticlesEnabled) DrawParticles(batcher, bounds, true);
             DrawRareAtmosphere(batcher, bounds);
         }
 
@@ -581,6 +640,8 @@ namespace ClassicUO.Game.Managers
                     case ParticleKind.Water:
                     case ParticleKind.Wake:
                     case ParticleKind.WetStone: color = new Color(145, 185, 220, 255); break;
+                    case ParticleKind.Mud: color = new Color(85, 62, 40, 255); break;
+                    case ParticleKind.WoodDust: color = new Color(175, 145, 100, 255); break;
                     default: color = new Color(155, 125, 88, 255); break;
                 }
                 Texture2D texture = SolidColorTextureCache.GetTexture(color);
@@ -596,6 +657,11 @@ namespace ClassicUO.Game.Managers
                 {
                     batcher.Draw(texture, new Rectangle(p.X - spread / 2, p.Y, 3 + spread, 1),
                         ShaderHueTranslator.GetHueVector(0, false, alpha * 0.55f));
+                }
+                else if (particle.Kind == ParticleKind.Mud)
+                {
+                    batcher.Draw(texture, new Rectangle(p.X + drift, p.Y - (int)(t * 4), 3, 3),
+                        ShaderHueTranslator.GetHueVector(0, false, alpha * 0.75f));
                 }
                 else
                 {

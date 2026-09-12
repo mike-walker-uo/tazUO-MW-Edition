@@ -73,6 +73,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.Buff;
 
+        public override void Update()
+        {
+            base.Update();
+            if (_background != null)
+                _background.Alpha = (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100) / 100f;
+        }
+
         private void BuildGump()
         {
             WantUpdateSize = true;

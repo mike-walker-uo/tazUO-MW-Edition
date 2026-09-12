@@ -99,12 +99,17 @@ namespace ClassicUO.Game.Managers
     {
         public int Capacity { get; }
         private readonly Deque<ChatHistoryRecord> _records = new Deque<ChatHistoryRecord>();
-        private readonly Predicate<MessageType> _filter;
+        private readonly Predicate<MessageEventArgs> _filter;
         private bool _hooked;
 
         public event Action<ChatHistoryRecord> RecordAdded;
 
         public ChatHistoryStore(Predicate<MessageType> filter, int capacity = 1000)
+            : this(e => filter(e.Type), capacity)
+        {
+        }
+
+        public ChatHistoryStore(Predicate<MessageEventArgs> filter, int capacity = 1000)
         {
             _filter = filter;
             Capacity = capacity;
@@ -119,8 +124,9 @@ namespace ClassicUO.Game.Managers
 
         private void OnRaw(object sender, MessageEventArgs e)
         {
-            if (!_filter(e.Type)) return;
-            var r = new ChatHistoryRecord(e.Name, e.Text, e.Hue, DateTime.Now, e.Type);
+            if (e == null || !_filter(e)) return;
+            string name = string.IsNullOrEmpty(e.Name) ? e.Parent?.Name : e.Name;
+            var r = new ChatHistoryRecord(name, e.Text, e.Hue, DateTime.Now, e.Type);
             while (_records.Count >= Capacity) _records.RemoveFromFront();
             _records.AddToBack(r);
             RecordAdded?.Invoke(r);

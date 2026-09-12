@@ -75,7 +75,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected BaseChatGump(int x, int y, int w, int h, int fontSizeOverride,
                                string headerText, string sendPromptText,
-                               ChatHistoryStore store, Action<string> sendAction) : base(0, 0)
+                               ChatHistoryStore store, Action<string> sendAction,
+                               bool showInput = true) : base(0, 0)
         {
             _store = store;
             _sendAction = sendAction;
@@ -138,7 +139,7 @@ namespace ClassicUO.Game.UI.Gumps
             CustomGumpThemeManager.StyleDataButton(_clearButton);
 
             int bodyY = HEADER_H;
-            int bodyH = Height - HEADER_H - INPUT_HEIGHT - PADDING;
+            int bodyH = Height - HEADER_H - (showInput ? INPUT_HEIGHT : 0) - PADDING;
             int bodyW = Width - 14 - (PADDING * 2);
 
             _scrollBar = new ScrollBar(Width - 14 - PADDING, bodyY, bodyH);
@@ -147,25 +148,28 @@ namespace ClassicUO.Game.UI.Gumps
             _body = new ChatBody(_store, PADDING, bodyY, bodyW, bodyH, _scrollBar);
             Add(_body);
 
-            Add(_inputPrompt = new Label(sendPromptText, true, CustomGumpThemeManager.DataTextHue, font: 1)
+            if (showInput)
             {
-                X = PADDING + 4,
-                Y = Height - INPUT_HEIGHT + 2
-            });
+                Add(_inputPrompt = new Label(sendPromptText, true, CustomGumpThemeManager.DataTextHue, font: 1)
+                {
+                    X = PADDING + 4,
+                    Y = Height - INPUT_HEIGHT + 2
+                });
 
-            int promptWidth = Math.Max(60, _inputPrompt.Width + 8);
-            int inputW = Width - PADDING * 2 - promptWidth - 8;
-            _input = new ChatInput(this, 0xFF, 256, inputW, true, FontStyle.None, CustomGumpThemeManager.DataTextHue)
-            {
-                X = PADDING + promptWidth,
-                Y = Height - INPUT_HEIGHT + 2,
-                Width = inputW,
-                Height = INPUT_HEIGHT - 4
-            };
-            AlphaBlendControl inputBackground = new AlphaBlendControl(0.6f) { Width = _input.Width, Height = _input.Height };
-            CustomGumpThemeManager.ApplyInputSurface(inputBackground, 0.6f);
-            _input.Add(inputBackground);
-            Add(_input);
+                int promptWidth = Math.Max(60, _inputPrompt.Width + 8);
+                int inputW = Width - PADDING * 2 - promptWidth - 8;
+                _input = new ChatInput(this, 0xFF, 256, inputW, true, FontStyle.None, CustomGumpThemeManager.DataTextHue)
+                {
+                    X = PADDING + promptWidth,
+                    Y = Height - INPUT_HEIGHT + 2,
+                    Width = inputW,
+                    Height = INPUT_HEIGHT - 4
+                };
+                AlphaBlendControl inputBackground = new AlphaBlendControl(0.6f) { Width = _input.Width, Height = _input.Height };
+                CustomGumpThemeManager.ApplyInputSurface(inputBackground, 0.6f);
+                _input.Add(inputBackground);
+                Add(_input);
+            }
 
             _resizeGrip = new HitBox(Width - 12, Height - 12, 12, 12, "Drag to resize", 0.5f);
             _resizeGrip.MouseDown += (s, e) =>
@@ -208,7 +212,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch (buttonID)
             {
                 case 1:
-                    _body.RebuildFromHistory(GetCurrentFontSize(), filter: "__none__");
+                    ClearHistory();
                     break;
                 case 2:
                     SetFontSizeOverride(GetCurrentFontSize() - 1);
@@ -220,6 +224,12 @@ namespace ClassicUO.Game.UI.Gumps
                     base.OnButtonClick(buttonID);
                     break;
             }
+        }
+
+        public void ClearHistory()
+        {
+            _store.Clear();
+            _body.RebuildFromHistory(GetCurrentFontSize(), _search.Text);
         }
 
         protected int GetCurrentFontSize()
@@ -277,7 +287,7 @@ namespace ClassicUO.Game.UI.Gumps
             _fontPlus.X = w - 144;
             _clearButton.X = w - 50 - PADDING;
 
-            int bodyH = h - HEADER_H - INPUT_HEIGHT - PADDING;
+            int bodyH = h - HEADER_H - (_input == null ? 0 : INPUT_HEIGHT) - PADDING;
             int bodyW = w - 14 - (PADDING * 2);
 
             _scrollBar.X = w - 14 - PADDING;
@@ -286,10 +296,13 @@ namespace ClassicUO.Game.UI.Gumps
             _body.Height = bodyH;
             _body.OnResize();
 
-            int promptWidth = Math.Max(60, _inputPrompt.Width + 8);
-            _inputPrompt.Y = h - INPUT_HEIGHT + 2;
-            _input.Y = h - INPUT_HEIGHT + 2;
-            _input.Width = w - PADDING * 2 - promptWidth - 8;
+            if (_input != null)
+            {
+                int promptWidth = Math.Max(60, _inputPrompt.Width + 8);
+                _inputPrompt.Y = h - INPUT_HEIGHT + 2;
+                _input.Y = h - INPUT_HEIGHT + 2;
+                _input.Width = w - PADDING * 2 - promptWidth - 8;
+            }
             _resizeGrip.X = w - 12;
             _resizeGrip.Y = h - 12;
 
@@ -300,6 +313,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void SubmitInputText()
         {
+            if (_input == null || _sendAction == null)
+                return;
+
             string text = _input.Text;
             if (string.IsNullOrWhiteSpace(text))
                 return;

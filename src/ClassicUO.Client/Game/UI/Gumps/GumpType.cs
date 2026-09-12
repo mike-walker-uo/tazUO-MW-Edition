@@ -75,5 +75,6 @@ namespace ClassicUO.Game.UI.Gumps
         PerfHud,
         PlayerInfoFloater,
         HealSelfButton,
+        NearbySpeechHistory,
     }
 }

@@ -70,7 +70,18 @@ namespace ClassicUO.Game.Managers
 
         public static void CalculateContainerPosition(uint serial, ushort g)
         {
-            if (UIManager.GetGumpCachePosition(serial, out Point location))
+            Item item = World.Items.Get(serial);
+            bool isCorpse = g == ContainerGump.CORPSES_GUMP || item?.IsCorpse == true;
+
+            if (isCorpse
+                && ProfileManager.CurrentProfile != null
+                && !ProfileManager.CurrentProfile.OverrideContainerLocation)
+            {
+                Point corpsePosition = ProfileManager.CurrentProfile.LastCorpseContainerPosition;
+                X = corpsePosition.X;
+                Y = corpsePosition.Y;
+            }
+            else if (UIManager.GetGumpCachePosition(serial, out Point location))
             {
                 X = location.X;
                 Y = location.Y;
