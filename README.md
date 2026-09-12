@@ -14,7 +14,9 @@ It has many features, some of them are:
   - Skill Gain tracker, Damage tracker, Death recap
   - Integrated weapon, spellbook, shield, talisman switcher (like slayer bar)
   - Tracking "line" (not just arrow)
-...and many many more features. The commands (just type -commands) are explained.
+...and many many more features.
+
+See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
 Howto:
 1. Make a backup of your ClassicUO folder.
@@ -36,5 +38,4 @@ License:
 This project is a fork of software developed by andreakarasho:
 https://github.com/andreakarasho
 Licensed under the BSD-4-Clause license. See LICENSE.
-
 
