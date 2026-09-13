@@ -28,11 +28,11 @@ It has many features, some of them are:
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
 ## Videos of the features:
-https://youtu.be/4MyUOeN3P4A
-https://youtu.be/81xNXowYFro
-https://youtu.be/YFjpZDvHfBE
-https://youtu.be/5MwT_lsuTXw
-https://youtu.be/fs3JoYBPhLc
+https://youtu.be/4MyUOeN3P4A  
+https://youtu.be/81xNXowYFro  
+https://youtu.be/YFjpZDvHfBE  
+https://youtu.be/5MwT_lsuTXw  
+https://youtu.be/fs3JoYBPhLc  
 https://youtu.be/4BqKIRYgKqI
 
 ## Installation
