@@ -506,7 +506,7 @@ namespace ClassicUO
                 Window.Handle,
                 !borderless
             );
-            SDL_DisplayMode* displayMode = SDL_GetCurrentDisplayMode(
+            SDL_DisplayMode* displayMode = (SDL_DisplayMode*)SDL_GetCurrentDisplayMode(
                 SDL_GetDisplayForWindow(Window.Handle)
             );
 
@@ -1114,14 +1114,14 @@ namespace ClassicUO
                     if (sdlEvent->gbutton.button == (byte)SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK)
                     {
                         SDL_Event e = new SDL_Event();
-                        e.type = SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
+                        e.type = (uint)SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
                         e.button.button = (byte)MouseButtonType.Left;
                         SDL3.SDL.SDL_PushEvent(ref e);
                     }
                     else if (sdlEvent->gbutton.button == (byte)SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK)
                     {
                         SDL_Event e = new SDL_Event();
-                        e.type = SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
+                        e.type = (uint)SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN;
                         e.button.button = (byte)MouseButtonType.Right;
                         SDL3.SDL.SDL_PushEvent(ref e);
                     }
@@ -1151,14 +1151,14 @@ namespace ClassicUO
                     if (sdlEvent->gbutton.button == (byte)SDL_GamepadButton.SDL_GAMEPAD_BUTTON_RIGHT_STICK)
                     {
                         SDL_Event e = new SDL_Event();
-                        e.type = SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP;
+                        e.type = (uint)SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP;
                         e.button.button = (byte)MouseButtonType.Left;
                         SDL3.SDL.SDL_PushEvent(ref e);
                     }
                     else if (sdlEvent->gbutton.button == (byte)SDL_GamepadButton.SDL_GAMEPAD_BUTTON_LEFT_STICK)
                     {
                         SDL_Event e = new SDL_Event();
-                        e.type = SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP;
+                        e.type = (uint)SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP;
                         e.button.button = (byte)MouseButtonType.Right;
                         SDL3.SDL.SDL_PushEvent(ref e);
                     }
