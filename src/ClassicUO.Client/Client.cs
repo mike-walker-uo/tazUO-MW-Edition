@@ -61,6 +61,7 @@ namespace ClassicUO
             Load();
 
             Log.Trace("Running game...");
+            ConfigureGraphicsDiagnostics();
 
             using (Game = new GameController())
             {
@@ -90,6 +91,33 @@ namespace ClassicUO
         public static void ShowErrorMessage(string msg)
         {
             SDL.SDL_ShowSimpleMessageBox(SDL.SDL_MessageBoxFlags.SDL_MESSAGEBOX_ERROR, "ERROR", msg, IntPtr.Zero);
+        }
+
+        private static void ConfigureGraphicsDiagnostics()
+        {
+            Microsoft.Xna.Framework.FNALoggerEXT.LogInfo = message => Log.Info($"[FNA] {message}");
+            Microsoft.Xna.Framework.FNALoggerEXT.LogWarn = message => Log.Warn($"[FNA] {message}");
+            Microsoft.Xna.Framework.FNALoggerEXT.LogError = message => Log.Error($"[FNA] {message}");
+
+            Log.Info(
+                $"Graphics configuration: requested driver={Environment.GetEnvironmentVariable("FNA3D_FORCE_DRIVER") ?? "Auto"}, " +
+                $"D3D11 BitBlt={Environment.GetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT") ?? "0"}"
+            );
+
+            string runtimeDirectory = Path.Combine(CUOEnviroment.ExecutablePath, "x64");
+            foreach (string fileName in new[] { "SDL3.dll", "FNA3D.dll", "FAudio.dll", "libtheorafile.dll" })
+            {
+                string path = Path.Combine(runtimeDirectory, fileName);
+                if (File.Exists(path))
+                {
+                    FileVersionInfo version = FileVersionInfo.GetVersionInfo(path);
+                    Log.Info($"Native runtime: {fileName} {version.FileVersion ?? version.ProductVersion ?? "unknown"}");
+                }
+                else
+                {
+                    Log.Warn($"Native runtime missing: {path}");
+                }
+            }
         }
 
 

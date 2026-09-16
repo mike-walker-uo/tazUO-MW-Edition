@@ -125,6 +125,13 @@ namespace ClassicUO
             GraphicManager.ApplyChanges();
             MainThreadHangDiagnostics.Start(GraphicsDevice.Adapter.Description);
 
+            int sdlVersion = SDL_GetVersion();
+            Log.Info(
+                $"Graphics initialized: adapter={GraphicsDevice.Adapter.Description}, " +
+                $"SDL={sdlVersion / 1_000_000}.{sdlVersion / 1_000 % 1_000}.{sdlVersion % 1_000}, " +
+                $"video driver={SDL_GetCurrentVideoDriver()}"
+            );
+
             SetRefreshRate(CUOEnviroment.SafeGraphicsMode ? 60 : Settings.GlobalSettings.FPS);
             _uoSpriteBatch = new UltimaBatcher2D(GraphicsDevice);
 

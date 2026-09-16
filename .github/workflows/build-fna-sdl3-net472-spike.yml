@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Check out TazUO
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@v4
@@ -29,36 +31,9 @@ jobs:
       - name: Install legacy DirectX runtime
         run: choco install directx -y --no-progress
 
-      - name: Stage pinned FNA SDL3 stack
+      - name: Stage pinned SDL3 native runtime
         shell: pwsh
-        run: |
-          $classicUO = Join-Path $env:RUNNER_TEMP "ClassicUO-SDL3"
-
-          git clone --filter=blob:none https://github.com/ClassicUO/ClassicUO.git $classicUO
-          git -C $classicUO checkout --detach $env:CLASSICUO_SDL3_COMMIT
-          git -C $classicUO submodule update --init --recursive external/FNA
-
-          $actualFnaCommit = git -C (Join-Path $classicUO "external/FNA") rev-parse HEAD
-          if ($actualFnaCommit -ne $env:FNA_COMMIT) {
-            throw "Expected FNA $env:FNA_COMMIT but ClassicUO contains $actualFnaCommit"
-          }
-
-          Remove-Item external/FNA -Recurse -Force
-          Copy-Item (Join-Path $classicUO "external/FNA") external/FNA -Recurse
-
-          Remove-Item external/x64/SDL2.dll -Force
-          Copy-Item (Join-Path $classicUO "external/x64/*") external/x64 -Force
-
-          if (!(Test-Path external/FNA/FNA.NetFramework.csproj)) {
-            throw "Pinned FNA checkout does not contain FNA.NetFramework.csproj"
-          }
-
-          if (!(Test-Path external/x64/SDL3.dll)) {
-            throw "Pinned native stack does not contain SDL3.dll"
-          }
-
-          Get-Item external/x64/*.dll | Select-Object Name, Length
-          Get-FileHash external/x64/*.dll -Algorithm SHA256
+        run: .github/scripts/stage-fna-sdl3-runtime.ps1 -ClassicUOCommit $env:CLASSICUO_SDL3_COMMIT -FnaCommit $env:FNA_COMMIT
 
       - name: Restore client and unit tests
         run: dotnet restore tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -r win-x64

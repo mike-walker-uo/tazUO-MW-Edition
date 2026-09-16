@@ -30,6 +30,10 @@ jobs:
       - name: Install legacy DirectX runtime
         run: choco install directx -y --no-progress
 
+      - name: Stage pinned SDL3 native runtime
+        shell: pwsh
+        run: .github/scripts/stage-fna-sdl3-runtime.ps1
+
       - name: Restore client and unit tests
         run: dotnet restore tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -r win-x64
 
@@ -44,6 +48,21 @@ jobs:
           -r win-x64
           --self-contained false
           --no-restore
+
+      - name: Verify packaged runtime
+        shell: pwsh
+        run: |
+          if (!(Test-Path bin/dist/x64/SDL3.dll)) {
+            throw "Published client does not contain x64/SDL3.dll"
+          }
+
+          if (Test-Path bin/dist/x64/SDL2.dll) {
+            throw "Published client unexpectedly contains x64/SDL2.dll"
+          }
+
+          if (!(Test-Path bin/dist/x64/FNA3D.dll)) {
+            throw "Published client does not contain x64/FNA3D.dll"
+          }
 
       - name: Upload Windows client
         uses: actions/upload-artifact@v4
