@@ -25,11 +25,6 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v2
-        with:
-          vs-version: '[17.0,18.0)'
-
       - name: Install legacy DirectX runtime
         run: choco install directx -y --no-progress
 
@@ -50,13 +45,29 @@ jobs:
       - name: Build FNA3D 25.09 against SDL2
         shell: pwsh
         run: |
-          msbuild external/FNA/lib/FNA3D/visualc/FNA3D.sln `
-            /m `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            /p:PlatformToolset=v143
+          $sdl = Resolve-Path external/FNA/lib/SDL2
+          $build = Join-Path $env:RUNNER_TEMP "FNA3D-SDL2"
 
-          $fna3d = Get-ChildItem external/FNA/lib/FNA3D/visualc -Recurse -Filter FNA3D.dll |
+          cmake `
+            -S external/FNA/lib/FNA3D `
+            -B $build `
+            -A x64 `
+            -DBUILD_SDL3=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            "-DSDL2_INCLUDE_DIRS=$sdl/include" `
+            "-DSDL2_LIBRARIES=$sdl/lib/x64/SDL2.lib"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "FNA3D CMake configuration failed with exit code $LASTEXITCODE"
+          }
+
+          cmake --build $build --config Release --parallel
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "FNA3D build failed with exit code $LASTEXITCODE"
+          }
+
+          $fna3d = Get-ChildItem $build -Recurse -Filter FNA3D.dll |
             Where-Object { $_.FullName -match '[\\/]Release[\\/]' } |
             Select-Object -First 1
 
