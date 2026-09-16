@@ -27,6 +27,8 @@ jobs:
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '[17.0,18.0)'
 
       - name: Install legacy DirectX runtime
         run: choco install directx -y --no-progress
@@ -51,7 +53,8 @@ jobs:
           msbuild external/FNA/lib/FNA3D/visualc/FNA3D.sln `
             /m `
             /p:Configuration=Release `
-            /p:Platform=x64
+            /p:Platform=x64 `
+            /p:PlatformToolset=v143
 
           $fna3d = Get-ChildItem external/FNA/lib/FNA3D/visualc -Recurse -Filter FNA3D.dll |
             Where-Object { $_.FullName -match '[\\/]Release[\\/]' } |
@@ -100,6 +103,8 @@ jobs:
           - SDL2 2.32.10 replaces the old bundled SDL2 runtime.
           - FNA3D 25.09 is rebuilt from this repository against SDL2.
           - .NET Framework remains net472. This is not an SDL3 build.
+          - This diagnostic build tests D3D11 and OpenGL. Do not select the
+            Vulkan force-driver option in this build.
 
           Test order on the affected PC:
           1. Start ClassicUO.exe normally.
