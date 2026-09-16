@@ -43,15 +43,19 @@ using SDL3;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 namespace ClassicUO
 {
     internal static class Client
     {
+        private static readonly StringBuilder _graphicsDiagnostics = new StringBuilder();
+
         public static ClientVersion Version { get; private set; }
         public static ClientFlags Protocol { get; set; }
         public static string ClientPath { get; private set; }
         public static GameController Game { get; private set; }
+        internal static string GraphicsDiagnostics => _graphicsDiagnostics.ToString();
 
 
         public static void Run()
@@ -95,11 +99,13 @@ namespace ClassicUO
 
         private static void ConfigureGraphicsDiagnostics()
         {
-            Microsoft.Xna.Framework.FNALoggerEXT.LogInfo = message => Log.Info($"[FNA] {message}");
-            Microsoft.Xna.Framework.FNALoggerEXT.LogWarn = message => Log.Warn($"[FNA] {message}");
-            Microsoft.Xna.Framework.FNALoggerEXT.LogError = message => Log.Error($"[FNA] {message}");
+            _graphicsDiagnostics.Clear();
+            Microsoft.Xna.Framework.FNALoggerEXT.LogInfo = message => LogGraphicsDiagnostic("Info", message);
+            Microsoft.Xna.Framework.FNALoggerEXT.LogWarn = message => LogGraphicsDiagnostic("Warning", message);
+            Microsoft.Xna.Framework.FNALoggerEXT.LogError = message => LogGraphicsDiagnostic("Error", message);
 
-            Log.Info(
+            LogGraphicsDiagnostic(
+                "Info",
                 $"Graphics configuration: requested driver={Environment.GetEnvironmentVariable("FNA3D_FORCE_DRIVER") ?? "Auto"}, " +
                 $"D3D11 BitBlt={Environment.GetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT") ?? "0"}"
             );
@@ -111,12 +117,30 @@ namespace ClassicUO
                 if (File.Exists(path))
                 {
                     FileVersionInfo version = FileVersionInfo.GetVersionInfo(path);
-                    Log.Info($"Native runtime: {fileName} {version.FileVersion ?? version.ProductVersion ?? "unknown"}");
+                    LogGraphicsDiagnostic("Info", $"Native runtime: {fileName} {version.FileVersion ?? version.ProductVersion ?? "unknown"}");
                 }
                 else
                 {
-                    Log.Warn($"Native runtime missing: {path}");
+                    LogGraphicsDiagnostic("Warning", $"Native runtime missing: {path}");
                 }
+            }
+        }
+
+        private static void LogGraphicsDiagnostic(string level, string message)
+        {
+            _graphicsDiagnostics.Append('[').Append(level).Append("] ").AppendLine(message);
+
+            if (level == "Error")
+            {
+                Log.Error($"[FNA] {message}");
+            }
+            else if (level == "Warning")
+            {
+                Log.Warn($"[FNA] {message}");
+            }
+            else
+            {
+                Log.Info($"[FNA] {message}");
             }
         }
 

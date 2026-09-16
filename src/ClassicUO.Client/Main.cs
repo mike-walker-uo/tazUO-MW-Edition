@@ -101,6 +101,14 @@ namespace ClassicUO
                     sb.AppendLine();
                 }
 
+                string graphicsDiagnostics = Client.GraphicsDiagnostics;
+                if (!string.IsNullOrEmpty(graphicsDiagnostics))
+                {
+                    sb.AppendLine("Graphics diagnostics:");
+                    sb.Append(graphicsDiagnostics);
+                    sb.AppendLine();
+                }
+
                 sb.AppendFormat("Exception:\n{0}\n", e.ExceptionObject);
                 sb.AppendLine("######################## [END LOG] ########################");
                 sb.AppendLine();
