@@ -8,7 +8,8 @@
     <ProjectReference Include="..\..\external\FontStashSharp\src\XNA\FontStashSharp.FNA.Core.csproj" />
     <ProjectReference Include="..\ClassicUO.Utility\ClassicUO.Utility.csproj" />
     <ProjectReference Include="..\ClassicUO.Assets\ClassicUO.Assets.csproj" />
-    <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" />
+    <ProjectReference Include="..\..\external\FNA\FNA.NetFramework.csproj" Condition="Exists('..\..\external\FNA\FNA.NetFramework.csproj')" />
+    <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" Condition="!Exists('..\..\external\FNA\FNA.NetFramework.csproj')" />
   </ItemGroup>
 
   <ItemGroup>

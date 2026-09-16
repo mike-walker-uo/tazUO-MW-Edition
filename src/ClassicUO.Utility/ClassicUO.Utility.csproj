@@ -5,7 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" />
+    <ProjectReference Include="..\..\external\FNA\FNA.NetFramework.csproj" Condition="Exists('..\..\external\FNA\FNA.NetFramework.csproj')" />
+    <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" Condition="!Exists('..\..\external\FNA\FNA.NetFramework.csproj')" />
   </ItemGroup>
 
   <ItemGroup>
