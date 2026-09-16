@@ -1,0 +1,119 @@
+name: Build SDL2 FNA3D Test Client
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/sdl2-fna3d-runtime
+
+permissions:
+  contents: read
+
+env:
+  SDL2_VERSION: 2.32.10
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install legacy DirectX runtime
+        run: choco install directx -y --no-progress
+
+      - name: Download SDL2 development runtime
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "SDL2-devel-$env:SDL2_VERSION-VC.zip"
+          $url = "https://github.com/libsdl-org/SDL/releases/download/release-$env:SDL2_VERSION/SDL2-devel-$env:SDL2_VERSION-VC.zip"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath (Join-Path $env:RUNNER_TEMP "SDL2")
+
+          $source = Join-Path $env:RUNNER_TEMP "SDL2/SDL2-$env:SDL2_VERSION"
+          $target = Join-Path $env:GITHUB_WORKSPACE "external/FNA/lib/SDL2"
+          Copy-Item -Path $source -Destination $target -Recurse
+
+          Get-FileHash $archive -Algorithm SHA256
+
+      - name: Build FNA3D 25.09 against SDL2
+        shell: pwsh
+        run: |
+          msbuild external/FNA/lib/FNA3D/visualc/FNA3D.sln `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=x64
+
+          $fna3d = Get-ChildItem external/FNA/lib/FNA3D/visualc -Recurse -Filter FNA3D.dll |
+            Where-Object { $_.FullName -match '[\\/]Release[\\/]' } |
+            Select-Object -First 1
+
+          if ($null -eq $fna3d) {
+            throw "The FNA3D build did not produce a Release FNA3D.dll"
+          }
+
+          Copy-Item $fna3d.FullName external/x64/FNA3D.dll -Force
+          Copy-Item external/FNA/lib/SDL2/lib/x64/SDL2.dll external/x64/SDL2.dll -Force
+
+          Write-Host "Using FNA3D: $($fna3d.FullName)"
+          Get-Item external/x64/FNA3D.dll, external/x64/SDL2.dll |
+            Select-Object Name, Length, LastWriteTime
+          Get-FileHash external/x64/FNA3D.dll, external/x64/SDL2.dll -Algorithm SHA256
+
+      - name: Restore client and unit tests
+        run: dotnet restore tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -r win-x64
+
+      - name: Run unit tests
+        run: dotnet test tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -c Release -f net472 -r win-x64 --no-restore
+
+      - name: Publish Windows test client
+        run: >
+          dotnet publish src/ClassicUO.Client/ClassicUO.Client.csproj
+          -c Release
+          -f net472
+          -r win-x64
+          --self-contained false
+          --no-restore
+
+      - name: Add compatibility launcher and test notes
+        shell: pwsh
+        run: |
+          @'
+          @echo off
+          set "FNA3D_D3D11_FORCE_BITBLT=1"
+          "%~dp0ClassicUO.exe" %*
+          '@ | Set-Content bin/dist/Run-D3D11-Compatibility-Test.cmd -Encoding Ascii
+
+          @'
+          SDL2 / FNA3D compatibility test build
+
+          Runtime changes:
+          - SDL2 2.32.10 replaces the old bundled SDL2 runtime.
+          - FNA3D 25.09 is rebuilt from this repository against SDL2.
+          - .NET Framework remains net472. This is not an SDL3 build.
+
+          Test order on the affected PC:
+          1. Start ClassicUO.exe normally.
+          2. If the D3D11 swapchain error remains, close it and start
+             Run-D3D11-Compatibility-Test.cmd instead.
+
+          The compatibility launcher only sets FNA3D_D3D11_FORCE_BITBLT=1 for
+          that launch. It does not change saved settings or force OpenGL.
+          '@ | Set-Content bin/dist/SDL2-FNA3D-TEST.txt -Encoding UTF8
+
+      - name: Upload Windows test client
+        uses: actions/upload-artifact@v4
+        with:
+          name: TazUO-MW-Edition-SDL2-FNA3D-test
+          path: bin/dist/**
+          if-no-files-found: error
+          retention-days: 14
