@@ -21,7 +21,7 @@ try {
         throw "Could not clone the pinned ClassicUO dependency source"
     }
 
-    git -C $classicUO checkout --detach $ClassicUOCommit -- external/x64
+    git -C $classicUO checkout $ClassicUOCommit -- external/x64
     if ($LASTEXITCODE -ne 0) {
         throw "Could not check out the pinned ClassicUO native runtime"
     }
