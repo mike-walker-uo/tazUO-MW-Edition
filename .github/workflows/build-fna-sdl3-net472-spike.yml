@@ -1,0 +1,99 @@
+name: Build FNA SDL3 net472 Spike
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/fna-sdl3-net472
+
+permissions:
+  contents: read
+
+env:
+  CLASSICUO_SDL3_COMMIT: 986f9a7303a3dd747cb81a6da322e4994a169e93
+  FNA_COMMIT: ed62a28d91c6dcacc113b80d96570ae1f9600e03
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out TazUO
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install legacy DirectX runtime
+        run: choco install directx -y --no-progress
+
+      - name: Stage pinned FNA SDL3 stack
+        shell: pwsh
+        run: |
+          $classicUO = Join-Path $env:RUNNER_TEMP "ClassicUO-SDL3"
+
+          git clone --filter=blob:none https://github.com/ClassicUO/ClassicUO.git $classicUO
+          git -C $classicUO checkout --detach $env:CLASSICUO_SDL3_COMMIT
+          git -C $classicUO submodule update --init --recursive external/FNA
+
+          $actualFnaCommit = git -C (Join-Path $classicUO "external/FNA") rev-parse HEAD
+          if ($actualFnaCommit -ne $env:FNA_COMMIT) {
+            throw "Expected FNA $env:FNA_COMMIT but ClassicUO contains $actualFnaCommit"
+          }
+
+          Remove-Item external/FNA -Recurse -Force
+          Copy-Item (Join-Path $classicUO "external/FNA") external/FNA -Recurse
+
+          Remove-Item external/x64/SDL2.dll -Force
+          Copy-Item (Join-Path $classicUO "external/x64/*") external/x64 -Force
+
+          if (!(Test-Path external/FNA/FNA.NetFramework.csproj)) {
+            throw "Pinned FNA checkout does not contain FNA.NetFramework.csproj"
+          }
+
+          if (!(Test-Path external/x64/SDL3.dll)) {
+            throw "Pinned native stack does not contain SDL3.dll"
+          }
+
+          Get-Item external/x64/*.dll | Select-Object Name, Length
+          Get-FileHash external/x64/*.dll -Algorithm SHA256
+
+      - name: Restore client and unit tests
+        run: dotnet restore tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -r win-x64
+
+      - name: Run unit tests
+        run: dotnet test tests/ClassicUO.UnitTests/ClassicUO.UnitTests.csproj -c Release -f net472 -r win-x64 --no-restore
+
+      - name: Publish Windows spike client
+        run: >
+          dotnet publish src/ClassicUO.Client/ClassicUO.Client.csproj
+          -c Release
+          -f net472
+          -r win-x64
+          --self-contained false
+          --no-restore
+
+      - name: Verify packaged runtime
+        shell: pwsh
+        run: |
+          if (!(Test-Path bin/dist/x64/SDL3.dll)) {
+            throw "Published client does not contain x64/SDL3.dll"
+          }
+
+          if (Test-Path bin/dist/x64/SDL2.dll) {
+            throw "Published client unexpectedly contains x64/SDL2.dll"
+          }
+
+          if (!(Test-Path bin/dist/x64/FNA3D.dll)) {
+            throw "Published client does not contain x64/FNA3D.dll"
+          }
+
+      - name: Upload Windows spike client
+        uses: actions/upload-artifact@v4
+        with:
+          name: TazUO-MW-Edition-FNA-SDL3-net472-spike
+          path: bin/dist/**
+          if-no-files-found: error
+          retention-days: 14
