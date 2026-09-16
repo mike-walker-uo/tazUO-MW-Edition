@@ -46,6 +46,18 @@ namespace ClassicUO.Input
 
         public static void OnKeyDown(SDL.SDL_KeyboardEvent e) => OnKeyEvent(e);
 
+        public static SDL.SDL_Keymod NormalizeAltGr(SDL.SDL_Keymod mod)
+        {
+            // SDL2 on Windows exposed AltGr as Left Ctrl + Right Alt. Keep that
+            // contract for client hotkeys and legacy plugins such as Razor Enhanced.
+            if ((mod & SDL.SDL_Keymod.SDL_KMOD_RALT) != SDL.SDL_Keymod.SDL_KMOD_NONE)
+            {
+                mod |= SDL.SDL_Keymod.SDL_KMOD_LCTRL;
+            }
+
+            return mod;
+        }
+
         private static void OnKeyEvent(SDL.SDL_KeyboardEvent e)
         {
             UpdateModifiers(e.mod);
@@ -53,7 +65,7 @@ namespace ClassicUO.Input
 
         private static void UpdateModifiers(SDL.SDL_Keymod e)
         {
-            SDL.SDL_Keymod mod = e & ~IgnoreKeyMod;
+            SDL.SDL_Keymod mod = NormalizeAltGr(e) & ~IgnoreKeyMod;
             SDL.SDL_Keymod filtered = mod;
 
             if ((mod & (SDL.SDL_Keymod.SDL_KMOD_RALT | SDL.SDL_Keymod.SDL_KMOD_LCTRL)) == (SDL.SDL_Keymod.SDL_KMOD_RALT | SDL.SDL_Keymod.SDL_KMOD_LCTRL))

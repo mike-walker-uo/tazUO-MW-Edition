@@ -822,12 +822,14 @@ namespace ClassicUO
 
                 case SDL_EventType.SDL_EVENT_KEY_DOWN:
 
-                    Keyboard.OnKeyDown(sdlEvent->key);
+                    SDL_KeyboardEvent keyDownEvent = sdlEvent->key;
+                    keyDownEvent.mod = Keyboard.NormalizeAltGr(keyDownEvent.mod);
+                    Keyboard.OnKeyDown(keyDownEvent);
 
                     if (
                         Plugin.ProcessHotkeys(
-                            (int)sdlEvent->key.key,
-                            (int)sdlEvent->key.mod,
+                            (int)keyDownEvent.key,
+                            (int)keyDownEvent.mod,
                             true
                         )
                     )
@@ -835,11 +837,11 @@ namespace ClassicUO
                         _ignoreNextTextInput = false;
 
                         UIManager.KeyboardFocusControl?.InvokeKeyDown(
-                            (SDL_Keycode)sdlEvent->key.key,
-                            sdlEvent->key.mod
+                            (SDL_Keycode)keyDownEvent.key,
+                            keyDownEvent.mod
                         );
 
-                        Scene.OnKeyDown(sdlEvent->key);
+                        Scene.OnKeyDown(keyDownEvent);
                     }
                     else
                     {
@@ -850,15 +852,17 @@ namespace ClassicUO
 
                 case SDL_EventType.SDL_EVENT_KEY_UP:
 
-                    Keyboard.OnKeyUp(sdlEvent->key);
+                    SDL_KeyboardEvent keyUpEvent = sdlEvent->key;
+                    keyUpEvent.mod = Keyboard.NormalizeAltGr(keyUpEvent.mod);
+                    Keyboard.OnKeyUp(keyUpEvent);
                     UIManager.KeyboardFocusControl?.InvokeKeyUp(
-                        (SDL_Keycode)sdlEvent->key.key,
-                        sdlEvent->key.mod
+                        (SDL_Keycode)keyUpEvent.key,
+                        keyUpEvent.mod
                     );
-                    Scene.OnKeyUp(sdlEvent->key);
+                    Scene.OnKeyUp(keyUpEvent);
                     Plugin.ProcessHotkeys(0, 0, false);
 
-                    if ((SDL_Keycode)sdlEvent->key.key == SDL_Keycode.SDLK_PRINTSCREEN)
+                    if ((SDL_Keycode)keyUpEvent.key == SDL_Keycode.SDLK_PRINTSCREEN)
                     {
                         if (Keyboard.Ctrl)
                         {
