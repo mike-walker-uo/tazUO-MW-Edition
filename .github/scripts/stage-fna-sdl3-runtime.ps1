@@ -16,12 +16,12 @@ try {
         throw "Expected FNA $FnaCommit but checkout contains $actualFnaCommit"
     }
 
-    git clone --filter=blob:none --no-checkout https://github.com/ClassicUO/ClassicUO.git $classicUO
+    git clone --filter=blob:none https://github.com/ClassicUO/ClassicUO.git $classicUO
     if ($LASTEXITCODE -ne 0) {
         throw "Could not clone the pinned ClassicUO dependency source"
     }
 
-    git -C $classicUO checkout $ClassicUOCommit -- external/x64
+    git -C $classicUO checkout --detach $ClassicUOCommit
     if ($LASTEXITCODE -ne 0) {
         throw "Could not check out the pinned ClassicUO native runtime"
     }
