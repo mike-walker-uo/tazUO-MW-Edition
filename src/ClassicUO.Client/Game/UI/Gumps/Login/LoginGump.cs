@@ -40,7 +40,7 @@ using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using System.Collections.Generic;
 
 namespace ClassicUO.Game.UI.Gumps.Login
@@ -579,10 +579,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
             }
         }
 
-        protected override void OnControllerButtonUp(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonUp(SDL.SDL_GamepadButton button)
         {
             base.OnControllerButtonUp(button);
-            if (button == SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A)
+            if (button == SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH)
             {
                 SaveCheckboxStatus();
                 LoginScene ls = Client.Game.GetScene<LoginScene>();

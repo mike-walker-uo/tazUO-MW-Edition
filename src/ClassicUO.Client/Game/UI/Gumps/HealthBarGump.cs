@@ -41,7 +41,7 @@ using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
 using System;
 using System.Text.Json.Serialization;
 using System.Xml;

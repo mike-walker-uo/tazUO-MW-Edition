@@ -32,7 +32,7 @@
 
 using System;
 using System.Runtime.InteropServices;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Utility.Platforms
 {

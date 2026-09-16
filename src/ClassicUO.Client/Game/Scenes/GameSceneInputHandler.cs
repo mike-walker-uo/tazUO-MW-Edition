@@ -42,7 +42,7 @@ using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using System;
 using System.Linq;
 using MathHelper = ClassicUO.Utility.MathHelper;
@@ -78,10 +78,10 @@ namespace ClassicUO.Game.Scenes
             {
                 switch (key)
                 {
-                    case SDL.SDL_Keycode.SDLK_w: return 0;
-                    case SDL.SDL_Keycode.SDLK_a: return 1;
-                    case SDL.SDL_Keycode.SDLK_s: return 2;
-                    case SDL.SDL_Keycode.SDLK_d: return 3;
+                    case SDL.SDL_Keycode.SDLK_W: return 0;
+                    case SDL.SDL_Keycode.SDLK_A: return 1;
+                    case SDL.SDL_Keycode.SDLK_S: return 2;
+                    case SDL.SDL_Keycode.SDLK_D: return 3;
                     default: return -1;
                 }
             }
@@ -1380,12 +1380,12 @@ namespace ClassicUO.Game.Scenes
 
         internal override void OnKeyDown(SDL.SDL_KeyboardEvent e)
         {
-            if (e.keysym.sym == SDL.SDL_Keycode.SDLK_TAB && e.repeat != 0)
+            if ((SDL.SDL_Keycode)e.key == SDL.SDL_Keycode.SDLK_TAB && e.repeat)
             {
                 return;
             }
 
-            if (e.keysym.sym == SDL.SDL_Keycode.SDLK_ESCAPE && TargetManager.IsTargeting)
+            if ((SDL.SDL_Keycode)e.key == SDL.SDL_Keycode.SDLK_ESCAPE && TargetManager.IsTargeting)
             {
                 TargetManager.CancelTarget();
             }
@@ -1395,7 +1395,7 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
-            switch (e.keysym.sym)
+            switch ((SDL.SDL_Keycode)e.key)
             {
                 case SDL.SDL_Keycode.SDLK_ESCAPE:
 
@@ -1460,7 +1460,7 @@ namespace ClassicUO.Game.Scenes
                         {
                             UIManager.SystemChat.IsActive = true;
                         }
-                        else if (Keyboard.Shift && e.keysym.sym == SDL.SDL_Keycode.SDLK_SEMICOLON)
+                        else if (Keyboard.Shift && (SDL.SDL_Keycode)e.key == SDL.SDL_Keycode.SDLK_SEMICOLON)
                         {
                             UIManager.SystemChat.IsActive = true;
                         }
@@ -1506,16 +1506,16 @@ namespace ClassicUO.Game.Scenes
 
             if (CanExecuteMacro())
             {
-                SpellBarManager.KeyPress(e.keysym.sym, e.keysym.mod);
+                SpellBarManager.KeyPress((SDL.SDL_Keycode)e.key, e.mod);
 
                 Macro macro = Macros.FindMacro(
-                    e.keysym.sym,
+                    (SDL.SDL_Keycode)e.key,
                     Keyboard.Alt,
                     Keyboard.Ctrl,
                     Keyboard.Shift
                 );
 
-                if (macro != null && e.keysym.sym != SDL.SDL_Keycode.SDLK_UNKNOWN)
+                if (macro != null && (SDL.SDL_Keycode)e.key != SDL.SDL_Keycode.SDLK_UNKNOWN)
                 {
                     if (macro.Items is MacroObject mac)
                     {
@@ -1593,15 +1593,15 @@ namespace ClassicUO.Game.Scenes
                     if (string.IsNullOrEmpty(UIManager.SystemChat.TextBoxControl.Text))
                     {
                         bool wasd = ProfileManager.CurrentProfile.UseWASDInsteadArrowKeys && !UIManager.SystemChat.IsActive;
-                        int movementKeyIndex = GetMovementKeyIndex(e.keysym.sym, wasd);
+                        int movementKeyIndex = GetMovementKeyIndex((SDL.SDL_Keycode)e.key, wasd);
                         if (movementKeyIndex >= 0) _flags[movementKeyIndex] = true;
                     }
                 }
             }
 
-            if (e.keysym.sym != SDL.SDL_Keycode.SDLK_UNKNOWN)
+            if ((SDL.SDL_Keycode)e.key != SDL.SDL_Keycode.SDLK_UNKNOWN)
             {
-                NameOverHeadManager.RegisterKeyDown(e.keysym);
+                NameOverHeadManager.RegisterKeyDown((SDL.SDL_Keycode)e.key, e.mod);
             }
         }
 
@@ -1624,13 +1624,13 @@ namespace ClassicUO.Game.Scenes
             if (_flags[4] || Client.Game.Scene.Camera.PeekingToMouse)
             {
                 Macro macro = Macros.FindMacro(
-                    e.keysym.sym,
+                    (SDL.SDL_Keycode)e.key,
                     Keyboard.Alt,
                     Keyboard.Ctrl,
                     Keyboard.Shift
                 );
 
-                if (macro != null && e.keysym.sym != SDL.SDL_Keycode.SDLK_UNKNOWN)
+                if (macro != null && (SDL.SDL_Keycode)e.key != SDL.SDL_Keycode.SDLK_UNKNOWN)
                 {
                     if (macro.Items is MacroObject mac)
                     {
@@ -1712,11 +1712,11 @@ namespace ClassicUO.Game.Scenes
             }
 
             bool wasd = ProfileManager.CurrentProfile.UseWASDInsteadArrowKeys && !UIManager.SystemChat.IsActive;
-            int movementKeyIndex = GetMovementKeyIndex(e.keysym.sym, wasd);
+            int movementKeyIndex = GetMovementKeyIndex((SDL.SDL_Keycode)e.key, wasd);
             if (movementKeyIndex >= 0) _flags[movementKeyIndex] = false;
 
             if (
-                e.keysym.sym == SDL.SDL_Keycode.SDLK_TAB
+                (SDL.SDL_Keycode)e.key == SDL.SDL_Keycode.SDLK_TAB
                 && !ProfileManager.CurrentProfile.DisableTabBtn
             )
             {
@@ -1734,10 +1734,10 @@ namespace ClassicUO.Game.Scenes
                 }
             }
 
-            NameOverHeadManager.RegisterKeyUp(e.keysym);
+            NameOverHeadManager.RegisterKeyUp((SDL.SDL_Keycode)e.key);
         }
 
-        internal override void OnControllerButtonDown(SDL.SDL_ControllerButtonEvent e)
+        internal override void OnControllerButtonDown(SDL.SDL_GamepadButtonEvent e)
         {
             base.OnControllerButtonDown(e);
             if (!World.InGame)
@@ -1747,9 +1747,9 @@ namespace ClassicUO.Game.Scenes
 
             if (CanExecuteMacro())
             {
-                SpellBarManager.ControllerInput((SDL.SDL_GameControllerButton)e.button);
+                SpellBarManager.ControllerInput((SDL.SDL_GamepadButton)e.button);
 
-                Macro macro = Macros.FindMacro((SDL.SDL_GameControllerButton)e.button);
+                Macro macro = Macros.FindMacro((SDL.SDL_GamepadButton)e.button);
                 if (macro != null && macro.Items is MacroObject mac)
                 {
                     if (ProfileManager.CurrentProfile.DisableHotkeys && mac.Code != MacroType.ToggleHotkeys)

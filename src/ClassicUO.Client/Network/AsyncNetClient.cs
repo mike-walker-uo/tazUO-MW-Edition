@@ -10,7 +10,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Buffers;
 using System.Diagnostics;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Network
 {
@@ -412,7 +412,7 @@ namespace ClassicUO.Network
 
         private async Task DisconnectCoreAsync()
         {
-            SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_FALSE);
+            SDL.SDL_CaptureMouse(false);
             Statistics.Reset();
 
             _cancellationTokenSource?.Cancel();

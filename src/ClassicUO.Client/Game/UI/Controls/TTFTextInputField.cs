@@ -6,7 +6,7 @@ using ClassicUO.Input;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using StbTextEditSharp;
 
 namespace ClassicUO.Game.UI.Controls
@@ -400,10 +400,10 @@ namespace ClassicUO.Game.UI.Controls
                 base.OnFocusEnter();
                 CaretIndex = Text?.Length ?? 0;
 
-                if (SDL.SDL_IsTextInputActive() == SDL.SDL_bool.SDL_FALSE) {
-                    SDL.SDL_StartTextInput();
-                    SDL.SDL_Rect textRect = new() { x = ScreenCoordinateX, y = ScreenCoordinateY, w = Width, h = Height };
-                    SDL.SDL_SetTextInputRect(ref textRect);
+                if (!Microsoft.Xna.Framework.Input.TextInputEXT.IsTextInputActive()) {
+                    Microsoft.Xna.Framework.Input.TextInputEXT.StartTextInput();
+                    Rectangle textRect = new Rectangle(ScreenCoordinateX, ScreenCoordinateY, Width, Height);
+                    Microsoft.Xna.Framework.Input.TextInputEXT.SetInputRectangle(textRect);
                 }
             }
 
@@ -414,8 +414,8 @@ namespace ClassicUO.Game.UI.Controls
                     Stb.SelectStart = Stb.SelectEnd = 0;
                 }
 
-                if (SDL.SDL_IsTextInputActive() == SDL.SDL_bool.SDL_TRUE) {
-                    SDL.SDL_StopTextInput();
+                if (Microsoft.Xna.Framework.Input.TextInputEXT.IsTextInputActive()) {
+                    Microsoft.Xna.Framework.Input.TextInputEXT.StopTextInput();
                 }
 
                 base.OnFocusLost();
@@ -441,7 +441,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_a when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_A when Keyboard.Ctrl && !NoSelection:
                         SelectAll();
 
                         break;
@@ -460,7 +460,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_c when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_C when Keyboard.Ctrl && !NoSelection:
                         int selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         int selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -471,7 +471,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_x when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_X when Keyboard.Ctrl && !NoSelection:
                         selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -487,17 +487,17 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_v when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_V when Keyboard.Ctrl && IsEditable:
                         OnTextInput(StringHelper.GetClipboardText(Multiline));
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_z when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_Z when Keyboard.Ctrl && IsEditable:
                         stb_key = ControlKeys.Undo;
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_y when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_Y when Keyboard.Ctrl && IsEditable:
                         stb_key = ControlKeys.Redo;
 
                         break;
