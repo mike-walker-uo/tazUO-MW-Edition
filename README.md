@@ -27,6 +27,10 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Compatibility
+
+Version 0.4 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+
 ## Videos of the features:
 https://youtu.be/4MyUOeN3P4A  
 https://youtu.be/81xNXowYFro  
