@@ -1,0 +1,20 @@
+Bundled font notice
+===================
+
+The following unmodified fonts are distributed under the SIL Open Font
+License, Version 1.1. The complete license text is provided in
+ChakraPetch-OFL.txt.
+
+ChakraPetch-Regular.ttf
+Source: https://github.com/google/fonts
+Pinned commit: 92345ac0dbb28d27dbd32f3a782e84c55eaac214
+
+NotoSansSymbols2-Regular.ttf
+Roboto-Bold.ttf
+Roboto-Mono.ttf
+ibm-plex.ttf
+Source: https://github.com/PlayTazUO/TazUO
+Pinned commit: 3212623f63436be1c0f4e3b308b202b29597c026
+
+The font binaries are embedded unchanged and retain their original copyright,
+trademark, and authorship metadata.

@@ -7,8 +7,13 @@ namespace ClassicUO.UnitTests.TazUO
 {
     public class EmbeddedFontsTests
     {
-        [Fact]
-        public void ChakraPetchRegularIsEmbedded()
+        [Theory]
+        [InlineData("ChakraPetch-Regular")]
+        [InlineData("NotoSansSymbols2-Regular")]
+        [InlineData("Roboto-Bold")]
+        [InlineData("Roboto-Mono")]
+        [InlineData("ibm-plex")]
+        public void RequiredFontIsEmbedded(string fontName)
         {
             string[] resources = typeof(TrueTypeLoader).Assembly.GetManifestResourceNames();
 
@@ -16,7 +21,7 @@ namespace ClassicUO.UnitTests.TazUO
             (
                 name => name.EndsWith
                 (
-                    ".fonts.ChakraPetch-Regular.ttf",
+                    $".fonts.{fontName}.ttf",
                     StringComparison.Ordinal
                 )
             );
