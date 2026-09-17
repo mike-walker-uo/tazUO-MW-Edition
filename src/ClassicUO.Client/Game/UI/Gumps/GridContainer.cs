@@ -776,7 +776,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         internal void SaveGridLayout(bool writeFile)
         {
-            if (gridSlotManager == null || skipSave || isCorpse)
+            if (
+                ProfileManager.CurrentProfile == null
+                || World.Player == null
+                || gridSlotManager == null
+                || skipSave
+                || isCorpse
+            )
                 return;
 
             gridContainerEntry.UpdateSaveDataEntry(this);
@@ -1740,8 +1746,6 @@ namespace ClassicUO.Game.UI.Gumps
 
             public void UpdateSaveData(GridContainerEntry entry)
             {
-                UpdateItems();
-
                 var currentSerials = new HashSet<uint>(containerContents.Select(x => x.Serial));
                 var lockedSerials = new HashSet<uint>(itemLocks);
                 entry.ReplaceSlots(itemPositions, currentSerials, lockedSerials);

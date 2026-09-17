@@ -51,6 +51,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\ClassicUO.Assets\fonts\ChakraPetch-OFL.txt">
+      <Link>licenses\ChakraPetch-OFL.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Update="Resources\ResErrorMessages.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
