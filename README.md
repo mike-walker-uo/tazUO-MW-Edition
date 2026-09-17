@@ -27,6 +27,14 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Videos of the features:
+https://youtu.be/4MyUOeN3P4A  
+https://youtu.be/81xNXowYFro  
+https://youtu.be/YFjpZDvHfBE  
+https://youtu.be/5MwT_lsuTXw  
+https://youtu.be/fs3JoYBPhLc  
+https://youtu.be/4BqKIRYgKqI
+
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
@@ -35,14 +43,6 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 4. Optional: Place the contents of the `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.
 6. Optional: After login, click **Scan** in the Music Player gump.
-
-
-some videos:
-https://youtu.be/81xNXowYFro
-https://youtu.be/YFjpZDvHfBE
-https://youtu.be/5MwT_lsuTXw
-https://youtu.be/fs3JoYBPhLc
-https://youtu.be/4BqKIRYgKqI
 
 
 License:
