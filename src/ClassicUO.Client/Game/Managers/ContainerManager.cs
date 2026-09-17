@@ -74,8 +74,7 @@ namespace ClassicUO.Game.Managers
             bool isCorpse = g == ContainerGump.CORPSES_GUMP || item?.IsCorpse == true;
 
             if (isCorpse
-                && ProfileManager.CurrentProfile != null
-                && !ProfileManager.CurrentProfile.OverrideContainerLocation)
+                && ProfileManager.CurrentProfile != null)
             {
                 Point corpsePosition = ProfileManager.CurrentProfile.LastCorpseContainerPosition;
                 X = corpsePosition.X;

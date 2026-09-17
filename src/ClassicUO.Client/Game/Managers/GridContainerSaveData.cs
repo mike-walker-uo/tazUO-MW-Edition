@@ -345,7 +345,35 @@ public class GridContainerEntry
         AutoSort = container.AutoSortContainer;
         VisuallyStackNonStackables = container.StackNonStackableItems;
         SortMode = (int)container.SortMode;
+        container.UpdateSlotSaveData(this);
         return this;
+    }
+
+    public void ReplaceSlots
+    (
+        IReadOnlyDictionary<int, uint> itemPositions,
+        ISet<uint> currentSerials,
+        ISet<uint> lockedSerials
+    )
+    {
+        var currentSlots = new Dictionary<uint, GridContainerSlotEntry>();
+
+        foreach (var position in itemPositions.OrderBy(x => x.Key))
+        {
+            uint serial = position.Value;
+
+            if (!currentSerials.Contains(serial))
+                continue;
+
+            currentSlots[serial] = new GridContainerSlotEntry
+            {
+                Serial = serial,
+                Slot = position.Key,
+                Locked = lockedSerials.Contains(serial)
+            };
+        }
+
+        Slots = currentSlots;
     }
 }
 

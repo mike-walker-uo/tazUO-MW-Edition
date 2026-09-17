@@ -33,7 +33,7 @@
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Input
 {
@@ -73,7 +73,7 @@ namespace ClassicUO.Input
                     break;
             }
 
-            SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_TRUE);
+            SDL.SDL_CaptureMouse(true);
         }
 
         /* Log a button release event at the given time */
@@ -105,7 +105,7 @@ namespace ClassicUO.Input
 
             if (!(LButtonPressed || RButtonPressed || MButtonPressed))
             {
-                SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_FALSE);
+                SDL.SDL_CaptureMouse(false);
             }
         }
 
@@ -149,14 +149,16 @@ namespace ClassicUO.Input
         {
             if (!MouseInWindow)
             {
-                SDL.SDL_GetGlobalMouseState(out int x, out int y);
+                SDL.SDL_GetGlobalMouseState(out float x, out float y);
                 SDL.SDL_GetWindowPosition(Client.Game.Window.Handle, out int winX, out int winY);
-                Position.X = x - winX;
-                Position.Y = y - winY;
+                Position.X = (int)x - winX;
+                Position.Y = (int)y - winY;
             }
             else
             {
-                SDL.SDL_GetMouseState(out Position.X, out Position.Y);
+                SDL.SDL_GetMouseState(out float x, out float y);
+                Position.X = (int)x;
+                Position.Y = (int)y;
                 Microsoft.Xna.Framework.Input.GamePadState gamePadState = Microsoft.Xna.Framework.Input.GamePad.GetState(PlayerIndex.One);
 
                 if (gamePadState.IsConnected && gamePadState.ThumbSticks.Right != Vector2.Zero)

@@ -39,19 +39,23 @@ using ClassicUO.Network.Encryption;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 namespace ClassicUO
 {
     internal static class Client
     {
+        private static readonly StringBuilder _graphicsDiagnostics = new StringBuilder();
+
         public static ClientVersion Version { get; private set; }
         public static ClientFlags Protocol { get; set; }
         public static string ClientPath { get; private set; }
         public static GameController Game { get; private set; }
+        internal static string GraphicsDiagnostics => _graphicsDiagnostics.ToString();
 
 
         public static void Run()
@@ -61,6 +65,7 @@ namespace ClassicUO
             Load();
 
             Log.Trace("Running game...");
+            ConfigureGraphicsDiagnostics();
 
             using (Game = new GameController())
             {
@@ -90,6 +95,53 @@ namespace ClassicUO
         public static void ShowErrorMessage(string msg)
         {
             SDL.SDL_ShowSimpleMessageBox(SDL.SDL_MessageBoxFlags.SDL_MESSAGEBOX_ERROR, "ERROR", msg, IntPtr.Zero);
+        }
+
+        private static void ConfigureGraphicsDiagnostics()
+        {
+            _graphicsDiagnostics.Clear();
+            Microsoft.Xna.Framework.FNALoggerEXT.LogInfo = message => LogGraphicsDiagnostic("Info", message);
+            Microsoft.Xna.Framework.FNALoggerEXT.LogWarn = message => LogGraphicsDiagnostic("Warning", message);
+            Microsoft.Xna.Framework.FNALoggerEXT.LogError = message => LogGraphicsDiagnostic("Error", message);
+
+            LogGraphicsDiagnostic(
+                "Info",
+                $"Graphics configuration: requested driver={Environment.GetEnvironmentVariable("FNA3D_FORCE_DRIVER") ?? "Auto"}, " +
+                $"D3D11 BitBlt={Environment.GetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT") ?? "0"}"
+            );
+
+            string runtimeDirectory = Path.Combine(CUOEnviroment.ExecutablePath, "x64");
+            foreach (string fileName in new[] { "SDL3.dll", "FNA3D.dll", "FAudio.dll", "libtheorafile.dll" })
+            {
+                string path = Path.Combine(runtimeDirectory, fileName);
+                if (File.Exists(path))
+                {
+                    FileVersionInfo version = FileVersionInfo.GetVersionInfo(path);
+                    LogGraphicsDiagnostic("Info", $"Native runtime: {fileName} {version.FileVersion ?? version.ProductVersion ?? "unknown"}");
+                }
+                else
+                {
+                    LogGraphicsDiagnostic("Warning", $"Native runtime missing: {path}");
+                }
+            }
+        }
+
+        private static void LogGraphicsDiagnostic(string level, string message)
+        {
+            _graphicsDiagnostics.Append('[').Append(level).Append("] ").AppendLine(message);
+
+            if (level == "Error")
+            {
+                Log.Error($"[FNA] {message}");
+            }
+            else if (level == "Warning")
+            {
+                Log.Warn($"[FNA] {message}");
+            }
+            else
+            {
+                Log.Info($"[FNA] {message}");
+            }
         }
 
 

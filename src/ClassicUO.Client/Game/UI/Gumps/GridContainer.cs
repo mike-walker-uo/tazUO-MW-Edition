@@ -73,7 +73,6 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly ResizableStaticPic quickDropBackpack;
         private readonly GumpPicTiled backgroundTexture;
         private readonly NiceButton setLootBag, searchClearButton, takeAllButton;
-        private readonly bool isCorpse = false;
         #endregion
 
         #region private vars
@@ -81,6 +80,11 @@ namespace ClassicUO.Game.UI.Gumps
         private float lastGridItemScale = (ProfileManager.CurrentProfile.GridContainersScale / 100f);
         private int lastWidth = GetWidth(), lastHeight = GetHeight();
         private bool quickLootThisContainer = false;
+        private bool isCorpse;
+        private long corpsePositionSaveAt;
+        private bool corpsePositionDirty;
+        private bool corpsePositionApplied;
+        private Point corpsePositionObserved;
         public bool? UseOldContainerStyle = null;
         private bool autoSortContainer = false;
         private GridSortMode sortMode = GridSortMode.GraphicAndHue;
@@ -120,13 +124,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         #region public vars
         public GridContainerEntry GridContainerEntry => gridContainerEntry;
+        public override bool ShouldBeSaved => !isCorpse;
         public readonly bool IsPlayerBackpack = false;
         public bool StackNonStackableItems = false;
         public bool AutoSortContainer { get { return autoSortContainer; } }
         public GridSortMode SortMode { get { return sortMode; } }
         #endregion
 
-        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null) : base(GetWidth(), GetHeight(), GetWidth(2), GetHeight(1), local, 0)
+        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null, bool corpseContainer = false) : base(GetWidth(), GetHeight(), GetWidth(2), GetHeight(1), local, 0)
         {
             if (container == null)
             {
@@ -135,7 +140,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             #region SET VARS
-            isCorpse = container.IsCorpse || container.Graphic == 0x0009;
+            isCorpse = corpseContainer || IsCorpseContainer(container, originalContainerGraphic);
             if (useGridStyle != null)
                 UseOldContainerStyle = !useGridStyle;
 
@@ -169,6 +174,7 @@ namespace ClassicUO.Game.UI.Gumps
             Point corpsePosition = ProfileManager.CurrentProfile.LastCorpseContainerPosition;
             X = isCorpse ? corpsePosition.X : lastX = lastPos.X;
             Y = isCorpse ? corpsePosition.Y : lastY = lastPos.Y;
+            corpsePositionObserved = Location;
 
             if (isCorpse)
             {
@@ -615,20 +621,23 @@ namespace ClassicUO.Game.UI.Gumps
             gridContainerEntry.X = X;
             gridContainerEntry.Y = Y;
 
-            if (isCorpse && ProfileManager.CurrentProfile != null)
-            {
-                ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
-            }
+            TrackCorpsePosition();
+        }
+
+        protected override void OnDragEnd(int x, int y)
+        {
+            base.OnDragEnd(x, y);
+
+            TrackCorpsePosition();
+            SaveCorpsePosition();
         }
 
         public override void Dispose()
         {
-            if (isCorpse)
-            {
-                if (ProfileManager.CurrentProfile != null)
-                    ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
-            }
-            else
+            TrackCorpsePosition();
+            SaveCorpsePosition();
+
+            if (!isCorpse)
             {
                 lastX = X;
                 lastY = Y;
@@ -658,8 +667,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            if (gridSlotManager != null && !skipSave && gridSlotManager.ItemPositions.Count > 0 && !isCorpse)
-                gridContainerEntry.UpdateSaveDataEntry(this);
+            SaveGridLayout(true);
 
             base.Dispose();
         }
@@ -679,7 +687,21 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            if (item.IsCorpse && item.OnGround && item.Distance > 3)
+            if (!isCorpse && IsCorpseContainer(item, originalContainerItemGraphic))
+                isCorpse = true;
+
+            if (isCorpse && !corpsePositionApplied)
+            {
+                Location = ProfileManager.CurrentProfile.LastCorpseContainerPosition;
+                corpsePositionApplied = true;
+                corpsePositionObserved = Location;
+            }
+            else
+            {
+                TrackCorpsePosition();
+            }
+
+            if (isCorpse && item.OnGround && item.Distance > 3)
             {
                 Dispose();
                 return;
@@ -715,13 +737,78 @@ namespace ClassicUO.Game.UI.Gumps
             if (IsPlayerBackpack && Location != ProfileManager.CurrentProfile.BackpackGridPosition)
                 ProfileManager.CurrentProfile.BackpackGridPosition = Location;
 
+            if (corpsePositionDirty && Time.Ticks >= corpsePositionSaveAt)
+                SaveCorpsePosition();
+
             if (UIManager.MouseOverControl != null &&
                 (UIManager.MouseOverControl == this || UIManager.MouseOverControl.RootParent == this))
             {
                 SelectedObject.Object = item;
-                if (item.IsCorpse)
+                if (isCorpse)
                     SelectedObject.CorpseObject = item;
             }
+        }
+
+        private void TrackCorpsePosition()
+        {
+            if (
+                !isCorpse
+                || ProfileManager.CurrentProfile == null
+                || Location == corpsePositionObserved
+            )
+                return;
+
+            corpsePositionObserved = Location;
+            ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+            corpsePositionDirty = true;
+            corpsePositionSaveAt = (long)Time.Ticks + 250;
+        }
+
+        private void SaveCorpsePosition()
+        {
+            if (!corpsePositionDirty || ProfileManager.CurrentProfile == null)
+                return;
+
+            ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+            ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false, true);
+            corpsePositionDirty = false;
+        }
+
+        internal void SaveGridLayout(bool writeFile)
+        {
+            if (
+                ProfileManager.CurrentProfile == null
+                || World.Player == null
+                || gridSlotManager == null
+                || skipSave
+                || isCorpse
+            )
+                return;
+
+            gridContainerEntry.UpdateSaveDataEntry(this);
+
+            if (writeFile)
+                GridContainerSaveData.Instance.Save();
+        }
+
+        internal void UpdateSlotSaveData(GridContainerEntry entry)
+        {
+            gridSlotManager?.UpdateSaveData(entry);
+        }
+
+        private static bool IsCorpseContainer(Item item, ushort containerGraphic)
+        {
+            if (item == null)
+                return false;
+
+            if (
+                item.IsCorpse
+                || World.CorpseManager.Exists(item.Serial, 0)
+                || containerGraphic == ContainerGump.CORPSES_GUMP
+            )
+                return true;
+
+            return false;
         }
 
         private string GetContainerName()
@@ -1140,7 +1227,10 @@ namespace ClassicUO.Game.UI.Gumps
                     else if (Keyboard.Ctrl)
                     {
                         if (_item != null)
+                        {
                             gridContainer.gridSlotManager.SetLockedSlot(slot, !ItemGridLocked, gridContainer.gridContainerEntry.GetSlot(_item.Serial));
+                            gridContainer.SaveGridLayout(true);
+                        }
                         Mouse.CancelDoubleClick = true;
                     }
                     else if (Keyboard.Alt && _item != null)
@@ -1652,6 +1742,13 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     itemLocks.Add(gridSlots[slot].SlotItem);
                 }
+            }
+
+            public void UpdateSaveData(GridContainerEntry entry)
+            {
+                var currentSerials = new HashSet<uint>(containerContents.Select(x => x.Serial));
+                var lockedSerials = new HashSet<uint>(itemLocks);
+                entry.ReplaceSlots(itemPositions, currentSerials, lockedSerials);
             }
 
             /// <summary>

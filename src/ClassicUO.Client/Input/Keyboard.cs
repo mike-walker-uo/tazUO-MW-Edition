@@ -30,13 +30,13 @@
 
 #endregion
 
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Input
 {
     internal static class Keyboard
     {
-        public static SDL.SDL_Keymod IgnoreKeyMod { get; } = SDL.SDL_Keymod.KMOD_CAPS | SDL.SDL_Keymod.KMOD_NUM | SDL.SDL_Keymod.KMOD_MODE | SDL.SDL_Keymod.KMOD_RESERVED;
+        public static SDL.SDL_Keymod IgnoreKeyMod { get; } = SDL.SDL_Keymod.SDL_KMOD_CAPS | SDL.SDL_Keymod.SDL_KMOD_NUM | SDL.SDL_Keymod.SDL_KMOD_MODE | SDL.SDL_Keymod.SDL_KMOD_SCROLL;
 
         public static bool Alt { get; private set; }
         public static bool Shift { get; private set; }
@@ -46,24 +46,36 @@ namespace ClassicUO.Input
 
         public static void OnKeyDown(SDL.SDL_KeyboardEvent e) => OnKeyEvent(e);
 
+        public static SDL.SDL_Keymod NormalizeAltGr(SDL.SDL_Keymod mod)
+        {
+            // SDL2 on Windows exposed AltGr as Left Ctrl + Right Alt. Keep that
+            // contract for client hotkeys and legacy plugins such as Razor Enhanced.
+            if ((mod & SDL.SDL_Keymod.SDL_KMOD_RALT) != SDL.SDL_Keymod.SDL_KMOD_NONE)
+            {
+                mod |= SDL.SDL_Keymod.SDL_KMOD_LCTRL;
+            }
+
+            return mod;
+        }
+
         private static void OnKeyEvent(SDL.SDL_KeyboardEvent e)
         {
-            UpdateModifiers(e.keysym.mod);
+            UpdateModifiers(e.mod);
         }
 
         private static void UpdateModifiers(SDL.SDL_Keymod e)
         {
-            SDL.SDL_Keymod mod = e & ~IgnoreKeyMod;
+            SDL.SDL_Keymod mod = NormalizeAltGr(e) & ~IgnoreKeyMod;
             SDL.SDL_Keymod filtered = mod;
 
-            if ((mod & (SDL.SDL_Keymod.KMOD_RALT | SDL.SDL_Keymod.KMOD_LCTRL)) == (SDL.SDL_Keymod.KMOD_RALT | SDL.SDL_Keymod.KMOD_LCTRL))
+            if ((mod & (SDL.SDL_Keymod.SDL_KMOD_RALT | SDL.SDL_Keymod.SDL_KMOD_LCTRL)) == (SDL.SDL_Keymod.SDL_KMOD_RALT | SDL.SDL_Keymod.SDL_KMOD_LCTRL))
             {
-                filtered = SDL.SDL_Keymod.KMOD_NONE;
+                filtered = SDL.SDL_Keymod.SDL_KMOD_NONE;
             }
 
-            Shift = (filtered & SDL.SDL_Keymod.KMOD_SHIFT) != SDL.SDL_Keymod.KMOD_NONE;
-            Alt = (filtered & SDL.SDL_Keymod.KMOD_ALT) != SDL.SDL_Keymod.KMOD_NONE;
-            Ctrl = (filtered & SDL.SDL_Keymod.KMOD_CTRL) != SDL.SDL_Keymod.KMOD_NONE;
+            Shift = (filtered & SDL.SDL_Keymod.SDL_KMOD_SHIFT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            Alt = (filtered & SDL.SDL_Keymod.SDL_KMOD_ALT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            Ctrl = (filtered & SDL.SDL_Keymod.SDL_KMOD_CTRL) != SDL.SDL_Keymod.SDL_KMOD_NONE;
         }
 
         public static void Refresh()

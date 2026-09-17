@@ -38,7 +38,7 @@ using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 using System;
 using System.Globalization;
 using System.IO;
@@ -98,6 +98,14 @@ namespace ClassicUO
                 {
                     sb.AppendLine($"Shard: {Settings.GlobalSettings.IP}");
                     sb.AppendLine($"ClientVersion: {Settings.GlobalSettings.ClientVersion}");
+                    sb.AppendLine();
+                }
+
+                string graphicsDiagnostics = Client.GraphicsDiagnostics;
+                if (!string.IsNullOrEmpty(graphicsDiagnostics))
+                {
+                    sb.AppendLine("Graphics diagnostics:");
+                    sb.Append(graphicsDiagnostics);
                     sb.AppendLine();
                 }
 

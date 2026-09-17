@@ -44,7 +44,7 @@ namespace ClassicUO.Game.UI
     /// </summary>
     public static class CooldownHud
     {
-        public static bool Enabled = true;
+        public static bool Enabled = false;
         private const int BAR_W = 40;
         private const int BAR_H = 3;
 

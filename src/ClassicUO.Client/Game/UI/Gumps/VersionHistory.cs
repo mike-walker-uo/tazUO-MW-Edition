@@ -10,6 +10,17 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private static readonly string[] updateTexts =
         {
+            "/c[white][0.4]/cd\n" +
+            """
+            - Updated the graphics and input stack from SDL2 to pinned SDL3/FNA while retaining .NET Framework 4.7.2 and Razor Enhanced compatibility
+            - Added native graphics runtime details to crash diagnostics
+            - Restored AltGr as Ctrl+Alt for Razor Enhanced hotkeys
+            - Preserved Ctrl-click pinned backpack and grid-container items in their selected cells across restarts
+            - Made corpse-container and Grid Loot positions persist reliably across restarts
+            - Fixed a logout crash while grid-container layouts were being saved
+            - Bundled the official TazUO fonts and restored Chakra Petch
+            """ +
+            "\n",
             "/c[white][0.3]/cd\n" +
             """
             - Added nearby player-speech history with session clearing

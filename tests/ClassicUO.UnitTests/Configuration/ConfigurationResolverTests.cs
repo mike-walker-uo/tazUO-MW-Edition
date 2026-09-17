@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using ClassicUO.Configuration;
+using Microsoft.Xna.Framework;
 using Xunit;
 
 namespace ClassicUO.UnitTests.Configuration
@@ -125,6 +126,54 @@ namespace ClassicUO.UnitTests.Configuration
             {
                 Directory.Delete(directory, true);
             }
+        }
+
+        [Fact]
+        public void ProfileRoundTripPreservesLastCorpseContainerPosition()
+        {
+            var expected = new Point(345, 678);
+            var profile = new Profile { LastCorpseContainerPosition = expected };
+
+            string json = JsonSerializer.Serialize
+            (
+                profile,
+                typeof(Profile),
+                ProfileJsonContext.DefaultToUse
+            );
+
+            Profile restored = JsonSerializer.Deserialize
+            (
+                json,
+                typeof(Profile),
+                ProfileJsonContext.DefaultToUse
+            ) as Profile;
+
+            Assert.NotNull(restored);
+            Assert.Equal(expected, restored.LastCorpseContainerPosition);
+        }
+
+        [Fact]
+        public void ProfileRoundTripPreservesGridLootPosition()
+        {
+            var expected = new Point(246, 357);
+            var profile = new Profile { GridLootPosition = expected };
+
+            string json = JsonSerializer.Serialize
+            (
+                profile,
+                typeof(Profile),
+                ProfileJsonContext.DefaultToUse
+            );
+
+            Profile restored = JsonSerializer.Deserialize
+            (
+                json,
+                typeof(Profile),
+                ProfileJsonContext.DefaultToUse
+            ) as Profile;
+
+            Assert.NotNull(restored);
+            Assert.Equal(expected, restored.GridLootPosition);
         }
 
         private static string CreateTempDirectory()

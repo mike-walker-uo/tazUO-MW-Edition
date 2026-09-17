@@ -47,8 +47,9 @@ namespace ClassicUO.Game.UI.Gumps
         private const int MAX_WIDTH = 300;
         private const int MAX_HEIGHT = 420;
 
-        private static int _lastX = ProfileManager.CurrentProfile.GridLootType == 2 ? 200 : 100;
-        private static int _lastY = 100;
+        private long _positionSaveAt;
+        private bool _positionDirty;
+        private Point _positionObserved;
         private readonly AlphaBlendControl _background;
         private readonly NiceButton _buttonPrev,
             _buttonNext,
@@ -88,8 +89,12 @@ namespace ClassicUO.Game.UI.Gumps
                 _hideIfEmpty = true;
             }
 
-            X = _lastX;
-            Y = _lastY;
+            Point savedPosition = ProfileManager.CurrentProfile.GridLootPosition;
+            if (savedPosition == Point.Zero)
+                savedPosition = new Point(ProfileManager.CurrentProfile.GridLootType == 2 ? 200 : 100, 100);
+
+            Location = savedPosition;
+            _positionObserved = Location;
 
             CanMove = true;
             AcceptMouseInput = true;
@@ -367,6 +372,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            TrackPosition();
+            SavePosition();
+
             if (_corpse != null)
             {
                 if (_corpse == SelectedObject.CorpseObject)
@@ -375,10 +383,20 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            _lastX = X;
-            _lastY = Y;
-
             base.Dispose();
+        }
+
+        protected override void OnMove(int x, int y)
+        {
+            base.OnMove(x, y);
+            TrackPosition();
+        }
+
+        protected override void OnDragEnd(int x, int y)
+        {
+            base.OnDragEnd(x, y);
+            TrackPosition();
+            SavePosition();
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -419,6 +437,10 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 return;
             }
+
+            TrackPosition();
+            if (_positionDirty && Time.Ticks >= _positionSaveAt)
+                SavePosition();
 
             if (_background.Width < 100)
             {
@@ -466,6 +488,27 @@ namespace ClassicUO.Game.UI.Gumps
                 SelectedObject.Object = _corpse;
                 SelectedObject.CorpseObject = _corpse;
             }
+        }
+
+        private void TrackPosition()
+        {
+            if (ProfileManager.CurrentProfile == null || Location == _positionObserved)
+                return;
+
+            _positionObserved = Location;
+            ProfileManager.CurrentProfile.GridLootPosition = Location;
+            _positionDirty = true;
+            _positionSaveAt = (long)Time.Ticks + 250;
+        }
+
+        private void SavePosition()
+        {
+            if (!_positionDirty || ProfileManager.CurrentProfile == null)
+                return;
+
+            ProfileManager.CurrentProfile.GridLootPosition = Location;
+            ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false, true);
+            _positionDirty = false;
         }
 
         protected override void OnMouseExit(int x, int y)

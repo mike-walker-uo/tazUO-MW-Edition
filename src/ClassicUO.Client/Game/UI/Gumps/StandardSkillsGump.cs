@@ -43,7 +43,7 @@ using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using System.Diagnostics;
 
 namespace ClassicUO.Game.UI.Gumps

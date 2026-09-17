@@ -9,7 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\FNA\FNA.Core.csproj" />
+    <ProjectReference Include="..\..\..\FNA\FNA.NetFramework.csproj" Condition="Exists('..\..\..\FNA\FNA.NetFramework.csproj')" />
+    <ProjectReference Include="..\..\..\FNA\FNA.Core.csproj" Condition="!Exists('..\..\..\FNA\FNA.NetFramework.csproj')" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 using Point = Microsoft.Xna.Framework.Point;
 
 namespace ClassicUO.Game.UI.Gumps

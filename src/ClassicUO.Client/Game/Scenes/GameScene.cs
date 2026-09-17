@@ -46,7 +46,7 @@ using ClassicUO.Utility.Logging;
 using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
@@ -435,6 +435,12 @@ namespace ClassicUO.Game.Scenes
             if (IsDestroyed)
             {
                 return;
+            }
+
+            foreach (Gump gump in UIManager.Gumps)
+            {
+                if (gump is GridContainer gridContainer)
+                    gridContainer.SaveGridLayout(false);
             }
 
             GridContainerSaveData.Instance.Save();

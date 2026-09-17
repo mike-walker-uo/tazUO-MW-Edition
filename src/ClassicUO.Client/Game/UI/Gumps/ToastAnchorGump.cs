@@ -6,7 +6,7 @@ using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using ClassicUO.Input;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Game.UI.Gumps
 {

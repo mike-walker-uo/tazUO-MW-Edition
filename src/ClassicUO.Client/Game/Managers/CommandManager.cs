@@ -352,7 +352,7 @@ namespace ClassicUO.Game.Managers
                         return;
                     }
                     string text = (string.IsNullOrEmpty(name) ? "" : name + "\n") + (data ?? "");
-                    SDL2.SDL.SDL_SetClipboardText(text);
+                    SDL3.SDL.SDL_SetClipboardText(text);
                     GameActions.Print("OPL copied to clipboard.", 0x35);
                 });
             });
