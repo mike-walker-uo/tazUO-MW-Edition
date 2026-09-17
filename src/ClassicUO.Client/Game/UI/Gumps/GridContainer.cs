@@ -667,8 +667,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            if (gridSlotManager != null && !skipSave && gridSlotManager.ItemPositions.Count > 0 && !isCorpse)
-                gridContainerEntry.UpdateSaveDataEntry(this);
+            SaveGridLayout(true);
 
             base.Dispose();
         }
@@ -773,6 +772,22 @@ namespace ClassicUO.Game.UI.Gumps
             ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
             ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false, true);
             corpsePositionDirty = false;
+        }
+
+        internal void SaveGridLayout(bool writeFile)
+        {
+            if (gridSlotManager == null || skipSave || isCorpse)
+                return;
+
+            gridContainerEntry.UpdateSaveDataEntry(this);
+
+            if (writeFile)
+                GridContainerSaveData.Instance.Save();
+        }
+
+        internal void UpdateSlotSaveData(GridContainerEntry entry)
+        {
+            gridSlotManager?.UpdateSaveData(entry);
         }
 
         private static bool IsCorpseContainer(Item item, ushort containerGraphic)
@@ -1206,7 +1221,10 @@ namespace ClassicUO.Game.UI.Gumps
                     else if (Keyboard.Ctrl)
                     {
                         if (_item != null)
+                        {
                             gridContainer.gridSlotManager.SetLockedSlot(slot, !ItemGridLocked, gridContainer.gridContainerEntry.GetSlot(_item.Serial));
+                            gridContainer.SaveGridLayout(true);
+                        }
                         Mouse.CancelDoubleClick = true;
                     }
                     else if (Keyboard.Alt && _item != null)
@@ -1718,6 +1736,15 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     itemLocks.Add(gridSlots[slot].SlotItem);
                 }
+            }
+
+            public void UpdateSaveData(GridContainerEntry entry)
+            {
+                UpdateItems();
+
+                var currentSerials = new HashSet<uint>(containerContents.Select(x => x.Serial));
+                var lockedSerials = new HashSet<uint>(itemLocks);
+                entry.ReplaceSlots(itemPositions, currentSerials, lockedSerials);
             }
 
             /// <summary>

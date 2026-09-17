@@ -437,6 +437,12 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
+            foreach (Gump gump in UIManager.Gumps)
+            {
+                if (gump is GridContainer gridContainer)
+                    gridContainer.SaveGridLayout(false);
+            }
+
             GridContainerSaveData.Instance.Save();
             GridContainerSaveData.Reset();
             JournalFilterManager.Instance.Save();
