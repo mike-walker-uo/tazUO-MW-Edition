@@ -31,6 +31,8 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 Version 0.4 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
+On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
+
 ## Videos of the features:
 https://youtu.be/4MyUOeN3P4A  
 https://youtu.be/81xNXowYFro  
