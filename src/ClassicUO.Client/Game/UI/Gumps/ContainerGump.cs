@@ -50,6 +50,8 @@ namespace ClassicUO.Game.UI.Gumps
     internal class ContainerGump : TextContainerGump
     {
         private long _corpseEyeTicks;
+        private long _corpsePositionSaveAt;
+        private bool _corpsePositionDirty;
         private ContainerData _data;
         private int _eyeCorspeOffset;
         private GumpPic _eyeGumpPic;
@@ -575,6 +577,9 @@ namespace ClassicUO.Game.UI.Gumps
                 _eyeGumpPic.Width = (int)(_eyeGumpPic.Width * scale);
                 _eyeGumpPic.Height = (int)(_eyeGumpPic.Height * scale);
             }
+
+            if (_corpsePositionDirty && Time.Ticks >= _corpsePositionSaveAt)
+                SaveCorpsePosition();
         }
 
         protected override void UpdateContents()
@@ -775,13 +780,12 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            SaveCorpsePosition();
+
             Item item = World.Items.Get(LocalSerial);
 
             if (item != null)
             {
-                if ((Graphic == CORPSES_GUMP || item.IsCorpse) && ProfileManager.CurrentProfile != null)
-                    ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
-
                 if (
                     World.Player != null
                     && ProfileManager.CurrentProfile?.OverrideContainerLocationSetting == 3
@@ -810,7 +814,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             Item item = World.Items.Get(LocalSerial);
             if ((Graphic == CORPSES_GUMP || item?.IsCorpse == true) && ProfileManager.CurrentProfile != null)
+            {
                 ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+                _corpsePositionDirty = true;
+                _corpsePositionSaveAt = (long)Time.Ticks + 250;
+            }
         }
 
         protected override void CloseWithRightClick()
@@ -825,6 +833,17 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override void OnDragEnd(int x, int y)
         {
+            base.OnDragEnd(x, y);
+
+            Item item = World.Items.Get(LocalSerial);
+
+            if ((Graphic == CORPSES_GUMP || item?.IsCorpse == true) && ProfileManager.CurrentProfile != null)
+            {
+                ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+                _corpsePositionDirty = true;
+                SaveCorpsePosition();
+            }
+
             if (
                 ProfileManager.CurrentProfile.OverrideContainerLocation
                 && ProfileManager.CurrentProfile.OverrideContainerLocationSetting >= 2
@@ -833,8 +852,16 @@ namespace ClassicUO.Game.UI.Gumps
                 Point gumpCenter = new Point(X + (Width >> 1), Y + (Height >> 1));
                 ProfileManager.CurrentProfile.OverrideContainerLocationPosition = gumpCenter;
             }
+        }
 
-            base.OnDragEnd(x, y);
+        private void SaveCorpsePosition()
+        {
+            if (!_corpsePositionDirty || ProfileManager.CurrentProfile == null)
+                return;
+
+            ProfileManager.CurrentProfile.LastCorpseContainerPosition = Location;
+            ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false);
+            _corpsePositionDirty = false;
         }
 
         private class GumpPicContainer : GumpPic

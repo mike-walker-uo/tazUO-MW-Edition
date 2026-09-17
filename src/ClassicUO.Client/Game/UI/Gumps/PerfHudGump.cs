@@ -32,8 +32,10 @@
 
 using System;
 using System.Xml;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
@@ -48,6 +50,9 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private const int WIDTH = 290;
         private const int HEIGHT = 174;
+        private const int MINI_WIDTH = 252;
+        private const int MINI_HEIGHT = 76;
+        private const int MINI_GRAPH_Y = 24;
         private const int HISTORY = 120;
         private const int GRAPH_HEIGHT = 45;
         private const ushort HUE_GOOD = 0x0044;
@@ -55,12 +60,15 @@ namespace ClassicUO.Game.UI.Gumps
         private const ushort HUE_BAD = 0x0021;
 
         private readonly AlphaBlendControl _bg;
+        private readonly Label _titleLabel;
+        private readonly NiceButton _collapseButton;
         private readonly Label _fpsLabel, _pingLabel, _netLabel, _queueLabel, _gcLabel, _stallLabel;
         private readonly uint[] _pingHistory = new uint[HISTORY];
         private int _pingNext, _pingCount;
         private long _refreshTime;
         private uint _lastBytesIn, _lastBytesOut;
         private int _lastG0, _lastG1, _lastG2;
+        private bool _collapsed;
 
         public PerfHudGump() : this(120, 80) { }
 
@@ -78,13 +86,36 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_bg = new AlphaBlendControl(0.6f) { Width = WIDTH, Height = HEIGHT });
             CustomGumpThemeManager.ApplyDataSurface(_bg, 0.6f);
-            Add(new Label("Perf HUD", true, 0x0481, font: 1) { X = 6, Y = 4 });
+            Add(_titleLabel = new Label("Perf HUD", true, 0x0481, font: 1) { X = 6, Y = 4 });
             Add(_fpsLabel = new Label("FPS: -", true, 0x03B2, font: 1) { X = 6, Y = 22 });
             Add(_pingLabel = new Label("Ping: -", true, 0x03B2, font: 1) { X = 6, Y = 38 });
             Add(_netLabel = new Label("Net: -", true, 0x03B2, font: 1) { X = 6, Y = 54 });
             Add(_queueLabel = new Label("Queue: -", true, 0x03B2, font: 1) { X = 6, Y = 70 });
             Add(_gcLabel = new Label("GC: -", true, 0x03B2, font: 1) { X = 6, Y = 86 });
             Add(_stallLabel = new Label("Worst: none", true, 0x03B2, WIDTH - 12, font: 1) { X = 6, Y = 102 });
+            Add(_collapseButton = new NiceButton(WIDTH - 22, 3, 16, 16, ButtonAction.Default, "-")
+            {
+                IsSelectable = false,
+                AlwaysShowBackground = true,
+                DisplayBorder = true
+            });
+            CustomGumpThemeManager.StyleDataButton(_collapseButton);
+            _collapseButton.MouseUp += (sender, e) =>
+            {
+                if (e.Button != MouseButtonType.Left)
+                    return;
+
+                _collapsed = !_collapsed;
+                if (ProfileManager.CurrentProfile != null)
+                {
+                    ProfileManager.CurrentProfile.PerfHudCollapsed = _collapsed;
+                    ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false);
+                }
+                ApplyLayout();
+            };
+
+            _collapsed = ProfileManager.CurrentProfile?.PerfHudCollapsed ?? false;
+            ApplyLayout();
             _lastG0 = GC.CollectionCount(0);
             _lastG1 = GC.CollectionCount(1);
             _lastG2 = GC.CollectionCount(2);
@@ -143,9 +174,36 @@ namespace ClassicUO.Game.UI.Gumps
                 ? HUE_GOOD
                 : worstFrameMs <= 100 ? HUE_WARNING : HUE_BAD;
 
-            int requiredHeight = _stallLabel.Y + _stallLabel.Height + 6 + GRAPH_HEIGHT + 7;
-            Height = Math.Max(HEIGHT, requiredHeight);
+            if (_collapsed)
+            {
+                Height = MINI_HEIGHT;
+            }
+            else
+            {
+                int requiredHeight = _stallLabel.Y + _stallLabel.Height + 6 + GRAPH_HEIGHT + 7;
+                Height = Math.Max(HEIGHT, requiredHeight);
+            }
             _bg.Height = Height;
+        }
+
+        private void ApplyLayout()
+        {
+            bool showDetails = !_collapsed;
+            _titleLabel.IsVisible = showDetails;
+            _fpsLabel.IsVisible = showDetails;
+            _netLabel.IsVisible = showDetails;
+            _queueLabel.IsVisible = showDetails;
+            _gcLabel.IsVisible = showDetails;
+            _stallLabel.IsVisible = showDetails;
+            _pingLabel.Y = _collapsed ? 4 : 38;
+
+            Width = _collapsed ? MINI_WIDTH : WIDTH;
+            Height = _collapsed ? MINI_HEIGHT : HEIGHT;
+            _bg.Width = Width;
+            _bg.Height = Height;
+            _collapseButton.X = Width - 22;
+            _collapseButton.SetText(_collapsed ? "+" : "-");
+            _collapseButton.SetTooltip(_collapsed ? "Expand performance HUD" : "Collapse performance HUD");
         }
 
         private static ushort GetLatencyHue(uint ping, double jitter)
@@ -203,7 +261,7 @@ namespace ClassicUO.Game.UI.Gumps
             bool result = base.Draw(batcher, x, y);
             if (_pingCount < 2) return result;
 
-            int graphY = _stallLabel.Y + _stallLabel.Height + 6;
+            int graphY = _collapsed ? MINI_GRAPH_Y : _stallLabel.Y + _stallLabel.Height + 6;
             int first = (_pingNext - _pingCount + HISTORY) % HISTORY;
             uint max = 1;
             for (int i = 0; i < _pingCount; i++) max = Math.Max(max, _pingHistory[(first + i) % HISTORY]);

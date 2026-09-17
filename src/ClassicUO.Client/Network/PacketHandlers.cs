@@ -1600,6 +1600,10 @@ namespace ClassicUO.Network
 
                 if (item != null)
                 {
+                    bool isCorpseContainer = item.IsCorpse
+                        || World.CorpseManager.Exists(serial, 0)
+                        || graphic == ContainerGump.CORPSES_GUMP;
+
                     if (!NearbyLootGump.IsCorpseRequested(serial))
                     {
                         if (
@@ -1715,7 +1719,13 @@ namespace ClassicUO.Network
                             }
                             else
                             {
-                                UIManager.Add(new GridContainer(serial, graphic));
+                                UIManager.Add(
+                                    new GridContainer(
+                                        serial,
+                                        graphic,
+                                        corpseContainer: isCorpseContainer
+                                    )
+                                );
                             }
                         }
                         else

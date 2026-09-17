@@ -41,6 +41,8 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal static class NearbySpeechHistory
     {
+        private const string SPIRIT_SPEAK_WORDS = "Anh Mi Sah Ko";
+
         public static readonly ChatHistoryStore Instance =
             new ChatHistoryStore(IsNearbySpeech, 100);
 
@@ -49,6 +51,9 @@ namespace ClassicUO.Game.UI.Gumps
         private static bool IsNearbySpeech(MessageEventArgs e)
         {
             if (!(e?.Parent is Mobile mobile) || string.IsNullOrEmpty(e.Text))
+                return false;
+
+            if (e.Text.Trim().Equals(SPIRIT_SPEAK_WORDS, System.StringComparison.OrdinalIgnoreCase))
                 return false;
 
             if (!string.IsNullOrEmpty(mobile.Name) && IgnoreManager.IgnoredCharsList.Contains(mobile.Name))

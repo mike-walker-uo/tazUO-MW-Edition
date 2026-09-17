@@ -103,6 +103,7 @@ namespace ClassicUO.Configuration
         public byte GumpHoverOpacityPercent { get; set; } = 100;
         public byte SlayerBarOpacity { get; set; } = 100;
         public bool SlayerBarCollapsed { get; set; }
+        public bool PerfHudCollapsed { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point GumpThemeSelectorPosition { get; set; } = new Point(180, 100);
         public bool VisualSilence { get; set; }
         public bool ClassicEffectsOnly { get; set; }
@@ -313,6 +314,7 @@ namespace ClassicUO.Configuration
 
         [JsonConverter(typeof(Point2Converter))] public Point OverrideContainerLocationPosition { get; set; } = new Point(200, 200);
         [JsonConverter(typeof(Point2Converter))] public Point LastCorpseContainerPosition { get; set; } = new Point(100, 100);
+        [JsonConverter(typeof(Point2Converter))] public Point GridLootPosition { get; set; } = Point.Zero;
         public bool HueContainerGumps { get; set; } = true;
         public int DragSelectStartX { get; set; } = 100;
         public int DragSelectStartY { get; set; } = 100;
@@ -732,9 +734,9 @@ namespace ClassicUO.Configuration
         public bool DisableHotkeys { get; set; }
 
         private long lastSave;
-        public void Save(string path, bool saveGumps = true)
+        public void Save(string path, bool saveGumps = true, bool force = false)
         {
-            if (Time.Ticks - lastSave < 10) //Don't save if saved in the last 10 ms, prevent duplcate saving when exiting game with options menu open
+            if (!force && Time.Ticks - lastSave < 10) //Don't save if saved in the last 10 ms, prevent duplcate saving when exiting game with options menu open
                 return;
 
             Log.Trace($"Saving path:\t\t{path}");
