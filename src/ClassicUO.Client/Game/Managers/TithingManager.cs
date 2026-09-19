@@ -123,11 +123,13 @@ namespace ClassicUO.Game.Managers
                 return;
 
             _lowWarningShown = true;
+            string warning = $"Warning: Only {player.TithingPoints} tithing points remaining.";
             GameActions.Print(
-                $"Warning: Only {player.TithingPoints} tithing points remaining.",
+                warning,
                 0x0021,
                 MessageType.System
             );
+            ToastManager.Show(warning, 0x0021);
         }
 
         private static bool HasRealChivalry(PlayerMobile player)

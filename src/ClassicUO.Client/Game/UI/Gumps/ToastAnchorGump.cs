@@ -20,6 +20,7 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private const int HANDLE_H = 32;
         private const int RESIZE_GRIP = 10;
+        private const int HANDLE_GAP = 4;
 
         private long _nextSample;
         private int _lastX, _lastY;
@@ -44,9 +45,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             var camera = Client.Game.Scene?.Camera;
             int screenW = camera != null ? camera.Bounds.Right : 800;
-            int screenH = camera != null ? camera.Bounds.Bottom : 600;
-            X = screenW - Width - 12 + ToastManager.AnchorX;
-            Y = screenH - 60 + ToastManager.AnchorY;
+            X = ToastManager.BaseX(screenW) + ToastManager.AnchorX;
+            Y = ToastManager.DefaultTop - HANDLE_H - HANDLE_GAP + ToastManager.AnchorY;
             _lastX = X; _lastY = Y;
 
             Add(_bg = new AlphaBlendControl(0.78f) { Width = Width, Height = HANDLE_H });
@@ -94,6 +94,9 @@ namespace ClassicUO.Game.UI.Gumps
                 Width = newW;
                 _bg.Width = newW;
                 ToastManager.ToastWidth = newW;
+                var camera = Client.Game.Scene?.Camera;
+                int screenW = camera != null ? camera.Bounds.Right : 800;
+                ToastManager.AnchorX = X - ToastManager.BaseX(screenW);
             }
 
             if (X != _lastX || Y != _lastY)
@@ -101,9 +104,8 @@ namespace ClassicUO.Game.UI.Gumps
                 _lastX = X; _lastY = Y;
                 var camera = Client.Game.Scene?.Camera;
                 int screenW = camera != null ? camera.Bounds.Right : 800;
-                int screenH = camera != null ? camera.Bounds.Bottom : 600;
-                ToastManager.AnchorX = X - (screenW - Width - 12);
-                ToastManager.AnchorY = Y - (screenH - 60);
+                ToastManager.AnchorX = X - ToastManager.BaseX(screenW);
+                ToastManager.AnchorY = Y - (ToastManager.DefaultTop - HANDLE_H - HANDLE_GAP);
             }
 
             if (Time.Ticks >= _nextSample)
