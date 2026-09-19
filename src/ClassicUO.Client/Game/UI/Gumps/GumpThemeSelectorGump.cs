@@ -27,7 +27,7 @@ namespace ClassicUO.Game.UI.Gumps
             "Kotl", "TazUO", "Britannia", "Trinsic", "Minoc", "Blackthorn",
             "Obsidian", "Doom", "Midnight", "Necromancer's Crypt", "Ornate",
             "Britannian Chronicle", "Moonglow Arcane", "Ter Mur Relic",
-            "Mariner's Chart", "UOAlive", "UOAlive2", "Celestial",
+            "Mariner's Chart", "Gilded Grove", "Aetherglass", "Celestial",
             "Exodus", "Blood Oath", "Hildebrandt"
         };
 
@@ -60,8 +60,8 @@ namespace ClassicUO.Game.UI.Gumps
             "Moonlit stone and silver",
             "Basalt, copper and crystal",
             "Oak, brass and old charts",
-            "Living wood and emerald",
-            "Rainbow crystal and indigo",
+            "Dark green and gilded filigree",
+            "Iridescent glass and indigo",
             "Silver stars and midnight blue",
             "Arcane bronze and red crystal",
             "Black iron and bloodstone",

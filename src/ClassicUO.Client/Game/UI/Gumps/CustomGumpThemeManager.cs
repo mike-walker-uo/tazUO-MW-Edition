@@ -41,8 +41,8 @@ namespace ClassicUO.Game.UI.Gumps
         MoonglowArcane,
         TerMurRelic,
         MarinersChart,
-        UOAlive,
-        UOAlive2,
+        GildedGrove,
+        Aetherglass,
         Celestial,
         Exodus,
         BloodOath,
@@ -112,8 +112,8 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.MoonglowArcane: return new Color(22, 33, 49);
                     case CustomGumpTheme.TerMurRelic: return new Color(24, 40, 42);
                     case CustomGumpTheme.MarinersChart: return new Color(48, 36, 26);
-                    case CustomGumpTheme.UOAlive: return new Color(28, 43, 27);
-                    case CustomGumpTheme.UOAlive2: return new Color(20, 29, 69);
+                    case CustomGumpTheme.GildedGrove: return new Color(28, 43, 27);
+                    case CustomGumpTheme.Aetherglass: return new Color(20, 29, 69);
                     case CustomGumpTheme.Celestial: return new Color(24, 37, 65);
                     case CustomGumpTheme.Exodus: return new Color(36, 31, 29);
                     case CustomGumpTheme.BloodOath: return new Color(43, 20, 20);
@@ -137,8 +137,8 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.MoonglowArcane: return new Color(40, 68, 86);
                     case CustomGumpTheme.TerMurRelic: return new Color(43, 76, 75);
                     case CustomGumpTheme.MarinersChart: return new Color(102, 75, 45);
-                    case CustomGumpTheme.UOAlive: return new Color(56, 81, 43);
-                    case CustomGumpTheme.UOAlive2: return new Color(65, 72, 153);
+                    case CustomGumpTheme.GildedGrove: return new Color(56, 81, 43);
+                    case CustomGumpTheme.Aetherglass: return new Color(65, 72, 153);
                     case CustomGumpTheme.Celestial: return new Color(55, 80, 125);
                     case CustomGumpTheme.Exodus: return new Color(101, 67, 48);
                     case CustomGumpTheme.BloodOath: return new Color(112, 42, 48);
@@ -236,8 +236,8 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.MoonglowArcane: return new Color(119, 167, 192);
                     case CustomGumpTheme.TerMurRelic: return new Color(91, 165, 159);
                     case CustomGumpTheme.MarinersChart: return new Color(184, 140, 67);
-                    case CustomGumpTheme.UOAlive: return new Color(128, 177, 87);
-                    case CustomGumpTheme.UOAlive2: return new Color(101, 210, 245);
+                    case CustomGumpTheme.GildedGrove: return new Color(128, 177, 87);
+                    case CustomGumpTheme.Aetherglass: return new Color(101, 210, 245);
                     case CustomGumpTheme.Celestial: return new Color(147, 182, 217);
                     case CustomGumpTheme.Exodus: return new Color(174, 115, 67);
                     case CustomGumpTheme.BloodOath: return new Color(181, 55, 64);
@@ -288,8 +288,8 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.MoonglowArcane:
                 case CustomGumpTheme.TerMurRelic:
                 case CustomGumpTheme.MarinersChart:
-                case CustomGumpTheme.UOAlive:
-                case CustomGumpTheme.UOAlive2:
+                case CustomGumpTheme.GildedGrove:
+                case CustomGumpTheme.Aetherglass:
                 case CustomGumpTheme.Celestial:
                 case CustomGumpTheme.Exodus:
                 case CustomGumpTheme.BloodOath:
@@ -329,8 +329,8 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.MoonglowArcane:
                 case CustomGumpTheme.TerMurRelic:
                 case CustomGumpTheme.MarinersChart:
-                case CustomGumpTheme.UOAlive:
-                case CustomGumpTheme.UOAlive2:
+                case CustomGumpTheme.GildedGrove:
+                case CustomGumpTheme.Aetherglass:
                     return 0.95f;
                 default:
                     return 0.90f;
@@ -531,10 +531,10 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.MarinersChart:
                     control.BaseColor = new Color(48, 37, 27);
                     break;
-                case CustomGumpTheme.UOAlive:
+                case CustomGumpTheme.GildedGrove:
                     control.BaseColor = new Color(29, 42, 26);
                     break;
-                case CustomGumpTheme.UOAlive2:
+                case CustomGumpTheme.Aetherglass:
                     control.BaseColor = new Color(21, 30, 69);
                     break;
                 case CustomGumpTheme.Celestial:
@@ -788,8 +788,8 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.MoonglowArcane: control.BaseColor = new Color(31, 45, 64); break;
                     case CustomGumpTheme.TerMurRelic: control.BaseColor = new Color(30, 50, 52); break;
                     case CustomGumpTheme.MarinersChart: control.BaseColor = new Color(64, 48, 33); break;
-                    case CustomGumpTheme.UOAlive: control.BaseColor = new Color(39, 56, 35); break;
-                    case CustomGumpTheme.UOAlive2: control.BaseColor = new Color(31, 44, 91); break;
+                    case CustomGumpTheme.GildedGrove: control.BaseColor = new Color(39, 56, 35); break;
+                    case CustomGumpTheme.Aetherglass: control.BaseColor = new Color(31, 44, 91); break;
                     case CustomGumpTheme.Celestial: control.BaseColor = new Color(33, 49, 78); break;
                     case CustomGumpTheme.Exodus: control.BaseColor = new Color(49, 37, 31); break;
                     case CustomGumpTheme.BloodOath: control.BaseColor = new Color(61, 26, 29); break;
@@ -971,11 +971,11 @@ namespace ClassicUO.Game.UI.Gumps
                 case "chart":
                     theme = CustomGumpTheme.MarinersChart;
                     return true;
-                case "uoalive":
-                    theme = CustomGumpTheme.UOAlive;
+                case "gildedgrove":
+                    theme = CustomGumpTheme.GildedGrove;
                     return true;
-                case "uoalive2":
-                    theme = CustomGumpTheme.UOAlive2;
+                case "aetherglass":
+                    theme = CustomGumpTheme.Aetherglass;
                     return true;
                 case "celestial":
                     theme = CustomGumpTheme.Celestial;

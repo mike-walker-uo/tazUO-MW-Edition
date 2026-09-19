@@ -77,10 +77,10 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.TerMurRelic:
                     case CustomGumpTheme.Celestial:
                         return 0x0058;
-                    case CustomGumpTheme.UOAlive:
+                    case CustomGumpTheme.GildedGrove:
                     case CustomGumpTheme.Heartwood:
                         return 0x044E;
-                    case CustomGumpTheme.UOAlive2:
+                    case CustomGumpTheme.Aetherglass:
                         return 0x0058;
                     case CustomGumpTheme.Dungeon:
                     case CustomGumpTheme.Blackthorn:
@@ -434,7 +434,7 @@ namespace ClassicUO.Game.UI.Gumps
                 new Rectangle(300, sourceY, 300, sourceHeight), hue);
             batcher.Draw(frame, new Rectangle(x + OrnateCapWidth + railWidth, y, OrnateCrestWidth, 90),
                 new Rectangle(600, sourceY, 972, sourceHeight),
-                CustomGumpThemeManager.Current == CustomGumpTheme.UOAlive2
+                CustomGumpThemeManager.Current == CustomGumpTheme.Aetherglass
                     ? ShaderHueTranslator.GetHueVector(0x048D, false, 1f) : hue);
             batcher.Draw(frame, new Rectangle(x + OrnateCapWidth + railWidth + OrnateCrestWidth, y, rightRailWidth, 90),
                 new Rectangle(1572, sourceY, 300, sourceHeight), hue);

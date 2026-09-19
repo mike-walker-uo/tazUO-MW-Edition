@@ -6,7 +6,7 @@ Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
 It has many features, some of them are:
   - Custom weather and light effects
-  - Custom gump themes, including UOAlive, Ornate, Chronicle, Arcane, Relic, Mariner, Runestone, Oak & Iron, Exodus, Blood Oath, Celestial, Heartwood Sanctuary, and Hildebrandt
+  - Custom gump themes, including Gilded Grove, Aetherglass, Ornate, Chronicle, Arcane, Relic, Mariner, Runestone, Oak & Iron, Exodus, Blood Oath, Celestial, Heartwood Sanctuary, and Hildebrandt
   - Custom hit effects
   - Custom spell effects (Chiv, Magery, Myst, SW)
   - Custom mob size (Greater Dragons mean "greater")
