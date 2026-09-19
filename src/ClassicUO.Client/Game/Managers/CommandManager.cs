@@ -3327,28 +3327,28 @@ Register("pathpreview", (s) =>
             int argCount = args?.Length ?? 0;
             if (area == "all")
             {
-                if (argCount != valueIndex + 1 || !int.TryParse(args[valueIndex], out int percent) || percent < 0 || percent > 100)
+                if (argCount != valueIndex + 1 || !int.TryParse(args[valueIndex], out int allPercent) || allPercent < 0 || allPercent > 100)
                 {
                     GameActions.Print("Usage: -gumpopacityall <0-100> (or -gumpopacity all <0-100>).", 0x21);
                     return;
                 }
 
-                profile.DurabilityGumpOpacity = (byte)percent;
-                profile.ContainerOpacity = (byte)percent;
-                profile.CorpseContainerOpacity = (byte)percent;
-                profile.GridBorderAlpha = (byte)percent;
-                profile.JournalOpacity = (byte)percent;
-                profile.BuffBarOpacity = (byte)percent;
-                profile.SlayerBarOpacity = (byte)percent;
+                profile.DurabilityGumpOpacity = (byte)allPercent;
+                profile.ContainerOpacity = (byte)allPercent;
+                profile.CorpseContainerOpacity = (byte)allPercent;
+                profile.GridBorderAlpha = (byte)allPercent;
+                profile.JournalOpacity = (byte)allPercent;
+                profile.BuffBarOpacity = (byte)allPercent;
+                profile.SlayerBarOpacity = (byte)allPercent;
 
-                CustomGumpThemeManager.SetOpacity(percent);
+                CustomGumpThemeManager.SetOpacity(allPercent);
                 GridContainer.UpdateAllGridContainers();
                 ContainerGump.UpdateAllCorpseOpacity();
                 ResizableJournal.UpdateJournalOptions();
                 PaperDollBackpackEquipmentGump.UpdateAllOptions();
                 profile.Save(ProfileManager.ProfilePath, false);
                 CustomGumpThemeManager.RefreshOptionsGump();
-                GameActions.Print($"Gump opacity: {percent}% (utility/chat {profile.CustomGumpOpacity}%; hover unchanged).", 0x35);
+                GameActions.Print($"Gump opacity: {allPercent}% (utility/chat {profile.CustomGumpOpacity}%; hover unchanged).", 0x35);
                 return;
             }
 
