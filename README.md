@@ -36,7 +36,7 @@ On Windows, the client uses Windows system DPI scaling by default so the interfa
 ## Razor Enhanced script buttons
 
 1. Add a script to Razor Enhanced and assign it a hotkey, for example `Ctrl+Alt+F6`.
-2. In tazUO's macro options, create a named macro with the `RazorEnhancedHotkey` action. Enter the same hotkey in its text field. Supported modifiers are `Ctrl`, `Alt`, and `Shift`; separate them from the key with `+`.
+2. In tazUO's macro options, create a named macro with the `RazorEnhancedHotkey` action. Enter the same hotkey in its text field, either as `Ctrl+Alt+F6` or in Razor Enhanced's displayed format, such as `Oem6, Control, Alt` or `LWin, Shift`.
 3. Use **Create Macro Button** to place a button for that macro in game.
 
 The button sends the hotkey to Razor Enhanced's plugin callback. Razor Enhanced must be loaded and its hotkeys enabled. The action does not send the key to the game or run another tazUO macro bound to that key.

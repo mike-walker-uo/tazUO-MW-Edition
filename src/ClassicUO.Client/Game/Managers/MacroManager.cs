@@ -484,15 +484,32 @@ namespace ClassicUO.Game.Managers
                 return false;
             }
 
-            string[] parts = value.Split('+');
+            bool razorEnhancedFormat = value.IndexOf(',') >= 0;
+            string[] parts = value.Split(razorEnhancedFormat ? ',' : '+');
+            int keyIndex = razorEnhancedFormat ? 0 : parts.Length - 1;
+            string keyName = parts[keyIndex].Trim();
 
-            if (!Enum.TryParse("SDLK_" + parts[parts.Length - 1].Trim(), true, out key) || key == SDL_Keycode.SDLK_UNKNOWN)
+            if (keyName.Equals("Oem6", StringComparison.OrdinalIgnoreCase))
+            {
+                // RE uses the Windows VK_OEM_6 code for this key.
+                key = (SDL_Keycode)0xDD;
+            }
+            else if (keyName.Equals("LWin", StringComparison.OrdinalIgnoreCase))
+            {
+                key = (SDL_Keycode)1073742051; // SDLK_LGUI, mapped to LWin by RE.
+            }
+            else if (!Enum.TryParse("SDLK_" + keyName, true, out key) || key == SDL_Keycode.SDLK_UNKNOWN)
             {
                 return false;
             }
 
-            for (int i = 0; i < parts.Length - 1; i++)
+            for (int i = 0; i < parts.Length; i++)
             {
+                if (i == keyIndex)
+                {
+                    continue;
+                }
+
                 switch (parts[i].Trim().ToLowerInvariant())
                 {
                     case "ctrl":
