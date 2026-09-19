@@ -17,8 +17,8 @@ namespace ClassicUO.Game.UI.Gumps
             || theme >= CustomGumpTheme.Celestial;
 
         private static bool UsesLargeBorder(CustomGumpTheme theme) =>
-            UsesSheet(theme) || theme == CustomGumpTheme.UOAlive
-            || theme == CustomGumpTheme.UOAlive2
+            UsesSheet(theme) || theme == CustomGumpTheme.GildedGrove
+            || theme == CustomGumpTheme.Aetherglass
             || theme == CustomGumpTheme.BritannianChronicle
             || theme == CustomGumpTheme.MoonglowArcane
             || theme == CustomGumpTheme.TerMurRelic
@@ -59,8 +59,8 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.MoonglowArcane: return "MoonglowArcane";
                 case CustomGumpTheme.TerMurRelic: return "TerMurRelic";
                 case CustomGumpTheme.MarinersChart: return "MarinersChart";
-                case CustomGumpTheme.UOAlive: return "UOAliveTheme";
-                case CustomGumpTheme.UOAlive2: return "UOAlive2Theme";
+                case CustomGumpTheme.GildedGrove: return "GildedGroveTheme";
+                case CustomGumpTheme.Aetherglass: return "AetherglassTheme";
                 default: return "OrnateTheme";
             }
         }
