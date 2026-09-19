@@ -29,11 +29,11 @@ namespace ClassicUO.Game.UI.Gumps
         private const int DefaultCompactWidth = 180;
         private const int MinCompactWidth = 148;
         private const int MaxCompactWidth = 900;
-        private const int MinCompactHeight = 118;
+        private const int MinCompactHeight = 104;
         private const int MaxCompactHeight = 550;
         private const int DefaultCompactRowsPerPage = 10;
-        private const int CompactButtonHeight = 44;
-        private const int CompactRowHeight = 46;
+        private const int CompactButtonHeight = 25;
+        private const int CompactRowHeight = 28;
         private const int CompactButtonMaxWidth = 128;
         private const int SingleCompactButtonMaxWidth = 160;
         private const int MaxCompactColumns = 4;
@@ -249,8 +249,9 @@ namespace ClassicUO.Game.UI.Gumps
                     ExplorerButton button = new ExplorerButton(
                         12 + column * (columnWidth + CompactColumnGap) + (columnWidth - buttonWidth) / 2,
                         38 + row * CompactRowHeight, buttonWidth, CompactButtonHeight,
-                        DisplayName(pin), 1000 + start + i, Classic, Ink, true);
-                    button.SetTooltip(pin.Kind == "portal" ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name);
+                        DisplayName(pin), 1000 + start + i, Classic, Ink);
+                    button.SetTooltip(DisplayName(pin) + "\n" + (pin.Kind == "portal"
+                        ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name));
                     Add(button);
                 }
 
@@ -1248,21 +1249,11 @@ namespace ClassicUO.Game.UI.Gumps
         private sealed class ExplorerButton : NiceButton
         {
             private readonly bool _classic;
-            private readonly bool _compactPin;
 
-            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink,
-                bool wrapText = false)
+            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink)
                 : base(x, y, width, height, ButtonAction.Activate, text,
                     hue: classic ? (ushort)0x0481 : ink, font: 1)
             {
-                _compactPin = wrapText;
-                if (wrapText)
-                {
-                    TextLabel.SetFontStyle(FontStyle.BlackBorder);
-                    if (TextLabel.Height > height - 4)
-                        TextLabel.SetFontStyle(FontStyle.BlackBorder | FontStyle.Cropped);
-                    TextLabel.Y = (height - TextLabel.Height) / 2;
-                }
                 _classic = classic && width >= 60;
                 ButtonParameter = id;
                 IsSelectable = false;
@@ -1281,14 +1272,6 @@ namespace ClassicUO.Game.UI.Gumps
                     Vector3 hue = ShaderHueTranslator.GetHueVector(0);
                     if (texture == null)
                         batcher.Draw(SolidColorTextureCache.GetTexture(new Color(56, 37, 23)), destination, hue);
-                    else if (_compactPin)
-                    {
-                        // Trim the artwork's transparent top and bottom padding between compact rows.
-                        int top = texture.Height * 14 / 100;
-                        int bottom = texture.Height * 17 / 100;
-                        batcher.Draw(texture, destination,
-                            new Rectangle(0, top, texture.Width, texture.Height - top - bottom), hue);
-                    }
                     else
                         batcher.Draw(texture, destination, hue);
                 }
