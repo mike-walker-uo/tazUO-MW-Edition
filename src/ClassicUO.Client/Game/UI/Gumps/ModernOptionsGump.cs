@@ -4256,7 +4256,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new CheckboxWithLabel
                 (
-                    "Set gump opacity while hovered", 0,
+                    "Raise gump opacity while hovered", 0,
                     profile.BoostGumpOpacityOnHover,
                     (enabled) => { profile.BoostGumpOpacityOnHover = enabled; }
                 ), true, page
@@ -4266,7 +4266,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new SliderWithLabel
                 (
-                    "Opacity while hovered (%)", 0, ThemeSettings.SLIDER_WIDTH,
+                    "Hover minimum opacity (%)", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.GumpHoverOpacityPercent,
                     (i) => { profile.GumpHoverOpacityPercent = (byte)i; }
                 ), true, page
