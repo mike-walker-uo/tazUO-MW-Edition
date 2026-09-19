@@ -90,7 +90,7 @@ namespace ClassicUO.Game.UI.Gumps
                 profile.WorldExplorerPins = new List<WorldExplorerPin>();
             _minimized = profile?.WorldExplorerMinimized ?? false;
             _compactColumns = Math.Max(1, Math.Min(MaxCompactColumns,
-                profile?.WorldExplorerCompactColumns ?? 1));
+                (int)(profile?.WorldExplorerCompactColumns ?? 1)));
             _compactWidth = Math.Max(MinCompactWidthForColumns(_compactColumns), Math.Min(MaxCompactWidth,
                 profile?.WorldExplorerCompactWidth ?? DefaultCompactWidth));
             _compactHeight = profile?.WorldExplorerCompactHeight > 0
