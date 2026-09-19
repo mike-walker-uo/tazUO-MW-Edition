@@ -98,7 +98,7 @@ namespace ClassicUO.Configuration
         public byte WorldExplorerTravelMethod { get; set; }
         public byte WorldExplorerTheme { get; set; }
         public bool WorldExplorerMinimized { get; set; }
-        public int WorldExplorerCompactWidth { get; set; } = 220;
+        public int WorldExplorerCompactWidth { get; set; } = 180;
         public int WorldExplorerCompactHeight { get; set; }
         public byte WorldExplorerCompactColumns { get; set; } = 1;
         public List<WorldExplorerPin> WorldExplorerPins { get; set; } = new List<WorldExplorerPin>();
