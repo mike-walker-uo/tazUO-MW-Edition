@@ -107,7 +107,8 @@ namespace ClassicUO
             LogGraphicsDiagnostic(
                 "Info",
                 $"Graphics configuration: requested driver={Environment.GetEnvironmentVariable("FNA3D_FORCE_DRIVER") ?? "Auto"}, " +
-                $"D3D11 BitBlt={Environment.GetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT") ?? "0"}"
+                $"D3D11 BitBlt={Environment.GetEnvironmentVariable("FNA3D_D3D11_FORCE_BITBLT") ?? "0"}, " +
+                $"DPI awareness={Environment.GetEnvironmentVariable(WindowsDpiPolicy.AwarenessEnvironmentVariable) ?? "Platform default"}"
             );
 
             string runtimeDirectory = Path.Combine(CUOEnviroment.ExecutablePath, "x64");

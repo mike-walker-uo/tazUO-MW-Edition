@@ -36,6 +36,7 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Network;
+using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
@@ -56,8 +57,12 @@ namespace ClassicUO.Game.UI.Gumps
             CanCloseWithRightClick = false;
 
             // little
-            ResizePic smallBackground = new ResizePic(0x13BE) { Width = 30, Height = 27 };
-            CustomGumpThemeManager.ApplyFrame(smallBackground);
+            bool artTheme = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
+            Control smallBackground = artTheme
+                ? (Control)CustomGumpThemeManager.CreateBackground(30, 27, 1f)
+                : new ResizePic(0x13BE) { Width = 30, Height = 27 };
+            if (smallBackground is ResizePic smallFrame)
+                CustomGumpThemeManager.ApplyFrame(smallFrame);
             Add(smallBackground, 2);
 
             Add(
@@ -110,10 +115,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             bool hasUOStore = Client.Version >= ClientVersion.CV_706400;
 
-            ResizePic background;
-
-            Add(background = new ResizePic(0x13BE) { Height = 27 }, 1);
-            CustomGumpThemeManager.ApplyFrame(background);
+            Control background = artTheme
+                ? (Control)CustomGumpThemeManager.CreateBackground(30, 27, 1f)
+                : new ResizePic(0x13BE) { Height = 27 };
+            Add(background, 1);
+            if (background is ResizePic frame)
+                CustomGumpThemeManager.ApplyFrame(frame);
 
             Add(
                 new Button(0, 0x15A4, 0x15A4, 0x15A4)
@@ -455,6 +462,23 @@ submenu.Add(new ContextMenuItemEntry("Profile Export/Import", () =>
             }
         }
 
+        internal static void RefreshTheme()
+        {
+            TopBarGump current = UIManager.GetGump<TopBarGump>();
+            if (current == null || current.IsDisposed)
+                return;
+
+            int x = current.X;
+            int y = current.Y;
+            bool minimized = current.IsMinimized;
+            current.Dispose();
+
+            var replacement = new TopBarGump { X = x, Y = y };
+            UIManager.Add(replacement);
+            if (minimized)
+                replacement.ChangePage(2);
+        }
+
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
             if (button == MouseButtonType.Right && (X != 0 || Y != 0))
@@ -533,6 +557,9 @@ submenu.Add(new ContextMenuItemEntry("Profile Export/Import", () =>
 
         private class RighClickableButton : Button
         {
+            private readonly string _themedCaption;
+            private RenderedText _themedText;
+
             public RighClickableButton(
                 int buttonID,
                 ushort normal,
@@ -544,9 +571,44 @@ submenu.Add(new ContextMenuItemEntry("Profile Export/Import", () =>
                 ushort normalHue = ushort.MaxValue,
                 ushort hoverHue = ushort.MaxValue
             ) : base(buttonID, normal, pressed, over, caption, font, isunicode, normalHue, hoverHue)
-            { }
+            {
+                _themedCaption = caption;
+                if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+                    ContainsByBounds = true;
+            }
 
             public RighClickableButton(List<string> parts) : base(parts) { }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                if (!CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
+                    || string.IsNullOrEmpty(_themedCaption))
+                    return base.Draw(batcher, x, y);
+
+                CustomThemeArt.DrawButton(batcher, x, y, Width, Height, Alpha);
+                ushort hue = CustomGumpThemeManager.DataTextHue;
+                FontStyle style = CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                    ? FontStyle.Cropped : FontStyle.BlackBorder | FontStyle.Cropped;
+                if (_themedText == null)
+                    _themedText = RenderedText.Create(_themedCaption, hue, 1, true, style,
+                        TEXT_ALIGN_TYPE.TS_CENTER, Width);
+                else if (_themedText.Hue != hue || _themedText.FontStyle != style)
+                {
+                    _themedText.Hue = hue;
+                    _themedText.FontStyle = style;
+                    _themedText.CreateTexture();
+                }
+
+                _themedText.Draw(batcher, x + (Width - _themedText.Width) / 2,
+                    y + (Height - _themedText.Height) / 2, Alpha);
+                return true;
+            }
+
+            public override void AfterDispose()
+            {
+                _themedText?.Destroy();
+                base.AfterDispose();
+            }
 
             protected override void OnMouseUp(int x, int y, MouseButtonType button)
             {

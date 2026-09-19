@@ -1,0 +1,1283 @@
+// TazUO addition: searchable backpack travel library and pinned destinations.
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using ClassicUO.Configuration;
+using ClassicUO.Game.Data;
+using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
+using ClassicUO.Renderer;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+
+namespace ClassicUO.Game.UI.Gumps
+{
+    internal sealed class WorldExplorerGump : Gump
+    {
+        private const int WidthPixels = 760;
+        private const int HeightPixels = 520;
+        private const int RowsPerPage = 12;
+        private const int LibraryX = 330;
+        private const int LibraryWidth = 400;
+        private const int PinX = 30;
+        private const int PinWidth = 275;
+        private const int DefaultCompactWidth = 280;
+        private const int MinCompactWidth = 200;
+        private const int MaxCompactWidth = 900;
+        private const int MinCompactHeight = 104;
+        private const int MaxCompactHeight = 550;
+        private const int DefaultCompactRowsPerPage = 10;
+        private const int MaxCompactRowsPerPage = 16;
+
+        private readonly List<WorldExplorerPin> _catalog = new List<WorldExplorerPin>();
+        private readonly List<Item> _books = new List<Item>();
+        private readonly List<Item> _runes = new List<Item>();
+        private readonly Dictionary<uint, string> _sourceNames = new Dictionary<uint, string>();
+        private readonly Dictionary<uint, int> _charges = new Dictionary<uint, int>();
+        private VBoxContainer _libraryRows;
+        private VBoxContainer _pinRows;
+        private StbTextBox _search;
+        private Label _status;
+        private int _libraryPage;
+        private int _pinPage;
+        private int _compactPage;
+        private int _filter;
+        private bool _minimized;
+        private bool _scanCompleted;
+        private int _compactWidth;
+        private int _compactHeight;
+        private bool _resizingCompact;
+        private int _resizeStartX;
+        private int _resizeStartY;
+        private int _resizeStartWidth;
+        private int _resizeStartHeight;
+        private string _lastSearch = string.Empty;
+        private uint _nextRefresh;
+        private uint _deadline;
+        private int _bookIndex;
+        private int _atlasPage;
+        private int _travelPage;
+        private WorldExplorerPin _travelPin;
+        private PendingAction _pending;
+        private int _lastX;
+        private int _lastY;
+
+        private enum PendingAction
+        {
+            None,
+            ScanRunes,
+            ScanBook,
+            ScanAtlasPage,
+            TravelBook,
+            TravelAtlasPage,
+            TravelAtlasSelected
+        }
+
+        internal WorldExplorerGump() : base(0, 0)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile != null && profile.WorldExplorerPins == null)
+                profile.WorldExplorerPins = new List<WorldExplorerPin>();
+            _minimized = profile?.WorldExplorerMinimized ?? false;
+            _compactWidth = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
+                profile?.WorldExplorerCompactWidth ?? DefaultCompactWidth));
+            _compactHeight = profile?.WorldExplorerCompactHeight > 0
+                ? Math.Max(MinCompactHeight, Math.Min(MaxCompactHeight, profile.WorldExplorerCompactHeight)) : 0;
+            Point location = profile?.WorldExplorerPosition ?? new Point(160, 90);
+            X = _lastX = location.X;
+            Y = _lastY = location.Y;
+            Width = WidthPixels;
+            Height = HeightPixels;
+            WantUpdateSize = false;
+            CanMove = true;
+            CanCloseWithRightClick = true;
+            AcceptMouseInput = true;
+            AddPortals();
+            Build();
+            SetInScreen();
+        }
+
+        public override GumpType GumpType => GumpType.None;
+
+        private Profile Profile => ProfileManager.CurrentProfile;
+        private bool Classic => Profile?.WorldExplorerTheme == 1;
+        private ushort Ink => Classic ? (ushort)0x0000 : (ushort)0x0481;
+        private ushort MutedInk => (ushort)0x0386;
+
+        private void Build()
+        {
+            string query = _search?.Text ?? _lastSearch;
+            Clear();
+            _search = null;
+            _pinRows = null;
+            _libraryRows = null;
+            _status = null;
+            _lastSearch = query;
+            if (_minimized)
+            {
+                BuildCompact();
+                return;
+            }
+
+            Width = WidthPixels;
+            Height = HeightPixels;
+            Add(new ExplorerPanel(WidthPixels, HeightPixels, Classic));
+            Add(new Label("WORLD EXPLORER", true, Ink, font: 1) { X = 32, Y = 28 });
+            Add(new Label("Pinned travel", true, Ink, font: 1) { X = PinX, Y = 70 });
+            Add(new Label("Destinations", true, Ink, font: 1) { X = LibraryX, Y = 70 });
+            Add(Button(548, 27, 90, "Scan bag", 1));
+            Add(Button(644, 27, 84, Classic ? "Modern" : "Classic", 2));
+            Add(Button(735, 27, 20, "-", 4));
+            Add(new Label("Travel:", true, Ink, font: 1) { X = PinX, Y = 101 });
+            Add(Button(90, 94, 78, MethodName(), 3));
+            Add(new Label("Drag a destination here to pin it.", true, MutedInk, PinWidth, font: 1)
+            {
+                X = PinX, Y = 130
+            });
+            Add(new AlphaBlendControl(Classic ? 0.12f : 0.45f)
+            {
+                X = 315, Y = 76, Width = 1, Height = 387,
+                BaseColor = Classic ? Color.DarkGoldenrod : Color.Gray
+            });
+
+            Add(new AlphaBlendControl(Classic ? 0.18f : 0.65f)
+            {
+                X = LibraryX, Y = 99, Width = LibraryWidth, Height = 24,
+                BaseColor = Classic ? new Color(92, 66, 36) : new Color(20, 27, 31)
+            });
+            Add(_search = new StbTextBox(1, 60, LibraryWidth - 12, true, hue: Ink)
+            {
+                X = LibraryX + 6, Y = 100, Width = LibraryWidth - 12, Height = 22,
+                Text = query
+            });
+            Add(Button(LibraryX, 132, 72, "All", 10));
+            Add(Button(LibraryX + 77, 132, 72, "Runes", 11));
+            Add(Button(LibraryX + 154, 132, 100, "Crystal", 12));
+            Add(Button(LibraryX + 259, 132, 128, "Corrupted", 13));
+
+            var pinArea = new ScrollArea(PinX, 153, PinWidth, 285, true);
+            _pinRows = new VBoxContainer(PinWidth - 20, 0, 1);
+            pinArea.Add(_pinRows);
+            Add(pinArea);
+
+            var libraryArea = new ScrollArea(LibraryX, 165, LibraryWidth, 273, true);
+            _libraryRows = new VBoxContainer(LibraryWidth - 20, 0, 1);
+            libraryArea.Add(_libraryRows);
+            Add(libraryArea);
+
+            Add(Button(PinX, 443, 32, "<", 20));
+            Add(Button(PinX + 230, 443, 32, ">", 21));
+            Add(Button(LibraryX, 443, 32, "<", 22));
+            Add(Button(LibraryX + 355, 443, 32, ">", 23));
+            Add(_status = new Label("Scan your backpack to load runes and books.", true, MutedInk, 695, font: 1)
+            {
+                X = 32, Y = 482
+            });
+            _lastSearch = query;
+            RebuildRows();
+        }
+
+        private void BuildCompact()
+        {
+            List<WorldExplorerPin> pins = Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>();
+            Width = _compactWidth;
+            if (_compactHeight == 0)
+                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pins.Count)) * 28
+                    + (pins.Count > DefaultCompactRowsPerPage ? 27 : 8);
+            else
+                Height = _compactHeight;
+            int maxRows = _compactHeight == 0 ? DefaultCompactRowsPerPage : MaxCompactRowsPerPage;
+            int rowsWithoutPager = Math.Max(1, Math.Min(maxRows, (Height - 43) / 28));
+            int rowsPerPage = pins.Count > rowsWithoutPager
+                ? Math.Max(1, Math.Min(maxRows, (Height - 65) / 28)) : rowsWithoutPager;
+            _compactPage = Math.Min(_compactPage, Math.Max(0, (pins.Count - 1) / rowsPerPage));
+            int start = _compactPage * rowsPerPage;
+            int count = Math.Min(rowsPerPage, pins.Count - start);
+            bool hasPages = pins.Count > rowsPerPage;
+            Add(new ExplorerPanel(Width, Height, Classic, true));
+            Add(new Label("WORLD EXPLORER", true, Ink, font: 1) { X = 12, Y = 9 });
+            ExplorerButton expand = Button(Width - 36, 6, 24, "+", 4);
+            expand.SetTooltip("Expand World Explorer");
+            Add(expand);
+
+            if (pins.Count == 0)
+                Add(new Label("Pin locations in the full view.", true, Ink, font: 1) { X = 13, Y = 43 });
+            else
+                for (int i = 0; i < count; i++)
+                {
+                    WorldExplorerPin pin = pins[start + i];
+                    ExplorerButton button = Button(12, 38 + i * 28, Width - 24, DisplayName(pin), 1000 + start + i);
+                    button.SetTooltip(pin.Kind == "portal" ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name);
+                    Add(button);
+                }
+
+            if (hasPages)
+            {
+                Add(Button(12, Height - 29, 32, "<", 20));
+                Add(Button(Width - 62, Height - 29, 32, ">", 21));
+            }
+            Add(new Label("//", true, Ink, font: 1) { X = Width - 24, Y = Height - 22 });
+            var resizeGrip = new HitBox(Width - 16, Height - 16, 16, 16, "Drag to resize World Explorer", 0.5f);
+            resizeGrip.MouseDown += (sender, e) =>
+            {
+                if (e.Button != MouseButtonType.Left)
+                    return;
+                _resizingCompact = true;
+                _resizeStartX = Mouse.Position.X;
+                _resizeStartY = Mouse.Position.Y;
+                _resizeStartWidth = Width;
+                _resizeStartHeight = Height;
+            };
+            Add(resizeGrip);
+        }
+
+        private ExplorerButton Button(int x, int y, int width, string title, int id)
+        {
+            return new ExplorerButton(x, y, width, 25, title, id, Classic, Ink);
+        }
+
+        private string MethodName()
+        {
+            switch (Profile?.WorldExplorerTravelMethod ?? 0)
+            {
+                case 1: return "Chivalry";
+                case 2: return "Charges";
+                default: return "Magery";
+            }
+        }
+
+        private void RebuildRows()
+        {
+            if (_pinRows == null || _libraryRows == null)
+                return;
+
+            _pinRows.Clear();
+            _libraryRows.Clear();
+            List<WorldExplorerPin> pins = Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>();
+            if (_pinPage * RowsPerPage >= pins.Count)
+                _pinPage = Math.Max(0, (pins.Count - 1) / RowsPerPage);
+            for (int i = _pinPage * RowsPerPage; i < Math.Min(pins.Count, (_pinPage + 1) * RowsPerPage); i++)
+            {
+                WorldExplorerPin pin = pins[i];
+                bool available = IsAvailable(pin);
+                bool unverified = !available && pin.Kind != "portal" && !_scanCompleted;
+                var row = new ExplorerRow(this, pin, i, true, available, unverified, Classic, Ink);
+                _pinRows.Add(row);
+            }
+
+            string query = (_search?.Text ?? string.Empty).Trim();
+            IEnumerable<WorldExplorerPin> filtered = _catalog.Where(p =>
+                (_filter == 0 || (_filter == 1 && p.Kind != "portal")
+                    || (_filter == 2 && p.Kind == "portal" && p.Phrase.IndexOf("dungeon ", StringComparison.OrdinalIgnoreCase) < 0)
+                    || (_filter == 3 && p.Kind == "portal" && p.Phrase.IndexOf("dungeon ", StringComparison.OrdinalIgnoreCase) >= 0))
+                && (query.Length == 0 || p.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
+                    || SourceName(p).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
+            List<WorldExplorerPin> entries = filtered.ToList();
+            if (_libraryPage * RowsPerPage >= entries.Count)
+                _libraryPage = Math.Max(0, (entries.Count - 1) / RowsPerPage);
+            for (int i = _libraryPage * RowsPerPage; i < Math.Min(entries.Count, (_libraryPage + 1) * RowsPerPage); i++)
+                _libraryRows.Add(new ExplorerRow(this, entries[i], i, false, true, false, Classic, Ink));
+        }
+
+        private string SourceName(WorldExplorerPin pin)
+        {
+            if (pin.Kind == "portal")
+                return pin.Phrase.IndexOf("dungeon ", StringComparison.OrdinalIgnoreCase) >= 0
+                    ? "Corrupted Crystal Portal" : "Crystal Portal";
+            return _sourceNames.TryGetValue(pin.Serial, out string name) ? name : pin.Kind;
+        }
+
+        private static bool SameLocation(WorldExplorerPin a, WorldExplorerPin b) =>
+            a.Kind == b.Kind && a.Serial == b.Serial && a.Slot == b.Slot
+            && string.Equals(a.Phrase, b.Phrase, StringComparison.OrdinalIgnoreCase);
+
+        private static string DisplayName(WorldExplorerPin pin) =>
+            string.IsNullOrWhiteSpace(pin.CustomName) ? pin.Name : pin.CustomName;
+
+        private bool IsAvailable(WorldExplorerPin pin)
+        {
+            if (pin.Kind == "portal")
+                return _catalog.Any(entry => SameLocation(entry, pin));
+            Item source = World.Items.Get(pin.Serial);
+            if (source == null || !InBackpack(source))
+                return false;
+            if (!_scanCompleted)
+                return true;
+            return _catalog.Any(entry => SameLocation(entry, pin)
+                && string.Equals(entry.Name, pin.Name, StringComparison.Ordinal));
+        }
+
+        internal void AddPin(WorldExplorerPin pin)
+        {
+            List<WorldExplorerPin> pins = Profile?.WorldExplorerPins;
+            if (pins == null || pins.Any(p => SameLocation(p, pin)))
+                return;
+            pins.Add(new WorldExplorerPin
+            {
+                Kind = pin.Kind, Serial = pin.Serial, Slot = pin.Slot,
+                Name = pin.Name, CustomName = pin.CustomName, Phrase = pin.Phrase
+            });
+            Save();
+            RebuildRows();
+        }
+
+        internal void MovePin(int from, int to)
+        {
+            List<WorldExplorerPin> pins = Profile?.WorldExplorerPins;
+            if (pins == null || from < 0 || from >= pins.Count || to < 0 || to >= pins.Count || from == to)
+                return;
+            WorldExplorerPin pin = pins[from];
+            pins.RemoveAt(from);
+            pins.Insert(to, pin);
+            Save();
+            RebuildRows();
+        }
+
+        internal void RemovePin(int index)
+        {
+            List<WorldExplorerPin> pins = Profile?.WorldExplorerPins;
+            if (pins == null || index < 0 || index >= pins.Count)
+                return;
+            pins.RemoveAt(index);
+            Save();
+            RebuildRows();
+        }
+
+        internal void EditPin(WorldExplorerPin pin)
+        {
+            if (Profile?.WorldExplorerPins.Contains(pin) != true)
+                return;
+            UIManager.Add(new RenamePinGump(this, pin));
+        }
+
+        private void RenamePin(WorldExplorerPin pin, string name)
+        {
+            if (Profile?.WorldExplorerPins.Contains(pin) != true)
+                return;
+            string trimmed = (name ?? string.Empty).Trim();
+            pin.CustomName = string.Equals(trimmed, pin.Name, StringComparison.Ordinal)
+                ? string.Empty : trimmed;
+            Save();
+            RebuildRows();
+            Status("Pinned name saved.");
+        }
+
+        internal void Dropped(WorldExplorerPin pin, int fromIndex, bool wasPinned)
+        {
+            int x = Mouse.Position.X - X;
+            int y = Mouse.Position.Y - Y;
+            if (x < PinX || x > PinX + PinWidth || y < 153 || y > 438)
+                return;
+            if (!wasPinned)
+            {
+                AddPin(pin);
+                return;
+            }
+            int target = _pinPage * RowsPerPage + Math.Max(0, (y - 153) / 23);
+            MovePin(fromIndex, Math.Min(Profile.WorldExplorerPins.Count - 1, target));
+        }
+
+        internal void Travel(WorldExplorerPin pin)
+        {
+            if (pin.Kind != "portal" && _pending != PendingAction.None)
+            {
+                Status("Wait for the current scan or travel action.");
+                return;
+            }
+            if (!IsAvailable(pin))
+            {
+                Status(_scanCompleted ? "Source moved or destination changed. Scan and pin it again."
+                    : "Open your backpack or scan to find this source.");
+                return;
+            }
+            if (pin.Kind == "portal")
+            {
+                GameActions.Say(pin.Phrase);
+                Status("Said \"" + pin.Phrase + "\". Stand near the matching portal.");
+                return;
+            }
+            if (pin.Kind == "rune")
+            {
+                if ((Profile?.WorldExplorerTravelMethod ?? 0) == 2)
+                {
+                    Status("Loose runes cannot use book charges.");
+                    return;
+                }
+                TargetManager.SetAutoTarget(pin.Serial, TargetType.Neutral, CursorTarget.Object);
+                GameActions.CastSpell(Profile.WorldExplorerTravelMethod == 1 ? 210 : 32);
+                Status("Casting for " + DisplayName(pin) + ".");
+                return;
+            }
+            Item source = World.Items.Get(pin.Serial);
+            if (source == null || !InBackpack(source))
+            {
+                Status("Book is no longer in your backpack.");
+                return;
+            }
+            if (Profile.WorldExplorerTravelMethod == 2 && _charges.TryGetValue(pin.Serial, out int charges)
+                && charges <= 0)
+            {
+                Status("This book has no charges. Choose Magery or Chivalry.");
+                return;
+            }
+            _travelPin = pin;
+            _travelPage = 0;
+            CloseBookGumps();
+            GameActions.DoubleClick(pin.Serial);
+            WaitFor(PendingAction.TravelBook);
+            Status("Opening " + SourceName(pin) + "...");
+        }
+
+        private void BeginScan()
+        {
+            if (World.Player == null)
+                return;
+            Item backpack = World.Player.FindItemByLayer(Layer.Backpack);
+            if (backpack == null)
+            {
+                Status("Open your backpack first.");
+                return;
+            }
+            if (backpack.Items == null && !backpack.Opened)
+            {
+                Status("Open your backpack, then scan again.");
+                return;
+            }
+            _scanCompleted = false;
+            _pending = PendingAction.None;
+            _books.Clear();
+            _runes.Clear();
+            _sourceNames.Clear();
+            _charges.Clear();
+            _catalog.RemoveAll(p => p.Kind != "portal");
+            _bookIndex = 0;
+            _atlasPage = 0;
+            CollectBackpack(backpack);
+            RebuildRows();
+        }
+
+        private void CollectBackpack(Item backpack)
+        {
+            for (LinkedObject node = backpack.Items; node != null; node = node.Next)
+            {
+                Item item = (Item)node;
+                if (!item.Exists)
+                    continue;
+                // Identify books by item ID only; their hues can vary.
+                if (IsRunebookGraphic(item.Graphic) || item.Graphic == 0x9C16 || item.Graphic == 0x9C17)
+                {
+                    _books.Add(item);
+                    _sourceNames[item.Serial] = ItemName(item);
+                }
+                else if (item.Graphic >= 0x1F14 && item.Graphic <= 0x1F17)
+                {
+                    _runes.Add(item);
+                    _sourceNames[item.Serial] = ItemName(item);
+                }
+            }
+            ScanRuneProperties();
+        }
+
+        private void ScanRuneProperties()
+        {
+            if (_runes.Count == 0)
+            {
+                NextBook();
+                return;
+            }
+            foreach (Item rune in _runes)
+                World.OPL.Contains(rune.Serial);
+            WaitFor(PendingAction.ScanRunes);
+            Status("Reading " + _runes.Count + " rune tooltips...");
+        }
+
+        private void FinishRunes()
+        {
+            foreach (Item rune in _runes)
+            {
+                if (World.Items.Get(rune.Serial) != null && IsMarkedRune(rune))
+                    _catalog.Add(new WorldExplorerPin
+                    {
+                        Kind = "rune", Serial = rune.Serial, Name = RuneName(rune)
+                    });
+            }
+            RebuildRows();
+            NextBook();
+        }
+
+        private static string ItemName(Item item)
+        {
+            if (World.OPL.TryGetNameAndData(item.Serial, out string name, out _) && !string.IsNullOrWhiteSpace(name))
+                return name;
+            return string.IsNullOrWhiteSpace(item.Name) ? "Book " + item.Serial.ToString("X8") : item.Name;
+        }
+
+        private static bool IsRunebookGraphic(ushort graphic) => graphic == 0x22C5 || graphic == 0x22C6;
+
+        private static bool IsMarkedRune(Item item)
+        {
+            if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
+                return (name + " " + data).IndexOf("marked", StringComparison.OrdinalIgnoreCase) >= 0
+                    || (name + " " + data).IndexOf("for ", StringComparison.OrdinalIgnoreCase) >= 0;
+            return false;
+        }
+
+        private static string RuneName(Item item)
+        {
+            World.OPL.TryGetNameAndData(item.Serial, out string name, out string data);
+            string value = (name + " " + data).Trim();
+            Match match = Regex.Match(value, @"(?:marked\s*(?:for|:)|rune\s+for)\s+([^\n\r]+)", RegexOptions.IgnoreCase);
+            return match.Success
+                ? Regex.Replace(match.Groups[1].Value, "<[^>]*>", string.Empty).Trim()
+                : ItemName(item);
+        }
+
+        private void NextBook()
+        {
+            if (_bookIndex >= _books.Count)
+            {
+                _pending = PendingAction.None;
+                _scanCompleted = true;
+                RebuildRows();
+                Status("Scan complete: " + _catalog.Count(p => p.Kind != "portal") + " rune locations from " + _books.Count + " books.");
+                return;
+            }
+            Item book = _books[_bookIndex];
+            if (World.Items.Get(book.Serial) == null || !InBackpack(book))
+            {
+                _bookIndex++;
+                NextBook();
+                return;
+            }
+            _atlasPage = 0;
+            CloseBookGumps();
+            GameActions.DoubleClick(book.Serial);
+            WaitFor(PendingAction.ScanBook);
+            Status("Scanning " + (_bookIndex + 1) + " / " + _books.Count + ": " + ItemName(book));
+        }
+
+        private static bool InBackpack(Item item)
+        {
+            Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
+            return backpack != null && item.Container == backpack.Serial;
+        }
+
+        private void WaitFor(PendingAction action)
+        {
+            _pending = action;
+            _deadline = Time.Ticks + 5000;
+        }
+
+        private static Gump FindBookGump()
+        {
+            for (var node = UIManager.Gumps.Last; node != null; node = node.Previous)
+            {
+                Gump gump = node.Value;
+                if (gump.IsFromServer && !gump.IsDisposed
+                    && (BookType(gump) != null))
+                    return gump;
+            }
+            return null;
+        }
+
+        private static string BookType(Gump gump)
+        {
+            if (gump.Children.OfType<Button>().Any(b => b.ButtonID >= 100 && b.ButtonID < 148
+                && (Math.Abs(b.X - 46) <= 8 || Math.Abs(b.X - 251) <= 8)
+                && b.Y >= 45 && b.Y <= 210))
+                return "atlas";
+            if (gump.Children.OfType<Button>().Any(b => b.ButtonID >= 10 && b.ButtonID < 26
+                && b.Page == 1 && b.X >= 115 && b.X <= 310 && b.Y >= 55 && b.Y <= 180))
+                return "book";
+            return null;
+        }
+
+        private static void CloseBookGumps()
+        {
+            for (var node = UIManager.Gumps.Last; node != null;)
+            {
+                var previous = node.Previous;
+                if (node.Value.IsFromServer && BookType(node.Value) != null)
+                    node.Value.Dispose();
+                node = previous;
+            }
+        }
+
+        private static string ControlText(Control control)
+        {
+            string text = control is CroppedText cropped ? cropped.Text
+                : control is Label label ? label.Text
+                : control is HtmlControl html ? html.Text
+                : null;
+            return text == null ? null : Regex.Replace(text, "<[^>]*>", string.Empty).Trim();
+        }
+
+        private static string RowName(Gump gump, Button button)
+        {
+            Control text = gump.Children
+                .Where(c => c.Page == button.Page && c != button
+                    && c.X >= button.X + 12 && c.X <= button.X + 50
+                    && Math.Abs(c.Y - (button.Y - 5)) <= 7
+                    && !string.IsNullOrWhiteSpace(ControlText(c)))
+                .OrderBy(c => Math.Abs(c.X - button.X - 16))
+                .FirstOrDefault();
+            return ControlText(text);
+        }
+
+        private void ReadBook(Gump gump, Item book)
+        {
+            string kind = BookType(gump);
+            int count = 0;
+            foreach (Button button in gump.Children.OfType<Button>())
+            {
+                int slot;
+                if (kind == "atlas")
+                {
+                    if (button.ButtonID < 100 || button.ButtonID >= 148 || button.Y < 45 || button.Y > 210)
+                        continue;
+                    slot = button.ButtonID - 100;
+                }
+                else
+                {
+                    if (button.Page != 1 || button.ButtonID < 10 || button.ButtonID >= 26)
+                        continue;
+                    slot = button.ButtonID - 10;
+                }
+                string name = RowName(gump, button);
+                if (string.IsNullOrWhiteSpace(name) || name.Equals("Empty", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                WorldExplorerPin pin = new WorldExplorerPin
+                {
+                    Kind = kind, Serial = book.Serial, Slot = slot, Name = name
+                };
+                _catalog.RemoveAll(p => SameLocation(p, pin));
+                _catalog.Add(pin);
+                count++;
+            }
+            int? charges = ReadCharges(gump);
+            if (charges.HasValue)
+                _charges[book.Serial] = charges.Value;
+            if (count == 0)
+                Status("No locations read from " + ItemName(book) + ".");
+            RebuildRows();
+        }
+
+        private static int? ReadCharges(Gump gump)
+        {
+            foreach (Control control in gump.Children)
+            {
+                string text = ControlText(control);
+                if (string.IsNullOrEmpty(text))
+                    continue;
+                Match match = Regex.Match(text, @"Charges\s*:?\s*(\d+)", RegexOptions.IgnoreCase);
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int value))
+                    return value;
+            }
+            if (BookType(gump) == "book")
+            {
+                Control count = gump.Children.FirstOrDefault(c => c.X >= 210 && c.X <= 250
+                    && c.Y >= 35 && c.Y <= 60 && int.TryParse(ControlText(c), out _));
+                if (count != null && int.TryParse(ControlText(count), out int value))
+                    return value;
+            }
+            else
+            {
+                Control count = gump.Children.FirstOrDefault(c => c.X >= 100 && c.X <= 210
+                    && c.Y >= 0 && c.Y <= 30
+                    && Regex.IsMatch(ControlText(c) ?? string.Empty, @"^\d+\s*/"));
+                if (count != null)
+                {
+                    Match match = Regex.Match(ControlText(count), @"^(\d+)");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out int value))
+                        return value;
+                }
+            }
+            return null;
+        }
+
+        private static bool HasButton(Gump gump, int id) =>
+            gump.Children.OfType<Button>().Any(b => b.ButtonID == id && b.ButtonAction == ButtonAction.Activate);
+
+        private static void Reply(Gump gump, int id)
+        {
+            GameActions.ReplyGump(gump.LocalSerial, gump.ServerSerial, id);
+            gump.Dispose();
+        }
+
+        private void ProcessPending()
+        {
+            if (_pending == PendingAction.ScanRunes)
+            {
+                if (_runes.All(r => World.OPL.TryGetNameAndData(r.Serial, out _, out _))
+                    || Time.Ticks > _deadline)
+                    FinishRunes();
+                return;
+            }
+            Gump gump = FindBookGump();
+            if (gump == null)
+            {
+                if (Time.Ticks <= _deadline)
+                    return;
+                if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage)
+                {
+                    Status("Timed out opening " + ItemName(_books[_bookIndex]) + "; continuing.");
+                    _bookIndex++;
+                    NextBook();
+                }
+                else
+                {
+                    _pending = PendingAction.None;
+                    Status("Travel timed out opening the book.");
+                }
+                return;
+            }
+
+            string kind = BookType(gump);
+            if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage)
+            {
+                Item book = _books[_bookIndex];
+                if ((IsRunebookGraphic(book.Graphic) && kind != "book")
+                    || (!IsRunebookGraphic(book.Graphic) && kind != "atlas"))
+                    return;
+                ReadBook(gump, book);
+                if (kind == "atlas" && _atlasPage < 2 && HasButton(gump, 1150))
+                {
+                    _atlasPage++;
+                    Reply(gump, 1150);
+                    WaitFor(PendingAction.ScanAtlasPage);
+                    return;
+                }
+                gump.Dispose();
+                _bookIndex++;
+                NextBook();
+                return;
+            }
+
+            if (_travelPin == null || kind != _travelPin.Kind)
+                return;
+            WorldExplorerPin current = _scanCompleted
+                ? _catalog.FirstOrDefault(p => SameLocation(p, _travelPin)) : null;
+            if (_scanCompleted && (current == null || !string.Equals(current.Name, _travelPin.Name, StringComparison.Ordinal)))
+            {
+                gump.Dispose();
+                _pending = PendingAction.None;
+                Status("Destination changed in the book. Scan and pin it again.");
+                return;
+            }
+            if (kind == "book")
+            {
+                Button row = gump.Children.OfType<Button>().FirstOrDefault(b => b.Page == 1
+                    && b.ButtonID == 10 + _travelPin.Slot);
+                if (row == null || !string.Equals(RowName(gump, row), _travelPin.Name, StringComparison.Ordinal))
+                {
+                    gump.Dispose();
+                    _pending = PendingAction.None;
+                    Status("Rune changed in the book. Scan and pin it again.");
+                    return;
+                }
+                int id = BookTravelButton(_travelPin.Slot);
+                if (!HasButton(gump, id))
+                {
+                    gump.Dispose();
+                    _pending = PendingAction.None;
+                    Status("Selected travel method is unavailable in this book.");
+                    return;
+                }
+                Reply(gump, id);
+                _pending = PendingAction.None;
+                Status("Travel requested: " + DisplayName(_travelPin) + ".");
+                return;
+            }
+            int targetPage = _travelPin.Slot / 16;
+            if (_pending != PendingAction.TravelAtlasSelected && _travelPage < targetPage)
+            {
+                if (!HasButton(gump, 1150))
+                {
+                    _pending = PendingAction.None;
+                    Status("Atlas page is unavailable.");
+                    return;
+                }
+                _travelPage++;
+                Reply(gump, 1150);
+                WaitFor(PendingAction.TravelAtlasPage);
+                return;
+            }
+            if (_pending != PendingAction.TravelAtlasSelected)
+            {
+                int select = 100 + _travelPin.Slot;
+                Button row = gump.Children.OfType<Button>().FirstOrDefault(b => b.ButtonID == select
+                    && (Math.Abs(b.X - 46) <= 8 || Math.Abs(b.X - 251) <= 8));
+                if (row == null || !string.Equals(RowName(gump, row), _travelPin.Name, StringComparison.Ordinal))
+                {
+                    _pending = PendingAction.None;
+                    Status("Atlas location changed. Scan and pin it again.");
+                    return;
+                }
+                Reply(gump, select);
+                WaitFor(PendingAction.TravelAtlasSelected);
+                return;
+            }
+            bool selected = gump.Children.Any(c => c.Y >= 340 && c.Y <= 370
+                && string.Equals(ControlText(c), _travelPin.Name, StringComparison.Ordinal));
+            int action = AtlasTravelButton();
+            if (!selected || !HasButton(gump, action))
+            {
+                _pending = PendingAction.None;
+                Status("Atlas did not confirm this destination or method.");
+                return;
+            }
+            Reply(gump, action);
+            _pending = PendingAction.None;
+            Status("Travel requested: " + DisplayName(_travelPin) + ".");
+        }
+
+        private int BookTravelButton(int slot)
+        {
+            switch (Profile?.WorldExplorerTravelMethod ?? 0)
+            {
+                case 1: return 75 + slot;
+                case 2: return 10 + slot;
+                default: return 50 + slot;
+            }
+        }
+
+        private int AtlasTravelButton()
+        {
+            switch (Profile?.WorldExplorerTravelMethod ?? 0)
+            {
+                case 1: return 7;
+                case 2: return 5;
+                default: return 4;
+            }
+        }
+
+        private void Status(string message)
+        {
+            if (_status != null && !_status.IsDisposed)
+                _status.Text = message;
+            else if (_minimized)
+                GameActions.Print(message, 0x35);
+        }
+
+        private void Save() => Profile?.Save(ProfileManager.ProfilePath, false);
+
+        public override void OnButtonClick(int buttonID)
+        {
+            if (_minimized && buttonID >= 1000)
+            {
+                List<WorldExplorerPin> pins = Profile?.WorldExplorerPins;
+                int index = buttonID - 1000;
+                if (pins != null && index < pins.Count)
+                    Travel(pins[index]);
+                return;
+            }
+
+            switch (buttonID)
+            {
+                case 1: BeginScan(); break;
+                case 2:
+                    if (Profile != null)
+                    {
+                        Profile.WorldExplorerTheme = (byte)(Classic ? 0 : 1);
+                        Save();
+                        Build();
+                    }
+                    break;
+                case 3:
+                    if (Profile != null)
+                    {
+                        Profile.WorldExplorerTravelMethod = (byte)((Profile.WorldExplorerTravelMethod + 1) % 3);
+                        Save();
+                        Build();
+                    }
+                    break;
+                case 4:
+                    _minimized = !_minimized;
+                    if (Profile != null)
+                    {
+                        Profile.WorldExplorerMinimized = _minimized;
+                        Save();
+                    }
+                    Build();
+                    SetInScreen();
+                    break;
+                case 10: case 11: case 12: case 13:
+                    _filter = buttonID - 10; _libraryPage = 0; RebuildRows(); break;
+                case 20:
+                    if (_minimized) { _compactPage = Math.Max(0, _compactPage - 1); Build(); }
+                    else { _pinPage = Math.Max(0, _pinPage - 1); RebuildRows(); }
+                    break;
+                case 21:
+                    if (_minimized) { _compactPage++; Build(); }
+                    else { _pinPage++; RebuildRows(); }
+                    break;
+                case 22: _libraryPage = Math.Max(0, _libraryPage - 1); RebuildRows(); break;
+                case 23: _libraryPage++; RebuildRows(); break;
+                default: base.OnButtonClick(buttonID); break;
+            }
+        }
+
+        public override void Update()
+        {
+            base.Update();
+            if (IsDisposed)
+                return;
+            if (_resizingCompact)
+            {
+                if (Mouse.LButtonPressed && _minimized)
+                {
+                    int width = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
+                        _resizeStartWidth + Mouse.Position.X - _resizeStartX));
+                    int heightDelta = Mouse.Position.Y - _resizeStartY;
+                    if (_compactHeight > 0 || Math.Abs(heightDelta) >= 10)
+                        _compactHeight = Math.Max(MinCompactHeight, Math.Min(MaxCompactHeight,
+                            _resizeStartHeight + heightDelta));
+                    if (_compactWidth != width || (_compactHeight > 0 && Height != _compactHeight))
+                    {
+                        _compactWidth = width;
+                        Build();
+                        if (Profile != null)
+                        {
+                            Profile.WorldExplorerCompactWidth = _compactWidth;
+                            Profile.WorldExplorerCompactHeight = _compactHeight;
+                        }
+                    }
+                }
+                else
+                {
+                    _resizingCompact = false;
+                    SetInScreen();
+                    if (Profile != null)
+                        Profile.WorldExplorerPosition = Location;
+                    Save();
+                }
+            }
+            if (X != _lastX || Y != _lastY)
+            {
+                _lastX = X; _lastY = Y;
+                if (Profile != null)
+                    Profile.WorldExplorerPosition = new Point(X, Y);
+            }
+            if (_pending != PendingAction.None)
+                ProcessPending();
+            if (Time.Ticks >= _nextRefresh)
+            {
+                _nextRefresh = Time.Ticks + 250;
+                string query = _search?.Text ?? _lastSearch;
+                if (query != _lastSearch)
+                {
+                    _lastSearch = query;
+                    _libraryPage = 0;
+                    RebuildRows();
+                }
+            }
+        }
+
+        public override void Dispose()
+        {
+            if (!IsDisposed)
+                Save();
+            base.Dispose();
+        }
+
+        private void AddPortals()
+        {
+            // UOAlive Wiki's facet-specific spoken commands.
+            AddPortalGroup("mint", false,
+                "britain,bucs,cove,delucia,haven,jhelom,magincia,minoc,moonglow,nujelm,papua,serpent,skara,trinsic,vesper,wind,yew,luna,umbra,zento,ilshenar");
+            AddPortalGroup("moongate", false,
+                "britain,haven,jhelom,magincia,minoc,moonglow,skara,trinsic,vesper,yew,compassion,honesty,honor,humility,justice,sacrifice,spirituality,valor,chaos,luna,umbra,termur,isamu,makoto,homare");
+            AddPortalGroup("mint", true,
+                "britain,bucs,cove,occlo,jhelom,magincia,minoc,moonglow,nujelm,serpent,skara,trinsic,vesper,wind,yew");
+            AddPortalGroup("moongate", true,
+                "britain,jhelom,magincia,minoc,moonglow,skara,trinsic,vesper,yew");
+            _catalog.Add(new WorldExplorerPin
+            {
+                Kind = "portal", Phrase = "bucs moongate", Name = "Bucs Moongate (Fel)"
+            });
+            AddPortalGroup("dungeon", false,
+                "abyss,blackthorn,bedlam,caves,citadel,covetous,deceit,despise,destard,doom,fandancer,grove,fire,hythloth,ice,labyrinth,mines,orc,palace,prism,sanctuary,shame,underworld,wrong,wind");
+            AddPortalGroup("dungeon", true,
+                "blackthorn,caves,covetous,deceit,despise,destard,fire,grove,hythloth,ice,orc,prism,sanctuary,shame,wrong,wind");
+        }
+
+        private void AddPortalGroup(string type, bool felucca, string values)
+        {
+            foreach (string place in values.Split(','))
+            {
+                string phrase = (felucca ? "fel " : string.Empty)
+                    + (type == "dungeon" ? "dungeon " + place : place + " " + type);
+                _catalog.Add(new WorldExplorerPin
+                {
+                    Kind = "portal", Phrase = phrase,
+                    Name = CultureName(place) + (type == "mint" ? " Bank" : type == "moongate" ? " Moongate" : " Dungeon")
+                        + (felucca ? " (Fel)" : string.Empty)
+                });
+            }
+        }
+
+        private static string CultureName(string value) =>
+            char.ToUpperInvariant(value[0]) + value.Substring(1);
+
+        private sealed class RenamePinGump : Gump
+        {
+            private readonly WorldExplorerGump _owner;
+            private readonly WorldExplorerPin _pin;
+            private readonly RenameInput _input;
+
+            internal RenamePinGump(WorldExplorerGump owner, WorldExplorerPin pin) : base(0, 0)
+            {
+                _owner = owner;
+                _pin = pin;
+                Width = 380;
+                Height = 168;
+                X = owner.X + (owner.Width - Width) / 2;
+                Y = owner.Y + (owner.Height - Height) / 2;
+                WantUpdateSize = false;
+                CanMove = true;
+                CanCloseWithRightClick = true;
+                AcceptMouseInput = true;
+                IsModal = true;
+
+                Add(new ExplorerPanel(Width, Height, owner.Classic, true));
+                Add(new Label("Rename pinned location", true, owner.Ink, font: 1) { X = 16, Y = 12 });
+                Add(new Label("Original: " + pin.Name, true, owner.MutedInk, Width - 32, font: 1)
+                {
+                    X = 16, Y = 40
+                });
+                Add(new AlphaBlendControl(0.75f)
+                {
+                    X = 16, Y = 69, Width = Width - 32, Height = 26,
+                    BaseColor = owner.Classic ? new Color(63, 44, 28) : new Color(18, 27, 32)
+                });
+                Add(_input = new RenameInput(this, owner.Ink)
+                {
+                    X = 21, Y = 72, Width = Width - 42, Height = 20,
+                    Text = DisplayName(pin)
+                });
+                Add(new ExplorerButton(16, 124, 80, 25, "Save", 1, owner.Classic, owner.Ink));
+                Add(new ExplorerButton(105, 124, 140, 25, "Use original", 2, owner.Classic, owner.Ink));
+                Add(new ExplorerButton(254, 124, 110, 25, "Cancel", 3, owner.Classic, owner.Ink));
+                SetInScreen();
+                UIManager.KeyboardFocusControl = _input;
+                _input.SetKeyboardFocus();
+            }
+
+            public override GumpType GumpType => GumpType.None;
+            public override bool ShouldBeSaved => false;
+
+            public override void OnButtonClick(int buttonID)
+            {
+                if (buttonID == 1)
+                    _owner.RenamePin(_pin, _input.Text);
+                else if (buttonID == 2)
+                    _owner.RenamePin(_pin, string.Empty);
+                Dispose();
+            }
+
+            public override void Dispose()
+            {
+                if (UIManager.KeyboardFocusControl == _input)
+                    UIManager.KeyboardFocusControl = null;
+                base.Dispose();
+            }
+
+            private sealed class RenameInput : StbTextBox
+            {
+                private readonly RenamePinGump _owner;
+
+                internal RenameInput(RenamePinGump owner, ushort hue)
+                    : base(1, 60, 338, true, hue: hue) => _owner = owner;
+
+                protected override void OnKeyDown(SDL3.SDL.SDL_Keycode key, SDL3.SDL.SDL_Keymod mod)
+                {
+                    if (key == SDL3.SDL.SDL_Keycode.SDLK_RETURN || key == SDL3.SDL.SDL_Keycode.SDLK_KP_ENTER)
+                        _owner.OnButtonClick(1);
+                    else if (key == SDL3.SDL.SDL_Keycode.SDLK_ESCAPE)
+                        _owner.Dispose();
+                    else
+                        base.OnKeyDown(key, mod);
+                }
+            }
+        }
+
+        private sealed class ExplorerRow : HitBox
+        {
+            private readonly WorldExplorerGump _owner;
+            private readonly WorldExplorerPin _pin;
+            private readonly int _index;
+            private readonly bool _pinned;
+            private Point _press;
+            private bool _pressed;
+
+            internal ExplorerRow(WorldExplorerGump owner, WorldExplorerPin pin, int index,
+                bool pinned, bool available, bool unverified, bool classic, ushort ink)
+                : base(0, 0, pinned ? PinWidth - 20 : LibraryWidth - 20, 22)
+            {
+                _owner = owner;
+                _pin = pin;
+                _index = index;
+                _pinned = pinned;
+                CanMove = false;
+                Add(new AlphaBlendControl(classic ? 0.18f : 0.58f)
+                {
+                    Width = Width, Height = Height,
+                    BaseColor = classic ? new Color(102, 74, 37) : new Color(29, 40, 48)
+                });
+                string text = pinned ? DisplayName(pin) : pin.Name;
+                if (pinned && !available && !unverified) text += "  [missing]";
+                Add(new Label(text, true, available || unverified ? ink : (ushort)0x0021, Width - (pinned ? 90 : 36), font: 1)
+                {
+                    X = 5, Y = 2
+                });
+                if (pinned)
+                {
+                    var edit = new ExplorerButton(Width - 84, 1, 31, 20, "Edit", 4000 + index, classic, ink);
+                    edit.SetTooltip("Rename this pinned location");
+                    Add(edit);
+                    Add(new ExplorerButton(Width - 52, 1, 29, 20, "Go", 1000 + index, classic, ink));
+                    Add(new ExplorerButton(Width - 22, 1, 20, 20, "x", 2000 + index, classic, ink));
+                }
+                else
+                    Add(new ExplorerButton(Width - 35, 1, 32, 20, "+", 3000 + index, classic, ink));
+                string tooltip = pin.Kind == "portal" ? "Say: " + pin.Phrase
+                    : owner.SourceName(pin) + (pin.Kind == "rune" ? string.Empty : " / slot " + (pin.Slot + 1));
+                if (pinned && !string.IsNullOrWhiteSpace(pin.CustomName))
+                    tooltip += " / original: " + pin.Name;
+                SetTooltip(tooltip);
+            }
+
+            protected override void OnMouseDown(int x, int y, MouseButtonType button)
+            {
+                if (button == MouseButtonType.Left)
+                {
+                    _press = Mouse.Position;
+                    _pressed = true;
+                }
+                base.OnMouseDown(x, y, button);
+            }
+
+            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            {
+                if (button == MouseButtonType.Left && _pressed
+                    && Math.Abs(Mouse.Position.X - _press.X) + Math.Abs(Mouse.Position.Y - _press.Y) > 10)
+                    _owner.Dropped(_pin, _index, _pinned);
+                _pressed = false;
+                base.OnMouseUp(x, y, button);
+            }
+
+            public override void OnButtonClick(int buttonID)
+            {
+                if (buttonID >= 4000) _owner.EditPin(_pin);
+                else if (buttonID >= 3000) _owner.AddPin(_pin);
+                else if (buttonID >= 2000) _owner.RemovePin(_index);
+                else if (buttonID >= 1000) _owner.Travel(_pin);
+            }
+        }
+
+        private sealed class ExplorerButton : NiceButton
+        {
+            private readonly bool _classic;
+
+            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink)
+                : base(x, y, width, height, ButtonAction.Activate, text,
+                    hue: classic ? (ushort)0x0481 : ink, font: 1)
+            {
+                _classic = classic && width >= 60;
+                ButtonParameter = id;
+                IsSelectable = false;
+                AlwaysShowBackground = !_classic;
+                BackgroundColor = classic ? new Color(56, 37, 23) : new Color(42, 52, 58);
+                DisplayBorder = !_classic;
+                BorderColor = classic ? new Color(170, 133, 55) : new Color(92, 104, 110);
+            }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                if (_classic)
+                {
+                    Texture2D texture = ExplorerArt.Button
+                        ?? SolidColorTextureCache.GetTexture(new Color(56, 37, 23));
+                    batcher.Draw(texture, new Rectangle(x, y, Width, Height),
+                        ShaderHueTranslator.GetHueVector(0));
+                }
+                return base.Draw(batcher, x, y);
+            }
+        }
+
+        private sealed class ExplorerPanel : Control
+        {
+            private readonly bool _classic;
+            private readonly bool _compact;
+            internal ExplorerPanel(int width, int height, bool classic, bool compact = false)
+            {
+                Width = width; Height = height; _classic = classic; _compact = compact;
+                AcceptMouseInput = false;
+            }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                Texture2D texture = _classic ? ExplorerArt.Panel
+                    : SolidColorTextureCache.GetTexture(new Color(10, 17, 22));
+                texture ??= SolidColorTextureCache.GetTexture(new Color(217, 197, 161));
+                Vector3 hue = ShaderHueTranslator.GetHueVector(0);
+                if (_classic && _compact && texture.Width > 192 && texture.Height > 192)
+                {
+                    const int sourceEdge = 96;
+                    const int edge = 18;
+                    int centerWidth = Width - edge * 2;
+                    int centerHeight = Height - edge * 2;
+                    int sourceCenterWidth = texture.Width - sourceEdge * 2;
+                    int sourceCenterHeight = texture.Height - sourceEdge * 2;
+                    for (int row = 0; row < 3; row++)
+                    {
+                        int sourceY = row == 0 ? 0 : row == 1 ? sourceEdge : texture.Height - sourceEdge;
+                        int sourceHeight = row == 1 ? sourceCenterHeight : sourceEdge;
+                        int destY = row == 0 ? y : row == 1 ? y + edge : y + Height - edge;
+                        int destHeight = row == 1 ? centerHeight : edge;
+                        for (int col = 0; col < 3; col++)
+                        {
+                            int sourceX = col == 0 ? 0 : col == 1 ? sourceEdge : texture.Width - sourceEdge;
+                            int sourceWidth = col == 1 ? sourceCenterWidth : sourceEdge;
+                            int destX = col == 0 ? x : col == 1 ? x + edge : x + Width - edge;
+                            int destWidth = col == 1 ? centerWidth : edge;
+                            batcher.Draw(texture, new Rectangle(destX, destY, destWidth, destHeight),
+                                new Rectangle(sourceX, sourceY, sourceWidth, sourceHeight), hue);
+                        }
+                    }
+                }
+                else
+                {
+                    batcher.Draw(texture, new Rectangle(x, y, Width, Height), hue);
+                    if (_compact)
+                    {
+                        Texture2D border = SolidColorTextureCache.GetTexture(new Color(81, 99, 109));
+                        batcher.Draw(border, new Rectangle(x, y, Width, 1), hue);
+                        batcher.Draw(border, new Rectangle(x, y + Height - 1, Width, 1), hue);
+                    }
+                }
+                return base.Draw(batcher, x, y);
+            }
+        }
+
+        private static class ExplorerArt
+        {
+            private static Texture2D _panel;
+            private static Texture2D _button;
+            internal static Texture2D Panel => _panel ?? (_panel = Load("classic-panel.png"));
+            internal static Texture2D Button => _button ?? (_button = Load("classic-button.png"));
+
+            private static Texture2D Load(string name)
+            {
+                string fullName = "ClassicUO.Resources.WorldExplorer." + name;
+                using (Stream stream = typeof(WorldExplorerGump).Assembly.GetManifestResourceStream(fullName))
+                    return stream == null ? null : Texture2D.FromStream(Client.Game.GraphicsDevice, stream);
+            }
+        }
+    }
+}

@@ -228,7 +228,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ApplyHoverOpacityBoost(Control control)
         {
-            if (ShouldAdjustHoverOpacity(control))
+            if (ShouldAdjustHoverOpacity(control) && control.Alpha < _hoverOpacityTarget)
             {
                 _hoverAlpha[control] = control.Alpha;
                 control.Alpha = _hoverOpacityTarget;
@@ -242,17 +242,15 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (ShouldAdjustHoverOpacity(control))
             {
-                if (_hoverAlpha.ContainsKey(control))
-                {
-                    if (Math.Abs(control.Alpha - _hoverOpacityTarget) > 0.001f)
-                        _hoverAlpha[control] = control.Alpha;
-                }
-                else
+                if (control.Alpha < _hoverOpacityTarget)
                 {
                     _hoverAlpha[control] = control.Alpha;
+                    control.Alpha = _hoverOpacityTarget;
                 }
-
-                control.Alpha = _hoverOpacityTarget;
+                else if (control.Alpha > _hoverOpacityTarget)
+                {
+                    _hoverAlpha.Remove(control);
+                }
             }
 
             foreach (Control child in control.Children)
@@ -282,7 +280,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             foreach (KeyValuePair<Control, float> pair in _hoverAlpha)
             {
-                if (!pair.Key.IsDisposed)
+                if (!pair.Key.IsDisposed && Math.Abs(pair.Key.Alpha - _hoverOpacityTarget) <= 0.001f)
                     pair.Key.Alpha = pair.Value;
             }
             _hoverAlpha.Clear();

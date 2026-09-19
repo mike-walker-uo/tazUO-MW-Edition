@@ -136,6 +136,15 @@ namespace ClassicUO
 
             ReadSettingsFromArgs(args);
 
+            if (CUOEnviroment.IsWindows)
+            {
+                string dpiAwareness = WindowsDpiPolicy.ResolveAwareness(
+                    CUOEnviroment.UseNativeDPI,
+                    Environment.GetEnvironmentVariable(WindowsDpiPolicy.AwarenessEnvironmentVariable)
+                );
+                Environment.SetEnvironmentVariable(WindowsDpiPolicy.AwarenessEnvironmentVariable, dpiAwareness);
+            }
+
             if (CUOEnviroment.IsHighDPI)
             {
                 Environment.SetEnvironmentVariable("FNA_GRAPHICS_ENABLE_HIGHDPI", "1");
@@ -375,6 +384,13 @@ namespace ClassicUO
 
                     case "highdpi":
                         CUOEnviroment.IsHighDPI = true;
+                        CUOEnviroment.UseNativeDPI = true;
+
+                        break;
+
+                    case "nativedpi":
+                    case "native-dpi":
+                        CUOEnviroment.UseNativeDPI = true;
 
                         break;
 

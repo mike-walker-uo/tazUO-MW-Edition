@@ -40,6 +40,8 @@ namespace ClassicUO.Game.UI.Controls
     {
         private readonly RenderedText _gameText;
 
+        internal string Text => _gameText.Text;
+
         public CroppedText(string text, ushort hue, int maxWidth = 0)
         {
             _gameText = RenderedText.Create

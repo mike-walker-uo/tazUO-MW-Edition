@@ -752,7 +752,18 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
+                && !IsMinimized && !IsChessboard && Graphic != CORPSES_GUMP
+                && _gumpPicContainer != null;
+            float backgroundAlpha = _gumpPicContainer?.Alpha ?? 1f;
+            if (ornate)
+            {
+                CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, backgroundAlpha);
+                _gumpPicContainer.Alpha = 0f;
+            }
             base.Draw(batcher, x, y);
+            if (ornate)
+                _gumpPicContainer.Alpha = backgroundAlpha;
 
             if (CUOEnviroment.Debug && !IsMinimized)
             {

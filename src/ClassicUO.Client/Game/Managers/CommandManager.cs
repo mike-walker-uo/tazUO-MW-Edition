@@ -227,6 +227,17 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new MusicPlayerGump());
             });
 
+            Register("worldexplorer", (s) =>
+            {
+                WorldExplorerGump existing = UIManager.GetGump<WorldExplorerGump>();
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.Dispose();
+                    return;
+                }
+                UIManager.Add(new WorldExplorerGump());
+            });
+
             Register("gumptheme", (s) =>
             {
                 Profile profile = ProfileManager.CurrentProfile;
@@ -239,8 +250,8 @@ namespace ClassicUO.Game.Managers
 
                 if (s == null || s.Length < 2)
                 {
-                    GameActions.Print($"Gump theme: {CustomGumpThemeManager.Current.ToString().ToLowerInvariant()}.", 0x35);
-                    GameActions.Print("Usage: -gumptheme minimal|classic|stone|wood|dark|royal|forest|dungeon|water|snow|heartwood|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necropolis|next", 0x35);
+                    GameActions.Print($"Gump theme: {GumpThemeSelectorGump.DisplayName(CustomGumpThemeManager.Current)}.", 0x35);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|uoalive|uoalive2|celestial|exodus|blood|hildebrandt|next", 0x35);
                     return;
                 }
 
@@ -253,12 +264,12 @@ namespace ClassicUO.Game.Managers
                 }
                 else if (!CustomGumpThemeManager.TryParse(requested, out theme))
                 {
-                    GameActions.Print("Usage: -gumptheme minimal|classic|stone|wood|dark|royal|forest|dungeon|water|snow|heartwood|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necropolis|next", 0x21);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|uoalive|uoalive2|celestial|exodus|blood|hildebrandt|next", 0x21);
                     return;
                 }
 
                 CustomGumpThemeManager.SetTheme(theme);
-                GameActions.Print($"Gump theme: {theme.ToString().ToLowerInvariant()}.", 0x35);
+                GameActions.Print($"Gump theme: {GumpThemeSelectorGump.DisplayName(theme)}.", 0x35);
             });
 
             Register("gumpthemes", (s) =>
@@ -274,6 +285,19 @@ namespace ClassicUO.Game.Managers
 
                 UIManager.Add(new GumpThemeSelectorGump());
             });
+
+            Register("gumpopacity", SetGumpOpacity);
+            Register("gumpopacitycustom", s => SetGumpOpacityOption("custom", s, 1));
+            Register("gumpopacitydurability", s => SetGumpOpacityOption("durability", s, 1));
+            Register("gumpopacitycontainer", s => SetGumpOpacityOption("container", s, 1));
+            Register("gumpopacitycorpse", s => SetGumpOpacityOption("corpse", s, 1));
+            Register("gumpopacitygridborder", s => SetGumpOpacityOption("gridborder", s, 1));
+            Register("gumpopacityjournal", s => SetGumpOpacityOption("journal", s, 1));
+            Register("gumpopacitybuff", s => SetGumpOpacityOption("buff", s, 1));
+            Register("gumpopacityslayer", s => SetGumpOpacityOption("slayer", s, 1));
+            Register("gumpopacityhovermin", s => SetGumpOpacityOption("hovermin", s, 1));
+            Register("gumpopacityaltscroll", s => SetGumpOpacityOption("altscroll", s, 1));
+            Register("gumpopacityhoverboost", s => SetGumpOpacityOption("hoverboost", s, 1));
 
             Register("profilecopy", (s) =>
             {
@@ -1376,10 +1400,20 @@ Register("pathpreview", (s) =>
 
             Register("petloyalty", (s) =>
             {
-                bool on = s == null || s.Length < 2
-                    ? !PetLoyaltyAlertManager.Enabled
-                    : s[1].Trim().Equals("on", System.StringComparison.OrdinalIgnoreCase);
-                PetLoyaltyAlertManager.SetEnabled(on);
+                if (s != null && s.Length >= 2)
+                {
+                    string action = s[1].Trim();
+                    if (action.Equals("status", System.StringComparison.OrdinalIgnoreCase))
+                        PetLoyaltyAlertManager.PrintStatus();
+                    else if (action.Equals("on", System.StringComparison.OrdinalIgnoreCase))
+                        PetLoyaltyAlertManager.SetEnabled(true);
+                    else if (action.Equals("off", System.StringComparison.OrdinalIgnoreCase))
+                        PetLoyaltyAlertManager.SetEnabled(false);
+                    else
+                        GameActions.Print("Usage: -petloyalty on|off|status", 0x21);
+                    return;
+                }
+                PetLoyaltyAlertManager.SetEnabled(!PetLoyaltyAlertManager.Enabled);
             });
 
             Register("mount", (s) => { MountToggleManager.Toggle(); });
@@ -1640,7 +1674,7 @@ Register("pathpreview", (s) =>
                 UI.CursorHintOverlay.SetEnabled(on);
             });
 
-            // gumpopacity / journaldock removed.
+            // journaldock removed.
 
             Register("paragonglow", (s) =>
             {
@@ -3257,11 +3291,140 @@ Register("pathpreview", (s) =>
             CommandMetadata.Synchronize(_commands.Keys);
         }
 
-        /// <summary>
-        /// Scans nearby mobiles, picks the closest hostile (Criminal / Enemy /
-        /// Murderer / Attackable), sets it as LastAttack target, and optionally
-        /// fires an Attack request.
-        /// </summary>
+        private static void SetGumpOpacity(string[] args)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile == null)
+            {
+                GameActions.Print("Not in game.", 0x21);
+                return;
+            }
+
+            const string usage = "Usage: -gumpopacity <custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]";
+            if (args == null || args.Length < 2 || args[1].Equals("list", StringComparison.OrdinalIgnoreCase))
+            {
+                GameActions.Print($"Opacity: custom {profile.CustomGumpOpacity}%, durability {profile.DurabilityGumpOpacity}%, container {profile.ContainerOpacity}%, corpse {profile.CorpseContainerOpacity}%, gridborder {profile.GridBorderAlpha}%.", 0x35);
+                GameActions.Print($"Journal {profile.JournalOpacity}%, buff {profile.BuffBarOpacity}%, slayer {profile.SlayerBarOpacity}%, hover minimum {profile.GumpHoverOpacityPercent}%.", 0x35);
+                GameActions.Print($"Alt-scroll {(profile.EnableAlphaScrollingOnGumps ? "ON" : "OFF")}; hover boost {(profile.BoostGumpOpacityOnHover ? "ON" : "OFF")}.", 0x35);
+                GameActions.Print(usage, 0x35);
+                return;
+            }
+
+            SetGumpOpacityOption(args[1], args, 2);
+        }
+
+        private static void SetGumpOpacityOption(string area, string[] args, int valueIndex)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile == null)
+            {
+                GameActions.Print("Not in game.", 0x21);
+                return;
+            }
+
+            area = area.Trim().ToLowerInvariant();
+            int argCount = args?.Length ?? 0;
+            if (area == "altscroll" || area == "hoverboost")
+            {
+                bool current = area == "altscroll"
+                    ? profile.EnableAlphaScrollingOnGumps
+                    : profile.BoostGumpOpacityOnHover;
+                string mode = argCount == valueIndex ? "toggle"
+                    : argCount == valueIndex + 1 ? args[valueIndex].Trim().ToLowerInvariant() : string.Empty;
+                if (mode != "on" && mode != "off" && mode != "toggle")
+                {
+                    GameActions.Print($"Usage: -{(argCount > 0 ? args[0] : "gumpopacity" + area)} [on|off|toggle]", 0x21);
+                    return;
+                }
+
+                bool enabled = mode == "on" || mode == "toggle" && !current;
+                if (area == "altscroll") profile.EnableAlphaScrollingOnGumps = enabled;
+                else profile.BoostGumpOpacityOnHover = enabled;
+                profile.Save(ProfileManager.ProfilePath, false);
+                CustomGumpThemeManager.RefreshOptionsGump();
+                GameActions.Print($"{area} {(enabled ? "ON" : "OFF")}.", 0x35);
+                return;
+            }
+
+            int currentPercent;
+            int minimum = 0;
+            Action<int> apply;
+            switch (area)
+            {
+                case "custom":
+                case "utility":
+                case "chat":
+                    currentPercent = profile.CustomGumpOpacity;
+                    minimum = 20;
+                    apply = CustomGumpThemeManager.SetOpacity;
+                    break;
+                case "durability":
+                    currentPercent = profile.DurabilityGumpOpacity;
+                    minimum = 10;
+                    apply = value => { profile.DurabilityGumpOpacity = (byte)value; DurabilitysGump.UpdateAllOpacity(); };
+                    break;
+                case "container":
+                case "containers":
+                    currentPercent = profile.ContainerOpacity;
+                    apply = value => { profile.ContainerOpacity = (byte)value; GridContainer.UpdateAllGridContainers(); };
+                    break;
+                case "corpse":
+                case "corpsecontainer":
+                    currentPercent = profile.CorpseContainerOpacity;
+                    apply = value =>
+                    {
+                        profile.CorpseContainerOpacity = (byte)value;
+                        GridContainer.UpdateAllGridContainers();
+                        ContainerGump.UpdateAllCorpseOpacity();
+                    };
+                    break;
+                case "gridborder":
+                    currentPercent = profile.GridBorderAlpha;
+                    apply = value => profile.GridBorderAlpha = (byte)value;
+                    break;
+                case "journal":
+                    currentPercent = profile.JournalOpacity;
+                    apply = value => { profile.JournalOpacity = (byte)value; ResizableJournal.UpdateJournalOptions(); };
+                    break;
+                case "buff":
+                case "buffbar":
+                    currentPercent = profile.BuffBarOpacity;
+                    minimum = 10;
+                    apply = value => profile.BuffBarOpacity = (byte)value;
+                    break;
+                case "slayer":
+                case "equipment":
+                    currentPercent = profile.SlayerBarOpacity;
+                    apply = value => { profile.SlayerBarOpacity = (byte)value; PaperDollBackpackEquipmentGump.UpdateAllOptions(); };
+                    break;
+                case "hovermin":
+                case "hoverminimum":
+                    currentPercent = profile.GumpHoverOpacityPercent;
+                    apply = value => profile.GumpHoverOpacityPercent = (byte)value;
+                    break;
+                default:
+                    GameActions.Print($"Unknown gump opacity option: {area}.", 0x21);
+                    return;
+            }
+
+            if (argCount == valueIndex)
+            {
+                GameActions.Print($"{area} opacity: {currentPercent}%.", 0x35);
+                return;
+            }
+
+            if (argCount != valueIndex + 1 || !int.TryParse(args[valueIndex], out int percent) || percent < minimum || percent > 100)
+            {
+                GameActions.Print($"{area} opacity must be {minimum}-100%.", 0x21);
+                return;
+            }
+
+            apply(percent);
+            profile.Save(ProfileManager.ProfilePath, false);
+            CustomGumpThemeManager.RefreshOptionsGump();
+            GameActions.Print($"{area} opacity: {percent}%.", 0x35);
+        }
+
         private static bool TryParseUshort(string str, out ushort val)
         {
             val = 0;
@@ -3298,6 +3461,11 @@ Register("pathpreview", (s) =>
             return total;
         }
 
+        /// <summary>
+        /// Scans nearby mobiles, picks the closest hostile (Criminal / Enemy /
+        /// Murderer / Attackable), sets it as LastAttack target, and optionally
+        /// fires an Attack request.
+        /// </summary>
         private static void TargetOrAttackNearestEnemy(bool attack)
         {
             if (World.Player == null || !World.InGame)

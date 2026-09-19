@@ -32,6 +32,7 @@
 
 using System;
 using ClassicUO.Renderer;
+using ClassicUO.Game.UI.Gumps;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Controls
@@ -70,6 +71,8 @@ namespace ClassicUO.Game.UI.Controls
 
         public Color BaseColor { get; set; } = Color.Black;
 
+        internal bool ArtPanel { get; set; }
+
         public ushort MaterialGraphic { get; set; }
 
         public ushort MaterialHue { get; set; }
@@ -88,6 +91,12 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            if (ArtPanel && CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+            {
+                CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, Alpha);
+                return true;
+            }
+
             //Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, false, Alpha);
 
             batcher.Draw

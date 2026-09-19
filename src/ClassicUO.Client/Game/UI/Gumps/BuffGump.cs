@@ -73,6 +73,21 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.Buff;
 
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current) && _background != null;
+            float backgroundAlpha = _background?.Alpha ?? 1f;
+            if (ornate)
+            {
+                CustomThemeArt.DrawPanel(batcher, x, y, _background.Width, _background.Height, backgroundAlpha);
+                _background.Alpha = 0f;
+            }
+            bool result = base.Draw(batcher, x, y);
+            if (ornate)
+                _background.Alpha = backgroundAlpha;
+            return result;
+        }
+
         public override void Update()
         {
             base.Update();

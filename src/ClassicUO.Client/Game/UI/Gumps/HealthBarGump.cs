@@ -50,6 +50,7 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal abstract class BaseHealthBarGump : AnchorableGump
     {
+        private const int BOSS_PIN_BUTTON = 10000;
         private bool _targetBroke;
 
         public bool IsLastAttackBar { get; set; } = false;
@@ -142,6 +143,28 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         protected abstract void BuildGump();
+
+        protected void AddBossPinButton()
+        {
+            if (!(World.Get(LocalSerial) is Mobile mobile) || mobile == World.Player || mobile.IsPlayer)
+                return;
+
+            var button = new NiceButton(Width - 18, 2, 16, 15, ButtonAction.Activate, "B", unicode: false, font: 1)
+            {
+                ButtonParameter = BOSS_PIN_BUTTON,
+                IsSelectable = false
+            };
+            button.SetTooltip("Pin or unpin boss health bar");
+            Add(button);
+        }
+
+        public override void OnButtonClick(int buttonID)
+        {
+            if (buttonID == BOSS_PIN_BUTTON)
+                BossHealthBarGump.Toggle(LocalSerial);
+            else
+                base.OnButtonClick(buttonID);
+        }
 
         //public override void AfterDispose()
         //{
@@ -923,7 +946,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Height = HPB_HEIGHT_MULTILINE;
                 Width = HPB_WIDTH;
 
-                Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true });
+                Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true, ArtPanel = true });
                 CustomGumpThemeManager.ApplyDataSurface(_background, 0.7f);
 
 
@@ -1117,7 +1140,7 @@ namespace ClassicUO.Game.UI.Gumps
                     Height = HPB_HEIGHT_MULTILINE;
                     Width = HPB_WIDTH;
 
-                    Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true });
+                    Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true, ArtPanel = true });
                     CustomGumpThemeManager.ApplyDataSurface(_background, 0.7f);
 
                     Add
@@ -1290,7 +1313,7 @@ namespace ClassicUO.Game.UI.Gumps
                     Height = HPB_HEIGHT_SINGLELINE;
                     Width = HPB_WIDTH;
 
-                    Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true });
+                    Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, AcceptMouseInput = true, CanMove = true, ArtPanel = true });
                     CustomGumpThemeManager.ApplyDataSurface(_background, 0.7f);
 
                     Add
@@ -1408,6 +1431,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             _textBox.MouseUp += TextBoxOnMouseUp;
             _textBox.SetText(_name);
+
+            AddBossPinButton();
 
             if (entity == null)
             {
@@ -1553,6 +1578,21 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         private GumpPic _background, _hpLineRed, _manaLineRed, _stamLineRed;
+
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current) && _background != null;
+            float backgroundAlpha = _background?.Alpha ?? 1f;
+            if (ornate)
+            {
+                CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, backgroundAlpha);
+                _background.Alpha = 0f;
+            }
+            bool result = base.Draw(batcher, x, y);
+            if (ornate)
+                _background.Alpha = backgroundAlpha;
+            return result;
+        }
 
         private readonly GumpPicWithWidth[] _bars = new GumpPicWithWidth[3];
 
@@ -1841,6 +1881,8 @@ namespace ClassicUO.Game.UI.Gumps
                 _textBox.MouseUp += TextBoxOnMouseUp;
                 _textBox.SetText(_name);
             }
+
+            AddBossPinButton();
         }
 
         public override void Update()
@@ -2153,6 +2195,10 @@ namespace ClassicUO.Game.UI.Gumps
                     World.Party.PartyHealTimer = Time.Ticks + 50;
                     World.Party.PartyHealTarget = LocalSerial;
 
+                    break;
+
+                default:
+                    base.OnButtonClick(buttonID);
                     break;
             }
 

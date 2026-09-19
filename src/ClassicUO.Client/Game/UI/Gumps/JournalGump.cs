@@ -232,6 +232,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.Journal;
 
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            bool result = base.Draw(batcher, x, y);
+            if (!_isMinimized && CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+                CustomThemeArt.DrawFrame(batcher, x, y, Width, Height);
+            return result;
+        }
+
         public ushort Hue
         {
             get => _background.Hue;

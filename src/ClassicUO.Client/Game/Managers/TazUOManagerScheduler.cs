@@ -44,6 +44,7 @@ namespace ClassicUO.Game.Managers
             new Feature("ReagentWatcher", ReagentWatcherManager.Tick, () => ReagentWatcherManager.Enabled),
             new Feature("AggroIndicator", AggroIndicatorManager.Tick, () => AggroIndicatorManager.HasAggressors),
             new Feature("PetWatcher", PetWatcherManager.Tick, () => PetWatcherManager.Enabled),
+            new Feature("PetLoyalty", PetLoyaltyAlertManager.Tick, () => PetLoyaltyAlertManager.Enabled),
             new Feature("AutoRespawnTarget", AutoRespawnTargetManager.Tick, () => AutoRespawnTargetManager.Enabled),
             new Feature("CrashRecovery", CrashRecoveryManager.Tick),
             new Feature("WaypointRecorder", WaypointRecorder.Tick, () => WaypointRecorder.Recording || WaypointRecorder.Playing),
@@ -64,6 +65,7 @@ namespace ClassicUO.Game.Managers
             new Feature("InventoryFullWarn", InventoryFullWarner.Tick, () => InventoryFullWarner.ThresholdPct > 0),
             new Feature("AutoOpenBackpack", AutoOpenBackpackManager.Tick, () => AutoOpenBackpackManager.Enabled),
             new Feature("TargetingHistory", TargetingHistoryManager.Tick),
+            new Feature("BossHealthBar", UI.Gumps.BossHealthBarGump.AutoTick),
             new Feature("IdleMonitor", IdleMonitorManager.Tick, () => IdleMonitorManager.IdleSeconds > 0),
             new Feature("AutoVendorClose", AutoVendorCloseManager.Tick, () => AutoVendorCloseManager.Enabled),
             new Feature("CombatState", CombatStateManager.Tick, () => CombatStateManager.Enabled),
@@ -100,6 +102,10 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void Reset() => _nextTick = 0;
+        public static void Reset()
+        {
+            _nextTick = 0;
+            UI.Gumps.BossHealthBarGump.ResetAuto();
+        }
     }
 }

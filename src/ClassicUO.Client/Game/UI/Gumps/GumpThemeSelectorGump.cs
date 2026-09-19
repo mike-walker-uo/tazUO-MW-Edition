@@ -13,34 +13,37 @@ namespace ClassicUO.Game.UI.Gumps
     internal sealed class GumpThemeSelectorGump : Gump
     {
         private const int W = 620;
-        private const int H = 610;
+        private const int H = 750;
         private const int PAD = 12;
         private const int CARD_W = 292;
-        private const int CARD_H = 44;
+        private const int CARD_H = 37;
         private int _lastX;
         private int _lastY;
 
         private static readonly string[] _names =
         {
-            "Minimal", "Classic UO", "Stone", "Wood", "Dark", "Royal",
-            "Forest", "Dungeon", "Water", "Snow", "Heartwood", "Ter Mur",
+            "Minimal", "Classic UO", "Runestone", "Oak & Iron", "Dark", "Royal",
+            "Forest", "Dungeon", "Water", "Snow", "Heartwood Sanctuary", "Ter Mur",
             "Kotl", "TazUO", "Britannia", "Trinsic", "Minoc", "Blackthorn",
-            "Obsidian", "Doom", "Midnight", "Necropolis"
+            "Obsidian", "Doom", "Midnight", "Necromancer's Crypt", "Ornate",
+            "Britannian Chronicle", "Moonglow Arcane", "Ter Mur Relic",
+            "Mariner's Chart", "UOAlive", "UOAlive2", "Celestial",
+            "Exodus", "Blood Oath", "Hildebrandt"
         };
 
         private static readonly string[] _descriptions =
         {
             "Clean translucent black",
             "Classic gray stone and brass",
-            "Cool carved stone",
-            "Warm timber and brass",
+            "Runes cut into granite and brass",
+            "Weathered oak and ironwork",
             "Blue-black steel",
             "Indigo and gold",
             "Deep woodland green",
             "Charcoal and blood-red",
             "Navy and cyan",
             "Frosted slate and ice",
-            "Living wood and elven gold",
+            "Living elven wood and emerald",
             "Amethyst gargoyle stone",
             "Ancient metal and bronze",
             "Original TazUO panels",
@@ -51,7 +54,18 @@ namespace ClassicUO.Game.UI.Gumps
             "Pitch-black volcanic glass",
             "Black stone and blood iron",
             "Moonlit navy and silver",
-            "Ancient black stone and bone"
+            "Bone, iron and grave magic",
+            "Dark vellum and engraved brass",
+            "Parchment, lapis and gold",
+            "Moonlit stone and silver",
+            "Basalt, copper and crystal",
+            "Oak, brass and old charts",
+            "Living wood and emerald",
+            "Rainbow crystal and indigo",
+            "Silver stars and midnight blue",
+            "Arcane bronze and red crystal",
+            "Black iron and bloodstone",
+            "Painted heroic fantasy and gold"
         };
 
         internal GumpThemeSelectorGump()
@@ -108,6 +122,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Y = H - 28
             });
             AddButton(W - PAD - 76, H - 31, 76, 21, "Close", Dispose, 0x35);
+            SetInScreen();
         }
 
         public override GumpType GumpType => GumpType.None;
@@ -151,7 +166,7 @@ namespace ClassicUO.Game.UI.Gumps
             int column = index % 2;
             int row = index / 2;
             int x = PAD + column * (CARD_W + 12);
-            int y = 54 + row * 45;
+            int y = 54 + row * 38;
             bool selected = theme == CustomGumpThemeManager.Current;
             ushort textHue = CustomGumpThemeManager.GetTextHue(theme);
 
@@ -172,7 +187,7 @@ namespace ClassicUO.Game.UI.Gumps
             });
             AddButton(
                 x + CARD_W - 76,
-                y + 11,
+                y + 9,
                 66,
                 22,
                 selected ? "ACTIVE" : "Use",
@@ -182,7 +197,7 @@ namespace ClassicUO.Game.UI.Gumps
             );
         }
 
-        private static string DisplayName(CustomGumpTheme theme)
+        internal static string DisplayName(CustomGumpTheme theme)
         {
             int index = (int)theme;
             return index >= 0 && index < _names.Length
