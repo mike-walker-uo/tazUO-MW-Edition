@@ -1303,6 +1303,9 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xB1;
 
+            switches ??= Array.Empty<uint>();
+            entries ??= Array.Empty<Tuple<ushort, string>>();
+
             int length = PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
