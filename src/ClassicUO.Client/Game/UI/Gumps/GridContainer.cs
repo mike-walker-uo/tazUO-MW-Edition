@@ -131,7 +131,7 @@ namespace ClassicUO.Game.UI.Gumps
         public GridSortMode SortMode { get { return sortMode; } }
         #endregion
 
-        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null, bool corpseContainer = false) : base(GetWidth(), GetHeight(), GetWidth(2), GetHeight(1), local, 0)
+        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null, bool corpseContainer = false) : base(GetWidth(), GetHeight(), GetWidth(2) + CustomThemeArt.ContentInset * 2, GetHeight(1) + CustomThemeArt.ContentInset * 2 + (CustomThemeArt.ContentInset == 0 ? 0 : 6), local, 0)
         {
             if (container == null)
             {
@@ -205,6 +205,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Hue = ProfileManager.CurrentProfile.Grid_UseContainerHue ? container.Hue : ProfileManager.CurrentProfile.AltGridContainerBackgroundHue
             };
             CustomGumpThemeManager.ApplyDataSurface(background, background.Alpha, false);
+            background.ArtPanel = true;
 
             backgroundTexture = new GumpPicTiled(0);
             #endregion
@@ -710,23 +711,13 @@ namespace ClassicUO.Game.UI.Gumps
             if (lastWidth != Width || lastHeight != Height || lastGridItemScale != gridItemSize)
             {
                 lastGridItemScale = gridItemSize;
-                background.Width = Width - (borderWidth * 2);
-                background.Height = Height - (borderWidth * 2);
-                scrollArea.Width = background.Width;
-                scrollArea.Height = background.Height - TOP_BAR_HEIGHT;
-                openRegularGump.X = Width - openRegularGump.Width - borderWidth;
-                quickDropBackpack.X = openRegularGump.X - quickDropBackpack.Width;
-                sortContents.X = quickDropBackpack.X - sortContents.Width;
+                UpdateUIPositions();
                 lastHeight = Height;
                 lastWidth = Width;
-                searchBox.Width = Math.Min(Width - (borderWidth * 2) - openRegularGump.Width - quickDropBackpack.Width - sortContents.Width - 20, 150);
-                searchClearButton.X = searchBox.X + searchBox.Width + 2;
                 backgroundTexture.Width = background.Width;
                 backgroundTexture.Height = background.Height;
                 backgroundTexture.Alpha = background.Alpha;
                 backgroundTexture.Hue = background.Hue;
-                setLootBag.Y = Height - 20;
-                takeAllButton.Y = Height - 20;
 
                 if (IsPlayerBackpack)
                     ProfileManager.CurrentProfile.BackpackGridSize = new Point(Width, Height);
@@ -938,21 +929,40 @@ namespace ClassicUO.Game.UI.Gumps
                 BorderControl.BorderSize = borderSize;
                 borderWidth = borderSize;
             }
+            if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+            {
+                borderWidth = 4;
+                backgroundTexture.IsVisible = false;
+                background.IsVisible = true;
+            }
             UpdateUIPositions();
             OnResize();
 
-            BorderControl.IsVisible = !ProfileManager.CurrentProfile.Grid_HideBorder;
+            BorderControl.IsVisible = !CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
+                && !ProfileManager.CurrentProfile.Grid_HideBorder;
         }
 
         private void UpdateUIPositions()
         {
+            int contentInset = Math.Max(borderWidth, CustomThemeArt.ContentInset);
+            int topOffset = CustomThemeArt.ContentInset == 0 ? 0 : 6;
             background.X = background.Y = borderWidth;
-            scrollArea.X = background.X;
-            scrollArea.Y = TOP_BAR_HEIGHT + background.Y;
-            searchBox.X = searchBox.Y = borderWidth;
+            scrollArea.X = contentInset;
+            scrollArea.Y = TOP_BAR_HEIGHT + contentInset + topOffset;
+            containerNameLabel.X = contentInset;
+            searchBox.X = contentInset;
+            searchBox.Y = contentInset + topOffset;
+            openRegularGump.X = Width - openRegularGump.Width - contentInset;
+            quickDropBackpack.X = openRegularGump.X - quickDropBackpack.Width;
+            sortContents.X = quickDropBackpack.X - sortContents.Width;
+            searchBox.Width = Math.Max(20, Math.Min(150, sortContents.X - contentInset - 20));
+            searchBackground.Width = searchBox.Width;
             searchClearButton.X = searchBox.X + searchBox.Width + 2;
-            searchClearButton.Y = borderWidth;
-            quickDropBackpack.Y = sortContents.Y = openRegularGump.Y = borderWidth;
+            searchClearButton.Y = contentInset + topOffset;
+            quickDropBackpack.Y = sortContents.Y = openRegularGump.Y = contentInset + topOffset;
+            setLootBag.X = contentInset == borderWidth ? 0 : contentInset;
+            takeAllButton.X = setLootBag.X + 102;
+            setLootBag.Y = takeAllButton.Y = Height - 20 - (contentInset - borderWidth);
             backgroundTexture.X = background.X;
             backgroundTexture.Y = background.Y;
 
@@ -962,8 +972,9 @@ namespace ClassicUO.Game.UI.Gumps
             backgroundTexture.Width = background.Width = adjustedWidth;
             backgroundTexture.Height = background.Height = adjustedHeight;
 
-            scrollArea.Width = adjustedWidth;
-            scrollArea.Height = adjustedHeight - TOP_BAR_HEIGHT;
+            scrollArea.Width = Width - contentInset * 2;
+            scrollArea.Height = Height - TOP_BAR_HEIGHT - contentInset * 2 - topOffset;
+            gridSlotManager?.SetGridPositions();
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)

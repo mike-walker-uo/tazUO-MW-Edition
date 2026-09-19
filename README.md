@@ -6,7 +6,7 @@ Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
 It has many features, some of them are:
   - Custom weather and light effects
-  - Custom Gump themes
+  - Custom gump themes, including UOAlive, Ornate, Chronicle, Arcane, Relic, Mariner, Runestone, Oak & Iron, Exodus, Blood Oath, Celestial, Heartwood Sanctuary, and Hildebrandt
   - Custom hit effects
   - Custom spell effects (Chiv, Magery, Myst, SW)
   - Custom mob size (Greater Dragons mean "greater")
@@ -21,15 +21,27 @@ It has many features, some of them are:
   - Surface-aware and fantasy movement trails
   - Performance HUD with ping and jitter history
   - Profile recovery and safe graphics startup
-  - Individual opacity controls for supported gumps
+  - Individual opacity controls for supported gumps, with optional Alt + scroll and hover boost
+  - World Explorer for scanning rune books, pinning destinations, and quick travel
+  - Optional boss health bar with compact and ornate layouts
   - Tithing-point tracking and low-point warnings for Chivalry users
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.5 highlights
+
+- Open the visual theme picker with `-gumpthemes`, or switch directly with `-gumptheme <name>`. The themes now keep decorative borders clear of window content and use readable macro button text.
+- Open World Explorer with `-worldexplorer`. Scan your backpack for runes and rune books, drag destinations into the pinned list, and choose a travel method. Scan again after moving or changing a source item.
+- Set opacity with `-gumpopacity <area> <percent>` or its dedicated commands, such as `-gumpopacitycustom 80`. Run `-gumpopacity` to see current values and supported areas.
+- Razor Enhanced hotkey macro buttons support displayed key names, including mouse X Button 1, Page Down, and Windows keys.
+- Windows defaults to system DPI scaling; use `-native-dpi` for native per-monitor pixels.
+
+See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for the complete command list and theme names.
+
 ## Compatibility
 
-Version 0.4 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.5 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 

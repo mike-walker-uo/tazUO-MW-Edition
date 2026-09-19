@@ -31,7 +31,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const int PAD = 8;
         private const int TITLE_H = 28;
         private const int SEARCH_H = 24;
-        private const int COL_NAME = 118;
+        private const int COL_NAME = 188;
         private const int COL_DESC = 282;
         private const int COL_ARGS = 170;
         private const int COL_RUN = 42;
@@ -576,6 +576,15 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 case "gumptheme":
                     return CustomGumpThemeManager.Current.ToString().ToLowerInvariant();
+                case "gumpopacitycustom": return (ProfileManager.CurrentProfile?.CustomGumpOpacity ?? 100).ToString();
+                case "gumpopacitydurability": return (ProfileManager.CurrentProfile?.DurabilityGumpOpacity ?? 100).ToString();
+                case "gumpopacitycontainer": return (ProfileManager.CurrentProfile?.ContainerOpacity ?? 100).ToString();
+                case "gumpopacitycorpse": return (ProfileManager.CurrentProfile?.CorpseContainerOpacity ?? 50).ToString();
+                case "gumpopacitygridborder": return (ProfileManager.CurrentProfile?.GridBorderAlpha ?? 100).ToString();
+                case "gumpopacityjournal": return (ProfileManager.CurrentProfile?.JournalOpacity ?? 100).ToString();
+                case "gumpopacitybuff": return (ProfileManager.CurrentProfile?.BuffBarOpacity ?? 100).ToString();
+                case "gumpopacityslayer": return (ProfileManager.CurrentProfile?.SlayerBarOpacity ?? 100).ToString();
+                case "gumpopacityhovermin": return (ProfileManager.CurrentProfile?.GumpHoverOpacityPercent ?? 100).ToString();
                 default:
                     return string.Empty;
             }
@@ -663,6 +672,8 @@ namespace ClassicUO.Game.UI.Gumps
                 case "wateratmosphere": return WaterEnhancementManager.AtmosphereEnabled;
                 case "environment": return UIManager.GetGump<EnvironmentControlGump>() != null;
                 case "gumpthemes": return UIManager.GetGump<GumpThemeSelectorGump>() != null;
+                case "gumpopacityaltscroll": return ProfileManager.CurrentProfile?.EnableAlphaScrollingOnGumps ?? false;
+                case "gumpopacityhoverboost": return ProfileManager.CurrentProfile?.BoostGumpOpacityOnHover ?? false;
                 case "globalchat": return UIManager.GetGump<GlobalChatGump>() != null;
                 case "guildchat": return UIManager.GetGump<GuildChatGump>() != null;
                 case "speechhistory": return UIManager.GetGump<NearbySpeechGump>() != null;

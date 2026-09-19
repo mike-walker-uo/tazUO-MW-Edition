@@ -42,7 +42,8 @@ public class BaseOptionsGump : Gump
         {
             AcceptMouseInput = true,
             CanMove = true,
-            Alpha = 0.85f
+            Alpha = 0.85f,
+            ArtPanel = true
         };
         CustomGumpThemeManager.ApplyColorSurface(background);
         Add
@@ -54,7 +55,8 @@ public class BaseOptionsGump : Gump
         {
             AcceptMouseInput = true,
             CanMove = true,
-            Alpha = 0.85f
+            Alpha = 0.85f,
+            ArtSurface = true
         };
         CustomGumpThemeManager.ApplyColorSurface(header);
         Add
@@ -62,12 +64,12 @@ public class BaseOptionsGump : Gump
             header
         );
 
-        var titleTextBox = TextBox.GetOne(title, ThemeSettings.FONT, 30, Color.White, TextBox.RTLOptions.Default());
+        var titleTextBox = TextBox.GetOne(title, ThemeSettings.FONT, 30, ThemeSettings.TEXT_FONT_COLOR, TextBox.RTLOptions.Default());
         titleTextBox.X = 10;
         titleTextBox.Y = 7;
         Add(titleTextBox);
 
-        Control c = TextBox.GetOne("Search", ThemeSettings.FONT, 30, Color.White, TextBox.RTLOptions.Default());
+        Control c = TextBox.GetOne("Search", ThemeSettings.FONT, 30, ThemeSettings.TEXT_FONT_COLOR, TextBox.RTLOptions.Default());
         c.Y = 7;
         Add(c);
 
@@ -249,11 +251,17 @@ public class BaseOptionsGump : Gump
         public static ushort CHECKBOX { get; set; } = 899;
         public static int CHECKBOX_SIZE { get; set; } = 30;
         public static ushort BLACK { get; set; } = 0;
-        public static Color DROPDOWN_OPTION_NORMAL_HUE { get; set; } = Color.White;
-        public static Color DROPDOWN_OPTION_HOVER_HUE { get; set; } = Color.AntiqueWhite;
-        public static Color DROPDOWN_OPTION_SELECTED_HUE { get; set; } = Color.CadetBlue;
-        public static Color BUTTON_FONT_COLOR { get; set; } = Color.White;
-        public static Color TEXT_FONT_COLOR { get; set; } = Color.White;
+        public static Color DROPDOWN_OPTION_NORMAL_HUE => TEXT_FONT_COLOR;
+        public static Color DROPDOWN_OPTION_HOVER_HUE =>
+            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                ? new Color(102, 66, 31) : Color.AntiqueWhite;
+        public static Color DROPDOWN_OPTION_SELECTED_HUE =>
+            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                ? new Color(57, 80, 112) : Color.CadetBlue;
+        public static Color BUTTON_FONT_COLOR => TEXT_FONT_COLOR;
+        public static Color TEXT_FONT_COLOR =>
+            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                ? new Color(61, 43, 30) : Color.White;
         public static string FONT {
             get
             {
@@ -1888,7 +1896,9 @@ public class BaseOptionsGump : Gump
                 Vector3 hueVector = ShaderHueTranslator.GetHueVector(0, false, Alpha);
 
                 batcher.Draw(
-                    SolidColorTextureCache.GetTexture(Color.White),
+                    SolidColorTextureCache.GetTexture(
+                        CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
+                            ? CustomGumpThemeManager.OptionsSelectionColor : Color.White),
                     new Vector2(x, y),
                     new Rectangle(0, 0, Width, Height),
                     hueVector);
@@ -1896,7 +1906,9 @@ public class BaseOptionsGump : Gump
 
             if (DisplayBorder)
             {
-                batcher.DrawRectangle(SolidColorTextureCache.GetTexture(Color.LightGray), x, y, Width, Height, ShaderHueTranslator.GetHueVector(0, false, Alpha));
+                Color border = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
+                    ? CustomGumpThemeManager.CompactBorderColor : Color.LightGray;
+                batcher.DrawRectangle(SolidColorTextureCache.GetTexture(border), x, y, Width, Height, ShaderHueTranslator.GetHueVector(0, false, Alpha));
             }
 
             return base.Draw(batcher, x, y);
@@ -2130,6 +2142,17 @@ public class BaseOptionsGump : Gump
                     return false;
                 }
 
+                if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+                {
+                    Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, 0.75f);
+                    batcher.Draw(SolidColorTextureCache.GetTexture(CustomGumpThemeManager.OptionsSurfaceColor),
+                        new Rectangle(x, y, Width, Height), hue);
+                    if (MaxValue > MinValue)
+                        batcher.Draw(SolidColorTextureCache.GetTexture(CustomGumpThemeManager.OptionsSelectionColor),
+                            new Rectangle(x, y + _sliderPosition, Width, 20), hue);
+                    return true;
+                }
+
                 // draw scrollbar background
                 batcher.Draw(_whiteTexture, new Rectangle(x, y, Width, Height), _hueVector);
 
@@ -2316,7 +2339,10 @@ public class BaseOptionsGump : Gump
 
                 string initialText = displayIndex > -1 ? _sortedItems[displayIndex] : _sortedItems[_originalIndices[0]];
 
-                ColorBox background = new ColorBox(Width, Height, ThemeSettings.SEARCH_BACKGROUND);
+                ColorBox background = new ColorBox(Width, Height, ThemeSettings.SEARCH_BACKGROUND)
+                {
+                    ArtSurface = true
+                };
                 CustomGumpThemeManager.ApplyColorSurface(background);
                 Add(background);
 
@@ -2395,7 +2421,7 @@ public class BaseOptionsGump : Gump
                     _combobox = combobox;
 
                     ColorBox cb;
-                    Add(cb = new ColorBox(width, 0, ThemeSettings.BACKGROUND));
+                    Add(cb = new ColorBox(width, 0, ThemeSettings.BACKGROUND) { ArtSurface = true });
                     CustomGumpThemeManager.ApplyColorSurface(cb);
 
                     HoveredLabel[] labels = new HoveredLabel[items.Length];
@@ -2443,7 +2469,7 @@ public class BaseOptionsGump : Gump
                     if (searchable)
                     {
                         Add(_search = new InputField(maxWidth, 30) { Y = 2 });
-                        _search.Stb.PlaceHolderText = "Search actions";
+                        _search.SetTooltip("Search actions");
                         _search.TextChanged += (s, e) =>
                         {
                             int nextY = 5;
@@ -2778,16 +2804,19 @@ public class BaseOptionsGump : Gump
                 return false;
             }
 
-            batcher.Draw(SolidColorTextureCache.GetTexture(Color.White), new Rectangle(x, y, ThemeSettings.CHECKBOX_SIZE, ThemeSettings.CHECKBOX_SIZE), hueVector);
+            bool artTheme = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
+            Vector3 boxHue = artTheme ? ShaderHueTranslator.GetHueVector(0, false, 0.9f) : hueVector;
+            Color boxColor = artTheme ? CustomGumpThemeManager.OptionsSelectionColor : Color.White;
+            batcher.Draw(SolidColorTextureCache.GetTexture(boxColor), new Rectangle(x, y, ThemeSettings.CHECKBOX_SIZE, ThemeSettings.CHECKBOX_SIZE), boxHue);
 
             if (IsChecked)
             {
                 batcher.Draw
                 (
-                    SolidColorTextureCache.GetTexture(Color.Black),
+                    SolidColorTextureCache.GetTexture(artTheme ? ThemeSettings.TEXT_FONT_COLOR : Color.Black),
                     new Rectangle
                         (x + (ThemeSettings.CHECKBOX_SIZE / 2) / 2, y + (ThemeSettings.CHECKBOX_SIZE / 2) / 2, ThemeSettings.CHECKBOX_SIZE / 2, ThemeSettings.CHECKBOX_SIZE / 2),
-                    hueVector
+                    boxHue
                 );
             }
 
@@ -2983,16 +3012,25 @@ public class BaseOptionsGump : Gump
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
-                Vector3 hueVector = ShaderHueTranslator.GetHueVector(ThemeSettings.BACKGROUND);
+                bool artTheme = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
+                Vector3 hueVector = artTheme
+                    ? ShaderHueTranslator.GetHueVector(0)
+                    : ShaderHueTranslator.GetHueVector(ThemeSettings.BACKGROUND);
 
                 int mx = x;
 
                 //Draw background line
-                batcher.Draw(SolidColorTextureCache.GetTexture(Color.White), new Rectangle(mx, y + 3, BarWidth, 10), hueVector);
+                batcher.Draw(SolidColorTextureCache.GetTexture(artTheme
+                    ? CustomGumpThemeManager.OptionsSelectionColor : Color.White),
+                    new Rectangle(mx, y + 3, BarWidth, 10), hueVector);
 
-                hueVector = ShaderHueTranslator.GetHueVector(ThemeSettings.SEARCH_BACKGROUND);
+                hueVector = artTheme
+                    ? ShaderHueTranslator.GetHueVector(0)
+                    : ShaderHueTranslator.GetHueVector(ThemeSettings.SEARCH_BACKGROUND);
 
-                batcher.Draw(SolidColorTextureCache.GetTexture(Color.White), new Rectangle(mx + _sliderX, y, 15, 16), hueVector);
+                batcher.Draw(SolidColorTextureCache.GetTexture(artTheme
+                    ? CustomGumpThemeManager.CompactBorderColor : Color.White),
+                    new Rectangle(mx + _sliderX, y, 15, 16), hueVector);
 
                 _text?.Draw(batcher, mx + BarWidth + 2, y + (Height >> 1) - (_text.Height >> 1));
 

@@ -332,6 +332,13 @@ namespace ClassicUO.Game.UI.Gumps
             content.RemoveIndent();
             content.RemoveIndent();
 
+            content.BlankLine();
+            content.AddToRight(new ComboBoxWithLabel(
+                "World Explorer travel", 0, ThemeSettings.COMBO_BOX_WIDTH,
+                new[] { "Magery (Recall)", "Chivalry (Sacred Journey)", "Book charges" },
+                profile.WorldExplorerTravelMethod,
+                (selected, _) => profile.WorldExplorerTravelMethod = (byte)selected), true, page);
+
             #endregion
 
             #region Gumps & Context

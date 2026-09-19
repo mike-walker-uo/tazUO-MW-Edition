@@ -8,6 +8,7 @@ using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using Microsoft.Xna.Framework;
+using ClassicUO.Renderer;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -34,7 +35,18 @@ namespace ClassicUO.Game.UI.Gumps
         Obsidian,
         Doom,
         Midnight,
-        Necropolis
+        Necropolis,
+        Ornate,
+        BritannianChronicle,
+        MoonglowArcane,
+        TerMurRelic,
+        MarinersChart,
+        UOAlive,
+        UOAlive2,
+        Celestial,
+        Exodus,
+        BloodOath,
+        Hildebrandt
     }
 
     internal static class CustomGumpThemeManager
@@ -44,13 +56,18 @@ namespace ClassicUO.Game.UI.Gumps
             get
             {
                 byte value = ProfileManager.CurrentProfile?.CustomGumpTheme ?? 0;
-                return value <= (byte)CustomGumpTheme.Necropolis
+                return value <= (byte)CustomGumpTheme.Hildebrandt
                     ? (CustomGumpTheme)value
                     : CustomGumpTheme.Minimal;
             }
         }
 
-        internal static int ThemeCount => (int)CustomGumpTheme.Necropolis + 1;
+        internal static int ThemeCount => (int)CustomGumpTheme.Hildebrandt + 1;
+
+        internal static bool IsArtTheme(CustomGumpTheme theme) =>
+            theme == CustomGumpTheme.Stone || theme == CustomGumpTheme.Wood
+            || theme == CustomGumpTheme.Heartwood || theme == CustomGumpTheme.Necropolis
+            || theme >= CustomGumpTheme.Ornate && theme <= CustomGumpTheme.Hildebrandt;
 
         internal static float OpacityScale
         {
@@ -61,26 +78,75 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        internal static ushort TitleHue => Current == CustomGumpTheme.Classic
-            ? (ushort)0x0386
-            : (ushort)0x0481;
+        internal static ushort TitleHue => Current == CustomGumpTheme.BritannianChronicle
+            ? (ushort)0
+            : Current == CustomGumpTheme.Classic ? (ushort)0x0386 : (ushort)0x0481;
         internal static ushort TextHue => GetTextHue(Current);
         internal static ushort DimHue => Current == CustomGumpTheme.Minimal
             || Current == CustomGumpTheme.TazUO
             ? (ushort)0x0386
-            : Current == CustomGumpTheme.Classic
-                ? (ushort)0x0453
-                : (ushort)0x0481;
-        internal static ushort GroupHue => Current == CustomGumpTheme.Classic
-            ? (ushort)0x0386
-            : (ushort)0x0044;
+            : Current == CustomGumpTheme.BritannianChronicle ? (ushort)0
+            : Current == CustomGumpTheme.Classic ? (ushort)0x0453 : (ushort)0x0481;
+        internal static ushort GroupHue => Current == CustomGumpTheme.BritannianChronicle
+            ? (ushort)0
+            : Current == CustomGumpTheme.Classic ? (ushort)0x0386 : (ushort)0x0044;
         internal static ushort ButtonHue => Current == CustomGumpTheme.Minimal
             ? (ushort)0x0386
-            : Current == CustomGumpTheme.Classic
+            : Current == CustomGumpTheme.Classic || Current == CustomGumpTheme.BritannianChronicle
                 ? (ushort)0
                 : PanelHue;
         internal static ushort DataTextHue => GetTextHue(Current);
         internal static ushort CompactBorderHue => Current == CustomGumpTheme.Minimal ? (ushort)0 : PanelHue;
+
+        internal static Color OptionsSurfaceColor
+        {
+            get
+            {
+                switch (Current)
+                {
+                    case CustomGumpTheme.Stone: return new Color(39, 40, 39);
+                    case CustomGumpTheme.Wood: return new Color(45, 30, 21);
+                    case CustomGumpTheme.Heartwood: return new Color(31, 46, 27);
+                    case CustomGumpTheme.Necropolis: return new Color(29, 35, 31);
+                    case CustomGumpTheme.BritannianChronicle: return new Color(232, 217, 184);
+                    case CustomGumpTheme.MoonglowArcane: return new Color(22, 33, 49);
+                    case CustomGumpTheme.TerMurRelic: return new Color(24, 40, 42);
+                    case CustomGumpTheme.MarinersChart: return new Color(48, 36, 26);
+                    case CustomGumpTheme.UOAlive: return new Color(28, 43, 27);
+                    case CustomGumpTheme.UOAlive2: return new Color(20, 29, 69);
+                    case CustomGumpTheme.Celestial: return new Color(24, 37, 65);
+                    case CustomGumpTheme.Exodus: return new Color(36, 31, 29);
+                    case CustomGumpTheme.BloodOath: return new Color(43, 20, 20);
+                    case CustomGumpTheme.Hildebrandt: return new Color(23, 38, 74);
+                    default: return new Color(43, 32, 24);
+                }
+            }
+        }
+
+        internal static Color OptionsSelectionColor
+        {
+            get
+            {
+                switch (Current)
+                {
+                    case CustomGumpTheme.Stone: return new Color(78, 79, 76);
+                    case CustomGumpTheme.Wood: return new Color(93, 63, 38);
+                    case CustomGumpTheme.Heartwood: return new Color(67, 93, 52);
+                    case CustomGumpTheme.Necropolis: return new Color(60, 78, 63);
+                    case CustomGumpTheme.BritannianChronicle: return new Color(196, 171, 129);
+                    case CustomGumpTheme.MoonglowArcane: return new Color(40, 68, 86);
+                    case CustomGumpTheme.TerMurRelic: return new Color(43, 76, 75);
+                    case CustomGumpTheme.MarinersChart: return new Color(102, 75, 45);
+                    case CustomGumpTheme.UOAlive: return new Color(56, 81, 43);
+                    case CustomGumpTheme.UOAlive2: return new Color(65, 72, 153);
+                    case CustomGumpTheme.Celestial: return new Color(55, 80, 125);
+                    case CustomGumpTheme.Exodus: return new Color(101, 67, 48);
+                    case CustomGumpTheme.BloodOath: return new Color(112, 42, 48);
+                    case CustomGumpTheme.Hildebrandt: return new Color(65, 86, 151);
+                    default: return new Color(89, 68, 49);
+                }
+            }
+        }
 
         private static readonly List<ThemeSurface> _themeSurfaces = new List<ThemeSurface>();
         private static readonly List<ThemeColorBox> _themeColorBoxes = new List<ThemeColorBox>();
@@ -165,6 +231,17 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.Doom: return new Color(145, 35, 31);
                     case CustomGumpTheme.Midnight: return new Color(48, 101, 148);
                     case CustomGumpTheme.Necropolis: return new Color(82, 124, 67);
+                    case CustomGumpTheme.Ornate: return new Color(185, 143, 69);
+                    case CustomGumpTheme.BritannianChronicle: return new Color(165, 120, 48);
+                    case CustomGumpTheme.MoonglowArcane: return new Color(119, 167, 192);
+                    case CustomGumpTheme.TerMurRelic: return new Color(91, 165, 159);
+                    case CustomGumpTheme.MarinersChart: return new Color(184, 140, 67);
+                    case CustomGumpTheme.UOAlive: return new Color(128, 177, 87);
+                    case CustomGumpTheme.UOAlive2: return new Color(101, 210, 245);
+                    case CustomGumpTheme.Celestial: return new Color(147, 182, 217);
+                    case CustomGumpTheme.Exodus: return new Color(174, 115, 67);
+                    case CustomGumpTheme.BloodOath: return new Color(181, 55, 64);
+                    case CustomGumpTheme.Hildebrandt: return new Color(218, 174, 76);
                     case CustomGumpTheme.TazUO: return Color.Gray;
                     default: return Color.Gray;
                 }
@@ -175,7 +252,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         internal static ushort GetTextHue(CustomGumpTheme theme)
         {
-            return theme == CustomGumpTheme.Classic ? (ushort)0x0386 : (ushort)0xFFFF;
+            return theme == CustomGumpTheme.BritannianChronicle
+                ? (ushort)0
+                : theme == CustomGumpTheme.Classic ? (ushort)0x0386 : (ushort)0xFFFF;
         }
 
         internal static ushort GetPanelHue(CustomGumpTheme theme)
@@ -204,6 +283,17 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.Doom: return 0x03B2;
                 case CustomGumpTheme.Midnight: return 0x0058;
                 case CustomGumpTheme.Necropolis: return 0x044E;
+                case CustomGumpTheme.Ornate: return 0;
+                case CustomGumpTheme.BritannianChronicle:
+                case CustomGumpTheme.MoonglowArcane:
+                case CustomGumpTheme.TerMurRelic:
+                case CustomGumpTheme.MarinersChart:
+                case CustomGumpTheme.UOAlive:
+                case CustomGumpTheme.UOAlive2:
+                case CustomGumpTheme.Celestial:
+                case CustomGumpTheme.Exodus:
+                case CustomGumpTheme.BloodOath:
+                case CustomGumpTheme.Hildebrandt: return 0;
                 default: return 0;
             }
         }
@@ -227,6 +317,20 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.Doom:
                 case CustomGumpTheme.Midnight:
                 case CustomGumpTheme.Necropolis:
+                case CustomGumpTheme.Ornate:
+                case CustomGumpTheme.Stone:
+                case CustomGumpTheme.Wood:
+                case CustomGumpTheme.Heartwood:
+                case CustomGumpTheme.Celestial:
+                case CustomGumpTheme.Exodus:
+                case CustomGumpTheme.BloodOath:
+                case CustomGumpTheme.Hildebrandt:
+                case CustomGumpTheme.BritannianChronicle:
+                case CustomGumpTheme.MoonglowArcane:
+                case CustomGumpTheme.TerMurRelic:
+                case CustomGumpTheme.MarinersChart:
+                case CustomGumpTheme.UOAlive:
+                case CustomGumpTheme.UOAlive2:
                     return 0.95f;
                 default:
                     return 0.90f;
@@ -246,12 +350,18 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (button == null || Current == CustomGumpTheme.Minimal || Current == CustomGumpTheme.TazUO)
             {
+                if (button != null)
+                {
+                    button.ArtStyle = false;
+                    button.TextLabel.SetFontStyle(FontStyle.BlackBorder | FontStyle.Cropped);
+                }
                 return;
             }
 
             button.AlwaysShowBackground = true;
             button.Hue = ButtonHue;
             button.DisplayBorder = true;
+            button.ArtStyle = IsArtTheme(Current);
 
             if (Current == CustomGumpTheme.Classic)
             {
@@ -260,6 +370,15 @@ namespace ClassicUO.Game.UI.Gumps
                 button.BorderColor = new Color(170, 133, 55);
                 button.TextLabel.Hue = 0x0481;
             }
+            else if (Current == CustomGumpTheme.BritannianChronicle)
+            {
+                button.TextLabel.Hue = DataTextHue;
+            }
+
+            button.TextLabel.SetFontStyle(Current == CustomGumpTheme.BritannianChronicle
+                ? FontStyle.Cropped
+                : FontStyle.BlackBorder | FontStyle.Cropped);
+            button.TextLabel.Y = (button.Height - button.TextLabel.Height) >> 1;
         }
 
         internal static void StyleDataButton(NiceButton button, ushort minimalTextHue = 0xFFFF)
@@ -271,18 +390,25 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (Current == CustomGumpTheme.Minimal || Current == CustomGumpTheme.TazUO)
             {
+                button.ArtStyle = false;
                 button.AlwaysShowBackground = false;
                 button.DisplayBorder = false;
                 button.TextLabel.Hue = minimalTextHue;
+                button.TextLabel.SetFontStyle(FontStyle.BlackBorder | FontStyle.Cropped);
                 return;
             }
 
             button.AlwaysShowBackground = true;
             button.DisplayBorder = true;
+            button.ArtStyle = IsArtTheme(Current);
             button.Hue = ButtonHue;
             button.TextLabel.Hue = Current == CustomGumpTheme.Classic
                 ? (ushort)0x0481
                 : DataTextHue;
+            button.TextLabel.SetFontStyle(Current == CustomGumpTheme.BritannianChronicle
+                ? FontStyle.Cropped
+                : FontStyle.BlackBorder | FontStyle.Cropped);
+            button.TextLabel.Y = (button.Height - button.TextLabel.Height) >> 1;
 
             if (Current == CustomGumpTheme.Classic)
             {
@@ -389,6 +515,39 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
                 case CustomGumpTheme.Necropolis:
                     control.BaseColor = new Color(6, 11, 6);
+                    break;
+                case CustomGumpTheme.Ornate:
+                    control.BaseColor = new Color(37, 27, 20);
+                    break;
+                case CustomGumpTheme.BritannianChronicle:
+                    control.BaseColor = new Color(221, 207, 177);
+                    break;
+                case CustomGumpTheme.MoonglowArcane:
+                    control.BaseColor = new Color(23, 33, 48);
+                    break;
+                case CustomGumpTheme.TerMurRelic:
+                    control.BaseColor = new Color(20, 35, 38);
+                    break;
+                case CustomGumpTheme.MarinersChart:
+                    control.BaseColor = new Color(48, 37, 27);
+                    break;
+                case CustomGumpTheme.UOAlive:
+                    control.BaseColor = new Color(29, 42, 26);
+                    break;
+                case CustomGumpTheme.UOAlive2:
+                    control.BaseColor = new Color(21, 30, 69);
+                    break;
+                case CustomGumpTheme.Celestial:
+                    control.BaseColor = new Color(22, 34, 62);
+                    break;
+                case CustomGumpTheme.Exodus:
+                    control.BaseColor = new Color(31, 27, 25);
+                    break;
+                case CustomGumpTheme.BloodOath:
+                    control.BaseColor = new Color(36, 15, 17);
+                    break;
+                case CustomGumpTheme.Hildebrandt:
+                    control.BaseColor = new Color(21, 33, 70);
                     break;
                 default:
                     control.BaseColor = new Color(3, 8, 13);
@@ -624,6 +783,17 @@ namespace ClassicUO.Game.UI.Gumps
                     case CustomGumpTheme.Doom: control.BaseColor = new Color(47, 12, 11); break;
                     case CustomGumpTheme.Midnight: control.BaseColor = new Color(9, 23, 42); break;
                     case CustomGumpTheme.Necropolis: control.BaseColor = new Color(18, 34, 15); break;
+                    case CustomGumpTheme.Ornate: control.BaseColor = new Color(47, 34, 24); break;
+                    case CustomGumpTheme.BritannianChronicle: control.BaseColor = new Color(237, 222, 188); break;
+                    case CustomGumpTheme.MoonglowArcane: control.BaseColor = new Color(31, 45, 64); break;
+                    case CustomGumpTheme.TerMurRelic: control.BaseColor = new Color(30, 50, 52); break;
+                    case CustomGumpTheme.MarinersChart: control.BaseColor = new Color(64, 48, 33); break;
+                    case CustomGumpTheme.UOAlive: control.BaseColor = new Color(39, 56, 35); break;
+                    case CustomGumpTheme.UOAlive2: control.BaseColor = new Color(31, 44, 91); break;
+                    case CustomGumpTheme.Celestial: control.BaseColor = new Color(33, 49, 78); break;
+                    case CustomGumpTheme.Exodus: control.BaseColor = new Color(49, 37, 31); break;
+                    case CustomGumpTheme.BloodOath: control.BaseColor = new Color(61, 26, 29); break;
+                    case CustomGumpTheme.Hildebrandt: control.BaseColor = new Color(32, 48, 91); break;
                     default: control.BaseColor = new Color(14, 21, 27); break;
                 }
             }
@@ -710,10 +880,13 @@ namespace ClassicUO.Game.UI.Gumps
                     theme = CustomGumpTheme.Classic;
                     return true;
                 case "stone":
+                case "stones":
+                case "runestone":
                     theme = CustomGumpTheme.Stone;
                     return true;
                 case "wood":
                 case "wooden":
+                case "oakandiron":
                     theme = CustomGumpTheme.Wood;
                     return true;
                 case "dark":
@@ -736,6 +909,7 @@ namespace ClassicUO.Game.UI.Gumps
                     return true;
                 case "heartwood":
                 case "heart-wood":
+                case "heartwoodsanctuary":
                     theme = CustomGumpTheme.Heartwood;
                     return true;
                 case "termur":
@@ -773,7 +947,48 @@ namespace ClassicUO.Game.UI.Gumps
                     theme = CustomGumpTheme.Midnight;
                     return true;
                 case "necropolis":
+                case "necro":
+                case "necromancerscrypt":
                     theme = CustomGumpTheme.Necropolis;
+                    return true;
+                case "ornate":
+                    theme = CustomGumpTheme.Ornate;
+                    return true;
+                case "britannianchronicle":
+                case "chronicle":
+                    theme = CustomGumpTheme.BritannianChronicle;
+                    return true;
+                case "moonglowarcane":
+                case "arcane":
+                    theme = CustomGumpTheme.MoonglowArcane;
+                    return true;
+                case "termurrelic":
+                case "relic":
+                    theme = CustomGumpTheme.TerMurRelic;
+                    return true;
+                case "marinerschart":
+                case "mariner":
+                case "chart":
+                    theme = CustomGumpTheme.MarinersChart;
+                    return true;
+                case "uoalive":
+                    theme = CustomGumpTheme.UOAlive;
+                    return true;
+                case "uoalive2":
+                    theme = CustomGumpTheme.UOAlive2;
+                    return true;
+                case "celestial":
+                    theme = CustomGumpTheme.Celestial;
+                    return true;
+                case "exodus":
+                    theme = CustomGumpTheme.Exodus;
+                    return true;
+                case "blood":
+                case "bloodoath":
+                    theme = CustomGumpTheme.BloodOath;
+                    return true;
+                case "hildebrandt":
+                    theme = CustomGumpTheme.Hildebrandt;
                     return true;
                 default:
                     theme = CustomGumpTheme.Minimal;
@@ -825,9 +1040,13 @@ namespace ClassicUO.Game.UI.Gumps
             Refresh(UIManager.GetGump<NearbySpeechGump>(), () => new NearbySpeechGump());
             Refresh(UIManager.GetGump<GumpThemeSelectorGump>(), () => new GumpThemeSelectorGump());
             Refresh(UIManager.GetGump<DurabilitysGump>(), () => new DurabilitysGump());
+            TopBarGump.RefreshTheme();
+
+            RefreshOptionsGump();
 
             CounterBarGump.CurrentCounterBarGump?.ApplyTheme();
             InfoBarGump.UpdateAllThemes();
+            UIManager.GetGump<BossHealthBarGump>()?.ApplyTheme();
 
             foreach (Gump gump in UIManager.Gumps)
             {
@@ -860,6 +1079,21 @@ namespace ClassicUO.Game.UI.Gumps
                 bool compact = musicPlayer.IsCompact;
                 musicPlayer.Dispose();
                 UIManager.Add(new MusicPlayerGump(compact) { X = x, Y = y });
+            }
+        }
+
+        internal static void RefreshOptionsGump()
+        {
+            ModernOptionsGump options = UIManager.GetGump<ModernOptionsGump>();
+            if (options != null && !options.IsDisposed)
+            {
+                int x = options.X;
+                int y = options.Y;
+                string page = options.GetPageString();
+                options.Dispose();
+                var replacement = new ModernOptionsGump { X = x, Y = y };
+                replacement.GoToPage(page);
+                UIManager.Add(replacement);
             }
         }
 
@@ -925,6 +1159,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly int _margin;
 
         private readonly bool _applyCustomOpacity;
+        private readonly CustomGumpTheme _artTheme;
         private readonly float _fillAlpha;
         private float _lastOpacityScale = -1f;
         internal float OpacityScaleOverride { get; set; } = 1f;
@@ -940,6 +1175,13 @@ namespace ClassicUO.Game.UI.Gumps
             Height = height;
             AcceptMouseInput = false;
             _applyCustomOpacity = applyCustomOpacity;
+            _artTheme = CustomGumpThemeManager.IsArtTheme(theme) ? theme : CustomGumpTheme.Minimal;
+
+            if (CustomGumpThemeManager.IsArtTheme(theme))
+            {
+                _fillAlpha = 1f;
+                return;
+            }
 
             ushort frameGraphic = 0;
             float fillAlpha = minimalAlpha;
@@ -1151,6 +1393,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ApplyOpacity()
         {
+            if (CustomGumpThemeManager.IsArtTheme(_artTheme))
+                return;
+
             float scale = (_applyCustomOpacity ? CustomGumpThemeManager.OpacityScale : 1f)
                 * MathHelper.Clamp(OpacityScaleOverride, 0f, 1f);
             if (Math.Abs(scale - _lastOpacityScale) < 0.001f)
@@ -1167,6 +1412,17 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            if (CustomGumpThemeManager.IsArtTheme(_artTheme))
+            {
+                float alpha = (_applyCustomOpacity ? CustomGumpThemeManager.OpacityScale : 1f)
+                    * MathHelper.Clamp(OpacityScaleOverride, 0f, 1f);
+                CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, _artTheme, alpha);
+            }
+            return base.Draw(batcher, x, y);
+        }
+
         private static AlphaBlendControl Edge(Color color)
         {
             return new AlphaBlendControl(0.55f) { BaseColor = color };
@@ -1174,6 +1430,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void SyncSize()
         {
+            if (CustomGumpThemeManager.IsArtTheme(_artTheme))
+                return;
+
             if (_frame != null)
             {
                 _frame.Width = Width;

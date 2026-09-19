@@ -34,6 +34,7 @@ using System.Collections.Generic;
 using ClassicUO.Input;
 using ClassicUO.Assets;
 using ClassicUO.Renderer;
+using ClassicUO.Game.UI.Gumps;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Controls
@@ -45,6 +46,7 @@ namespace ClassicUO.Game.UI.Controls
         private bool _isSelected;
 
         public bool DisplayBorder;
+        internal bool ArtStyle;
 
         public Color BorderColor { get; set; } = Color.LightGray;
 
@@ -169,7 +171,11 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            if (IsSelected || AlwaysShowBackground)
+            if (ArtStyle)
+            {
+                CustomThemeArt.DrawButton(batcher, x, y, Width, Height, Alpha);
+            }
+            else if (IsSelected || AlwaysShowBackground)
             {
                 Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, false, Alpha);
 
@@ -182,7 +188,7 @@ namespace ClassicUO.Game.UI.Controls
                 );
             }
 
-            if (DisplayBorder)
+            if (DisplayBorder && !ArtStyle)
             {
                 batcher.DrawRectangle(
                     SolidColorTextureCache.GetTexture(BorderColor),

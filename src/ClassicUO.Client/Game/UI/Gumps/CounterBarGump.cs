@@ -189,7 +189,7 @@ namespace ClassicUO.Game.UI.Gumps
             Width = _rectSize * _columns + 1;
             Height = _rectSize * _rows + 1;
 
-            Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height });
+            Add(_background = new AlphaBlendControl(0.7f) { Width = Width, Height = Height, ArtPanel = true });
             ApplyTheme();
 
             for (int row = 0; row < _rows; row++)

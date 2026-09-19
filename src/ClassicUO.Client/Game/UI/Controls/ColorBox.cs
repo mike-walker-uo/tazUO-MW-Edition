@@ -31,6 +31,7 @@
 #endregion
 
 using ClassicUO.Renderer;
+using ClassicUO.Game.UI.Gumps;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Controls
@@ -39,6 +40,9 @@ namespace ClassicUO.Game.UI.Controls
     {
         private ushort hue;
         protected Vector3 hueVector;
+
+        internal bool ArtPanel { get; set; }
+        internal bool ArtSurface { get; set; }
 
         public ColorBox(int width, int height, ushort hue)
         {
@@ -66,6 +70,23 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+            {
+                if (ArtPanel)
+                {
+                    CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, Alpha);
+                    return true;
+                }
+
+                if (ArtSurface)
+                {
+                    batcher.Draw(SolidColorTextureCache.GetTexture(CustomGumpThemeManager.OptionsSurfaceColor),
+                        new Rectangle(x, y, Width, Height),
+                        ShaderHueTranslator.GetHueVector(0, false, Alpha));
+                    return true;
+                }
+            }
+
             batcher.Draw
             (
                 SolidColorTextureCache.GetTexture(Color.White),

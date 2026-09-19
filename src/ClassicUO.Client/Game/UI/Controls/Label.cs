@@ -109,6 +109,17 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
+        internal void SetFontStyle(FontStyle style)
+        {
+            if (_gText.FontStyle == style)
+                return;
+
+            _gText.FontStyle = style;
+            _gText.CreateTexture();
+            Width = _gText.Width;
+            Height = _gText.Height;
+        }
+
 
         public byte Font => _gText.Font;
 
