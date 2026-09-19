@@ -129,10 +129,10 @@
     <EmbeddedResource Include="Resources\TerMurRelic\button.png" />
     <EmbeddedResource Include="Resources\MarinersChart\panel.png" />
     <EmbeddedResource Include="Resources\MarinersChart\button.png" />
-    <EmbeddedResource Include="Resources\UOAliveTheme\panel.png" />
-    <EmbeddedResource Include="Resources\UOAliveTheme\button.png" />
-    <EmbeddedResource Include="Resources\UOAlive2Theme\panel.png" />
-    <EmbeddedResource Include="Resources\UOAlive2Theme\button.png" />
+    <EmbeddedResource Include="Resources\GildedGroveTheme\panel.png" />
+    <EmbeddedResource Include="Resources\GildedGroveTheme\button.png" />
+    <EmbeddedResource Include="Resources\AetherglassTheme\panel.png" />
+    <EmbeddedResource Include="Resources\AetherglassTheme\button.png" />
     <EmbeddedResource Include="Resources\Runestone\sheet.png" />
     <EmbeddedResource Include="Resources\OakAndIron\sheet.png" />
     <EmbeddedResource Include="Resources\HeartwoodSanctuary\sheet.png" />

@@ -251,7 +251,7 @@ namespace ClassicUO.Game.Managers
                 if (s == null || s.Length < 2)
                 {
                     GameActions.Print($"Gump theme: {GumpThemeSelectorGump.DisplayName(CustomGumpThemeManager.Current)}.", 0x35);
-                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|uoalive|uoalive2|celestial|exodus|blood|hildebrandt|next", 0x35);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|next", 0x35);
                     return;
                 }
 
@@ -264,7 +264,7 @@ namespace ClassicUO.Game.Managers
                 }
                 else if (!CustomGumpThemeManager.TryParse(requested, out theme))
                 {
-                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|uoalive|uoalive2|celestial|exodus|blood|hildebrandt|next", 0x21);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|next", 0x21);
                     return;
                 }
 
