@@ -120,14 +120,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             BuildHeader();
 
-            ScrollArea area = new ScrollArea(10, 30, Width - 20, Height - 50, true)
+            int inset = CustomThemeArt.ContentInset;
+            int side = inset == 0 ? 10 : inset;
+            int top = inset == 0 ? 30 : inset + 38;
+            ScrollArea area = new ScrollArea(side, top, Width - side * 2, Height - top - (inset == 0 ? 20 : inset), true)
             {
                 ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways
             };
 
             Add(area);
 
-            _dataBox = new VBoxContainer(Width - 40);
+            _dataBox = new VBoxContainer(Width - side * 2 - 20);
             area.Add(_dataBox);
 
             RequestUpdateContents();
@@ -140,8 +143,9 @@ namespace ClassicUO.Game.UI.Gumps
                 "Equipment Durability",
                 true,
                 CustomGumpThemeManager.TitleHue);
+            int inset = CustomThemeArt.ContentInset;
             l.X = (Width >> 1) - (l.Width >> 1);
-            l.Y = (l.Height >> 1) >> 1;
+            l.Y = ((l.Height >> 1) >> 1) + inset + (inset == 0 ? 0 : 6);
 
             Add(l);
         }
@@ -179,7 +183,7 @@ namespace ClassicUO.Game.UI.Gumps
                 a.WantUpdateSize = false;
                 a.CanMove = true;
                 a.Height = 44;
-                a.Width = Width - (a.X * 2) - 40;
+                a.Width = _dataBox.Width;
                 var rowBackground = new AlphaBlendControl(0.30f)
                 {
                     Width = a.Width,
@@ -195,7 +199,9 @@ namespace ClassicUO.Game.UI.Gumps
                 ushort durabilityTextHue = durability.Percentage < 0.30f
                     ? (ushort)0x21
                     : durability.Percentage < 0.60f
-                        ? (ushort)0x35
+                        ? CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                            ? CustomGumpThemeManager.TextHue
+                            : (ushort)0x35
                         : CustomGumpThemeManager.TextHue;
 
                 string itemName = string.IsNullOrWhiteSpace(item.Name) ? item.Layer.ToString() : item.Name;

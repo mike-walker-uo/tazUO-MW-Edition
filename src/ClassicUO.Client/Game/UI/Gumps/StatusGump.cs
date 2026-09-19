@@ -1949,11 +1949,11 @@ namespace ClassicUO.Game.UI.Gumps
                 )
             );
 
-            // Hunger satisfaction, murder count, damage, gold
+            // Outlands-specific counters and timers are not provided by the status packet.
 
             AddStatTextLabel
             (
-                World.Player.Luck.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.HungerSatisfactionMinutes,
                 282,
                 44
@@ -1961,7 +1961,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             AddStatTextLabel
             (
-                World.Player.StatsCap.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.MurderCount,
                 260,
                 73
@@ -1975,7 +1975,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             AddStatTextLabel
             (
-                World.Player.ColdResistance.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.CriminalTimerSeconds,
                 354,
                 44
@@ -1983,7 +1983,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             AddStatTextLabel
             (
-                World.Player.FireResistance.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.MurderCountDecayHours,
                 354,
                 73
@@ -1991,7 +1991,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             AddStatTextLabel
             (
-                World.Player.PoisonResistance.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.PvpCooldownSeconds,
                 354,
                 102
@@ -1999,7 +1999,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             AddStatTextLabel
             (
-                World.Player.EnergyResistance.ToString(), // FIXME: packet handling
+                "--",
                 MobileStats.BandageTimerSeconds,
                 354,
                 131
@@ -2053,17 +2053,6 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _labels[(int)MobileStats.Gold].Text = World.Player.Gold.ToString();
 
-                _labels[(int)MobileStats.HungerSatisfactionMinutes].Text = World.Player.Luck.ToString(); // FIXME: packet handling
-
-                _labels[(int)MobileStats.MurderCount].Text = World.Player.StatsCap.ToString(); // FIXME: packet handling
-
-                _labels[(int)MobileStats.MurderCountDecayHours].Text = World.Player.FireResistance.ToString(); // FIXME: packet handling
-
-                _labels[(int)MobileStats.CriminalTimerSeconds].Text = World.Player.ColdResistance.ToString(); // FIXME: packet handling
-
-                _labels[(int)MobileStats.PvpCooldownSeconds].Text = World.Player.PoisonResistance.ToString(); // FIXME: packet handling
-
-                _labels[(int)MobileStats.BandageTimerSeconds].Text = World.Player.EnergyResistance.ToString(); // FIXME: packet handling
             }
 
             base.Update();

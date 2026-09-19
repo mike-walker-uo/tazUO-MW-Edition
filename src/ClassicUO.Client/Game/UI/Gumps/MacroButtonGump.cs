@@ -219,7 +219,11 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (!IsVisible) return false;
 
-            batcher.Draw
+            bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
+            if (ornate)
+                CustomThemeArt.DrawButton(batcher, x, y, Width, Height, Alpha);
+            else
+                batcher.Draw
             (
                 backgroundTexture,
                 new Rectangle
@@ -248,7 +252,7 @@ namespace ClassicUO.Game.UI.Gumps
                     );
                 }
             }
-            else
+            else if (!ornate)
             {
                 batcher.DrawRectangle
                     (
@@ -261,9 +265,27 @@ namespace ClassicUO.Game.UI.Gumps
                     );
             }
 
+            if (ornate && Graphic.HasValue)
+                CustomThemeArt.DrawFrame(batcher, x, y, Width, Height, Alpha);
+
             if (!HideLabel && _gText != null)
             {
-                _gText.Hue = (ushort)(MouseIsOver ? 53 : 0x03b2);
+                bool chronicle = CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle;
+                byte labelFont = ornate ? (byte)1 : (byte)255;
+                FontStyle labelStyle = chronicle
+                    ? FontStyle.Cropped
+                    : ornate ? FontStyle.BlackBorder | FontStyle.Cropped : FontStyle.BlackBorder;
+                ushort labelHue = ornate
+                    ? CustomGumpThemeManager.DataTextHue
+                    : (ushort)(MouseIsOver ? 53 : 0x03b2);
+
+                if (_gText.Font != labelFont || _gText.FontStyle != labelStyle || _gText.Hue != labelHue)
+                {
+                    _gText.Font = labelFont;
+                    _gText.FontStyle = labelStyle;
+                    _gText.Hue = labelHue;
+                    _gText.CreateTexture();
+                }
                 _gText.Draw(batcher, x, y + ((Height >> 1) - (_gText.Height >> 1)), Alpha);
             }
 

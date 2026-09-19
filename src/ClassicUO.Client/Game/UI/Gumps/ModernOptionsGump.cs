@@ -332,6 +332,13 @@ namespace ClassicUO.Game.UI.Gumps
             content.RemoveIndent();
             content.RemoveIndent();
 
+            content.BlankLine();
+            content.AddToRight(new ComboBoxWithLabel(
+                "World Explorer travel", 0, ThemeSettings.COMBO_BOX_WIDTH,
+                new[] { "Magery (Recall)", "Chivalry (Sacred Journey)", "Book charges" },
+                profile.WorldExplorerTravelMethod,
+                (selected, _) => profile.WorldExplorerTravelMethod = (byte)selected), true, page);
+
             #endregion
 
             #region Gumps & Context
@@ -4256,7 +4263,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new CheckboxWithLabel
                 (
-                    "Set gump opacity while hovered", 0,
+                    "Raise gump opacity while hovered", 0,
                     profile.BoostGumpOpacityOnHover,
                     (enabled) => { profile.BoostGumpOpacityOnHover = enabled; }
                 ), true, page
@@ -4266,7 +4273,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new SliderWithLabel
                 (
-                    "Opacity while hovered (%)", 0, ThemeSettings.SLIDER_WIDTH,
+                    "Hover minimum opacity (%)", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.GumpHoverOpacityPercent,
                     (i) => { profile.GumpHoverOpacityPercent = (byte)i; }
                 ), true, page
@@ -5086,7 +5093,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _items = items;
                     _obj = obj;
 
-                    mainBox = new ComboBoxWithLabel(string.Empty, 0, 200, _items, (int)obj.Code, BoxOnOnOptionSelected)
+                    mainBox = new ComboBoxWithLabel(string.Empty, 0, 200, _items, (int)obj.Code, BoxOnOnOptionSelected, searchable: true)
                     {
                         Tag = obj
                     };

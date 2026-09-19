@@ -690,11 +690,11 @@ namespace ClassicUO.Network
             }
         }
 
-        internal static bool ProcessHotkeys(int key, int mod, bool ispressed)
+        internal static bool ProcessHotkeys(int key, int mod, bool ispressed, bool ignoreKeyboardFocus = false)
         {
             if (
                 !World.InGame
-                || UIManager.SystemChat != null
+                || !ignoreKeyboardFocus && UIManager.SystemChat != null
                     && (
                         ProfileManager.CurrentProfile != null
                             && ProfileManager.CurrentProfile.ActivateChatAfterEnter

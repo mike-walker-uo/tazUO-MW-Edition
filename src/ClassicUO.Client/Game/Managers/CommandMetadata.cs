@@ -79,7 +79,7 @@ namespace ClassicUO.Game.Managers
             { "petstay",    new Entry { Category="Pets", Description="Pet stay command.", Usage="" } },
             { "petstop",    new Entry { Category="Pets", Description="Pet stop command.", Usage="" } },
             { "pethp",      new Entry { Category="Pets", Description="Show pet HP bars overhead.", Usage="on|off" } },
-            { "petloyalty", new Entry { Category="Pets", Description="Show pet loyalty status.", Usage="" } },
+            { "petloyalty", new Entry { Category="Pets", Description="Remind when nearby pet loyalty is below 90%.", Usage="on|off|status" } },
             { "petwatch",   new Entry { Category="Pets", Description="Watch a pet's HP and alert on low.", Usage="on|off" } },
             { "claim",      new Entry { Category="Pets", Description="Claim stabled pets.", Usage="" } },
             { "stable",     new Entry { Category="Pets", Description="Open nearest stable master.", Usage="" } },
@@ -100,6 +100,7 @@ namespace ClassicUO.Game.Managers
             { "options",        new Entry { Category="UI", Description="Open modern options gump.", Usage="" } },
             { "optlink",        new Entry { Category="UI", Description="Jump to a specific options page.", Usage="<name>" } },
             { "paperdoll",      new Entry { Category="UI", Description="Open paperdoll.", Usage="" } },
+            { "worldexplorer",  new Entry { Category="Map/Markers", Description="Scan rune books and pin quick travel destinations.", Usage="" } },
             { "openjournal",    new Entry { Category="UI", Description="Open journal.", Usage="" } },
             { "toast",          new Entry { Category="UI", Description="Show a test toast.", Usage="<text>" } },
             { "toastanchor",    new Entry { Category="UI", Description="Drag-anchor toast position; right-click to save.", Usage="" } },
@@ -119,7 +120,19 @@ namespace ClassicUO.Game.Managers
             { "spellbook",      new Entry { Category="UI", Description="Open spellbook.", Usage="" } },
             { "musicmode",      new Entry { Category="UI", Description="Choose original/new/mixed music, or scan Music/Digital for newly added MP3s.", Usage="original|new|mixed|rescan" } },
             { "musicplayer",    new Entry { Category="UI", Description="Open or close the auto-started music/radio player with playlist favorites; login starts in mini layout.", Usage="" } },
-            { "gumptheme",      new Entry { Category="UI", Description="Theme supported utility, HUD, tracker, grid-container, journal and modern chat gumps.", Usage="[minimal|classic|stone|wood|dark|royal|forest|dungeon|water|snow|heartwood|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necropolis|next]" } },
+            { "gumptheme",      new Entry { Category="UI", Description="Theme supported utility, HUD, tracker, grid-container, journal and modern chat gumps.", Usage="[minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|uoalive|uoalive2|celestial|exodus|blood|hildebrandt|next]" } },
+            { "gumpopacity",    new Entry { Category="UI", Description="Set a Gump opacity option; pin separate area/percentage commands. Custom: 20-100; durability/buff: 10-100; others: 0-100.", Usage="<custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]" } },
+            { "gumpopacitycustom",     new Entry { Category="UI", Description="Gump opacity: themed utility and chat gumps.", Usage="<20-100>" } },
+            { "gumpopacitydurability", new Entry { Category="UI", Description="Gump opacity: durability display.", Usage="<10-100>" } },
+            { "gumpopacitycontainer",  new Entry { Category="UI", Description="Gump opacity: containers.", Usage="<0-100>" } },
+            { "gumpopacitycorpse",     new Entry { Category="UI", Description="Gump opacity: corpse containers.", Usage="<0-100>" } },
+            { "gumpopacitygridborder", new Entry { Category="UI", Description="Gump opacity: grid item borders.", Usage="<0-100>" } },
+            { "gumpopacityjournal",    new Entry { Category="UI", Description="Gump opacity: journal.", Usage="<0-100>" } },
+            { "gumpopacitybuff",       new Entry { Category="UI", Description="Gump opacity: buff bar.", Usage="<10-100>" } },
+            { "gumpopacityslayer",     new Entry { Category="UI", Description="Gump opacity: paperdoll slayer bar.", Usage="<0-100>" } },
+            { "gumpopacityhovermin",   new Entry { Category="UI", Description="Gump opacity: minimum while hovered.", Usage="<0-100>" } },
+            { "gumpopacityaltscroll",  new Entry { Category="UI", Description="Gump opacity: adjust with Alt + scroll wheel.", Usage="on|off" } },
+            { "gumpopacityhoverboost", new Entry { Category="UI", Description="Gump opacity: boost low-opacity gumps on hover.", Usage="on|off" } },
             { "colorpicker",    new Entry { Category="UI", Description="Open the client hue color picker.", Usage="" } },
             { "dressagent",     new Entry { Category="UI", Description="Dress or undress using a named Dress Agent configuration.", Usage="<dress|undress> \"<config name>\"" } },
 
@@ -304,7 +317,8 @@ namespace ClassicUO.Game.Managers
                 "autobuff", "autopot", "drink", "finishlow", "attackenemy",
                 "autohit", "cast", "lastenemy", "smartcast", "targetenemy",
                 "hidetrash", "dismounttilt", "jump", "mark", "recall",
-                "debug", "diagnostics", "eventlog", "findground"
+                "debug", "diagnostics", "eventlog", "findground",
+                "gumpopacity"
             };
 
         private static readonly Dictionary<string, bool> _runtimeStates =

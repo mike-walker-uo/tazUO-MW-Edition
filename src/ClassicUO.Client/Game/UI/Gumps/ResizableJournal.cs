@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using ClassicUO.Utility.Logging;
+using Microsoft.Xna.Framework;
 using SDL3;
 using Point = Microsoft.Xna.Framework.Point;
 
@@ -42,6 +43,7 @@ namespace ClassicUO.Game.UI.Gumps
         #endregion
 
         private AlphaBlendControl _background;
+        private AlphaBlendControl _messageBackground;
         private JournalEntriesContainer _journalArea;
         private Label _searchLabel;
         private JournalSearchBox _searchBox;
@@ -55,7 +57,7 @@ namespace ClassicUO.Game.UI.Gumps
         private static int _lastWidth = MIN_WIDTH, _lastHeight = 300;
         private readonly GumpPicTiled _backgroundTexture;
         #endregion
-        public ResizableJournal() : base(_lastWidth, _lastHeight, MIN_WIDTH, MIN_HEIGHT, 0, 0)
+        public ResizableJournal() : base(_lastWidth, _lastHeight, MIN_WIDTH + CustomThemeArt.ContentInset * 2, MIN_HEIGHT + CustomThemeArt.ContentInset * 2 + (CustomThemeArt.ContentInset == 0 ? 0 : 6), 0, 0)
         {
             AnchorType = ProfileManager.CurrentProfile.JournalAnchorEnabled ? ANCHOR_TYPE.NONE : ANCHOR_TYPE.DISABLED;
             CanMove = true;
@@ -78,6 +80,7 @@ namespace ClassicUO.Game.UI.Gumps
             _background = new AlphaBlendControl((float)ProfileManager.CurrentProfile.JournalOpacity / 100);
             _background.Hue = ProfileManager.CurrentProfile.AltJournalBackgroundHue;
             CustomGumpThemeManager.ApplyDataSurface(_background, (float)ProfileManager.CurrentProfile.JournalOpacity / 100);
+            _background.ArtPanel = true;
             _background.Width = Width - (BORDER_WIDTH * 2);
             _background.Height = Height - (BORDER_WIDTH * 2);
             _background.X = BORDER_WIDTH;
@@ -110,6 +113,15 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_background);
             Add(_backgroundTexture);
+            Add(_messageBackground = new AlphaBlendControl(0.96f)
+            {
+                X = _journalArea.X,
+                Y = _journalArea.Y,
+                Width = _journalArea.Width,
+                Height = _journalArea.Height,
+                BaseColor = new Color(32, 28, 27),
+                IsVisible = CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+            });
             Add(_scrollBarBase);
 
             Add(_journalArea);
@@ -202,7 +214,7 @@ namespace ClassicUO.Game.UI.Gumps
             for (int i = 0; i < _tab.Count; i++)
                 Add(_tab[i]);
 
-            _newTabButton.X = (_tab.Count * TAB_WIDTH) + 4;
+            _newTabButton.X = (_tab.Count * TAB_WIDTH) + Math.Max(4, CustomThemeArt.ContentInset);
         }
 
         public void BuildBorder()
@@ -285,9 +297,15 @@ namespace ClassicUO.Game.UI.Gumps
                 BorderControl.BorderSize = borderSize;
                 BORDER_WIDTH = borderSize;
             }
+            if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+            {
+                BORDER_WIDTH = 4;
+                _backgroundTexture.IsVisible = false;
+                _background.IsVisible = true;
+            }
             Reposition();
 
-            if (ProfileManager.CurrentProfile.HideJournalBorder)
+            if (ProfileManager.CurrentProfile.HideJournalBorder || CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
                 BorderControl.IsVisible = false;
             else
                 BorderControl.IsVisible = true;
@@ -297,6 +315,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (IsDisposed)
                 return;
+            int inset = Math.Max(BORDER_WIDTH, CustomThemeArt.ContentInset);
+            int topInset = CustomThemeArt.ContentInset == 0 ? 0 : CustomThemeArt.ContentInset + 6;
             _background.X = BORDER_WIDTH;
             _background.Y = BORDER_WIDTH;
             _background.Width = Width - (BORDER_WIDTH * 2);
@@ -309,23 +329,35 @@ namespace ClassicUO.Game.UI.Gumps
             _backgroundTexture.Alpha = (float)ProfileManager.CurrentProfile.JournalOpacity / 100;
             BorderControl.Alpha = (float)ProfileManager.CurrentProfile.JournalOpacity / 100;
 
-            _journalArea.X = BORDER_WIDTH;
-            _journalArea.Y = TAB_HEIGHT + SEARCH_HEIGHT;
-            _journalArea.Width = Width - SCROLL_BAR_WIDTH - (BORDER_WIDTH * 2);
-            _journalArea.Height = Height - BORDER_WIDTH - TAB_HEIGHT - SEARCH_HEIGHT;
+            _journalArea.X = inset;
+            _journalArea.Y = topInset + TAB_HEIGHT + SEARCH_HEIGHT;
+            _journalArea.Width = Width - SCROLL_BAR_WIDTH - inset * 2;
+            _journalArea.Height = Math.Max(1, Height - inset - _journalArea.Y);
+            _messageBackground.X = _journalArea.X;
+            _messageBackground.Y = _journalArea.Y;
+            _messageBackground.Width = _journalArea.Width;
+            _messageBackground.Height = _journalArea.Height;
 
-            _searchLabel.X = BORDER_WIDTH + 4;
-            _searchLabel.Y = TAB_HEIGHT + 3;
+            _searchLabel.X = inset + 4;
+            _searchLabel.Y = topInset + TAB_HEIGHT + 3;
             _searchBox.X = _searchLabel.X + _searchLabel.Width + 6;
-            _searchBox.Y = TAB_HEIGHT + 2;
+            _searchBox.Y = topInset + TAB_HEIGHT + 2;
             _searchBackground.Width = _searchBox.Width;
+
+            for (int i = 0; i < _tab.Count; i++)
+            {
+                _tab[i].X = inset + i * TAB_WIDTH;
+                _tab[i].Y = topInset;
+            }
+            _newTabButton.X = inset + _tab.Count * TAB_WIDTH;
+            _newTabButton.Y = topInset;
 
             _lastWidth = Width;
             _lastHeight = Height;
 
-            _scrollBarBase.X = Width - SCROLL_BAR_WIDTH - BORDER_WIDTH;
+            _scrollBarBase.X = Width - SCROLL_BAR_WIDTH - inset;
             _scrollBarBase.Y = _journalArea.Y;
-            _scrollBarBase.Height = Height - BORDER_WIDTH - TAB_HEIGHT - SEARCH_HEIGHT;
+            _scrollBarBase.Height = _journalArea.Height;
             ProfileManager.CurrentProfile.ResizeJournalSize = new Point(Width, Height);
         }
 
@@ -412,7 +444,7 @@ namespace ClassicUO.Game.UI.Gumps
         private void AddTab(string Name, MessageType[] filters)
         {
             NiceButton nb;
-            _tab.Add(nb = new NiceButton((_tab.Count * TAB_WIDTH) + 4, 0, TAB_WIDTH, TAB_HEIGHT, ButtonAction.Activate, Name, 1)
+            _tab.Add(nb = new NiceButton((_tab.Count * TAB_WIDTH) + Math.Max(4, CustomThemeArt.ContentInset), CustomThemeArt.ContentInset == 0 ? 0 : CustomThemeArt.ContentInset + 6, TAB_WIDTH, TAB_HEIGHT, ButtonAction.Activate, Name, 1)
             {
                 ButtonParameter = _tab.Count,
                 IsSelectable = true,
@@ -470,6 +502,7 @@ namespace ClassicUO.Game.UI.Gumps
         private void ApplyTheme()
         {
             float alpha = (float)ProfileManager.CurrentProfile.JournalOpacity / 100;
+            _messageBackground.IsVisible = CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle;
             _background.Hue = ProfileManager.CurrentProfile.AltJournalBackgroundHue;
             CustomGumpThemeManager.ApplyDataSurface(_background, alpha);
             CustomGumpThemeManager.StyleDataButton(_newTabButton);

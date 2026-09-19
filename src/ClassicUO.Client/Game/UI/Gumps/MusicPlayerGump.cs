@@ -543,12 +543,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
-                Vector3 background = ShaderHueTranslator.GetHueVector(Hue, false, IsSelected ? 0.55f : 0.25f);
-                batcher.Draw(
-                    SolidColorTextureCache.GetTexture(Color.White),
-                    new Vector2(x, y),
-                    new Rectangle(0, 0, Width, Height),
-                    background);
+                if (CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+                    CustomThemeArt.DrawButton(batcher, x, y, Width, Height);
+                else
+                {
+                    Vector3 background = ShaderHueTranslator.GetHueVector(Hue, false, IsSelected ? 0.55f : 0.25f);
+                    batcher.Draw(
+                        SolidColorTextureCache.GetTexture(Color.White),
+                        new Vector2(x, y),
+                        new Rectangle(0, 0, Width, Height),
+                        background);
+                }
 
                 bool result = base.Draw(batcher, x, y);
                 Vector3 iconHue = ShaderHueTranslator.GetHueVector(TEXT_HUE, false, 1f);

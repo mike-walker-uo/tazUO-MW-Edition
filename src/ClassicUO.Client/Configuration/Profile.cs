@@ -94,6 +94,13 @@ namespace ClassicUO.Configuration
         public byte MusicSelectionMode { get; set; } = 2;
         public byte MusicPlaybackMode { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point MusicPlayerPosition { get; set; } = new Point(200, 40);
+        [JsonConverter(typeof(Point2Converter))] public Point WorldExplorerPosition { get; set; } = new Point(160, 90);
+        public byte WorldExplorerTravelMethod { get; set; }
+        public byte WorldExplorerTheme { get; set; }
+        public bool WorldExplorerMinimized { get; set; }
+        public int WorldExplorerCompactWidth { get; set; } = 280;
+        public int WorldExplorerCompactHeight { get; set; }
+        public List<WorldExplorerPin> WorldExplorerPins { get; set; } = new List<WorldExplorerPin>();
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
         public byte CustomGumpTheme { get; set; }
@@ -104,6 +111,7 @@ namespace ClassicUO.Configuration
         public byte SlayerBarOpacity { get; set; } = 100;
         public bool SlayerBarCollapsed { get; set; }
         public bool PerfHudCollapsed { get; set; }
+        public bool PerfHudTiny { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point GumpThemeSelectorPosition { get; set; } = new Point(180, 100);
         public bool VisualSilence { get; set; }
         public bool ClassicEffectsOnly { get; set; }
@@ -605,6 +613,10 @@ namespace ClassicUO.Configuration
         public bool OpenHealthBarForLastAttack { get; set; } = true;
         [JsonConverter(typeof(Point2Converter))]
         public Point LastTargetHealthBarPos { get; set; } = Point.Zero;
+        [JsonConverter(typeof(Point2Converter))]
+        public Point BossHealthBarPosition { get; set; } = Point.Zero;
+        public int BossHealthBarWidth { get; set; } = 520;
+        public bool BossHealthBarOrnate { get; set; } = true;
         public ushort ToolTipBGHue { get; set; } = 0;
 
         public string LastVersionHistoryShown { get; set; }

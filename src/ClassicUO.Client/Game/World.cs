@@ -829,7 +829,8 @@ namespace ClassicUO.Game
                             }
                             break;
                         case ScanTypeObject.Hostile:
-                            if (mobile.NotorietyFlag == NotorietyFlag.Ally || mobile.NotorietyFlag == NotorietyFlag.Innocent || mobile.NotorietyFlag == NotorietyFlag.Invulnerable)
+                            if (mobile.NotorietyFlag == NotorietyFlag.Ally || mobile.NotorietyFlag == NotorietyFlag.Innocent || mobile.NotorietyFlag == NotorietyFlag.Invulnerable
+                                || FriendsListManager.Instance.IsFriend(mobile.Serial) || FriendsListManager.Instance.IsFriend(mobile.Name))
                             {
                                 continue;
                             }
@@ -903,7 +904,8 @@ namespace ClassicUO.Game
                             }
                             break;
                         case ScanTypeObject.Hostile:
-                            if (mobile.NotorietyFlag == NotorietyFlag.Ally || mobile.NotorietyFlag == NotorietyFlag.Innocent || mobile.NotorietyFlag == NotorietyFlag.Invulnerable)
+                            if (mobile.NotorietyFlag == NotorietyFlag.Ally || mobile.NotorietyFlag == NotorietyFlag.Innocent || mobile.NotorietyFlag == NotorietyFlag.Invulnerable
+                                || FriendsListManager.Instance.IsFriend(mobile.Serial) || FriendsListManager.Instance.IsFriend(mobile.Name))
                             {
                                 continue;
                             }

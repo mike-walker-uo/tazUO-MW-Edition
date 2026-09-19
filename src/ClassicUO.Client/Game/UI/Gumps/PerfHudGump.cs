@@ -53,6 +53,9 @@ namespace ClassicUO.Game.UI.Gumps
         private const int MINI_WIDTH = 252;
         private const int MINI_HEIGHT = 76;
         private const int MINI_GRAPH_Y = 24;
+        private const int TINY_HEIGHT = 36;
+        private const int TINY_GRAPH_Y = 25;
+        private const int TINY_GRAPH_HEIGHT = 6;
         private const int HISTORY = 120;
         private const int GRAPH_HEIGHT = 45;
         private const ushort HUE_GOOD = 0x0044;
@@ -62,6 +65,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly AlphaBlendControl _bg;
         private readonly Label _titleLabel;
         private readonly NiceButton _collapseButton;
+        private readonly NiceButton _tinyButton;
         private readonly Label _fpsLabel, _pingLabel, _netLabel, _queueLabel, _gcLabel, _stallLabel;
         private readonly uint[] _pingHistory = new uint[HISTORY];
         private int _pingNext, _pingCount;
@@ -69,6 +73,7 @@ namespace ClassicUO.Game.UI.Gumps
         private uint _lastBytesIn, _lastBytesOut;
         private int _lastG0, _lastG1, _lastG2;
         private bool _collapsed;
+        private bool _tiny;
 
         public PerfHudGump() : this(120, 80) { }
 
@@ -105,16 +110,36 @@ namespace ClassicUO.Game.UI.Gumps
                 if (e.Button != MouseButtonType.Left)
                     return;
 
-                _collapsed = !_collapsed;
-                if (ProfileManager.CurrentProfile != null)
-                {
-                    ProfileManager.CurrentProfile.PerfHudCollapsed = _collapsed;
-                    ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false);
-                }
+                if (_tiny)
+                    _tiny = false;
+                else
+                    _collapsed = !_collapsed;
+                SaveMode();
+                ApplyLayout();
+            };
+
+            Add(_tinyButton = new NiceButton(MINI_WIDTH - 42, 3, 16, 16, ButtonAction.Default, "-")
+            {
+                IsSelectable = false,
+                AlwaysShowBackground = true,
+                DisplayBorder = true
+            });
+            CustomGumpThemeManager.StyleDataButton(_tinyButton);
+            _tinyButton.SetTooltip("Minimize to ping only");
+            _tinyButton.MouseUp += (sender, e) =>
+            {
+                if (e.Button != MouseButtonType.Left)
+                    return;
+
+                _tiny = true;
+                _collapsed = true;
+                SaveMode();
                 ApplyLayout();
             };
 
             _collapsed = ProfileManager.CurrentProfile?.PerfHudCollapsed ?? false;
+            _tiny = ProfileManager.CurrentProfile?.PerfHudTiny ?? false;
+            if (_tiny) _collapsed = true;
             ApplyLayout();
             _lastG0 = GC.CollectionCount(0);
             _lastG1 = GC.CollectionCount(1);
@@ -123,6 +148,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.PerfHud;
 
+        private void SaveMode()
+        {
+            if (ProfileManager.CurrentProfile == null) return;
+            ProfileManager.CurrentProfile.PerfHudCollapsed = _collapsed;
+            ProfileManager.CurrentProfile.PerfHudTiny = _tiny;
+            ProfileManager.CurrentProfile.Save(ProfileManager.ProfilePath, false);
+        }
+
         public override void Update()
         {
             base.Update();
@@ -130,18 +163,28 @@ namespace ClassicUO.Game.UI.Gumps
             if (Time.Ticks < _refreshTime) return;
             _refreshTime = (long)Time.Ticks + 500;
 
+            uint ping = NetClient.Socket?.Statistics?.Ping ?? 0;
+            AddPing(ping);
+            double jitter = _tiny ? 0 : CalculateJitter();
+            _pingLabel.Text = _tiny ? $"Ping: {ping} ms" : $"Ping: {ping} ms  Jitter: {jitter:0.0} ms";
+            _pingLabel.Hue = GetLatencyHue(ping, jitter);
+
+            if (_tiny)
+            {
+                Width = Math.Max(120, _pingLabel.Width + 30);
+                Height = TINY_HEIGHT;
+                _bg.Width = Width;
+                _bg.Height = Height;
+                _collapseButton.X = Width - 22;
+                return;
+            }
+
             int fps = (int)CUOEnviroment.CurrentRefreshRate;
             FrameTimingMetrics.Snapshot(out double frameMs, out int lowFps);
             _fpsLabel.Text = $"FPS: {fps}  Frame: {frameMs:0.0} ms  1% low: {lowFps}";
             _fpsLabel.Hue = frameMs <= 17 && lowFps >= 50
                 ? HUE_GOOD
                 : frameMs <= 34 && lowFps >= 25 ? HUE_WARNING : HUE_BAD;
-
-            uint ping = NetClient.Socket?.Statistics?.Ping ?? 0;
-            AddPing(ping);
-            double jitter = CalculateJitter();
-            _pingLabel.Text = $"Ping: {ping} ms  Jitter: {jitter:0.0} ms";
-            _pingLabel.Hue = GetLatencyHue(ping, jitter);
 
             uint inBytes = NetClient.Socket?.Statistics?.TotalBytesReceived ?? 0;
             uint outBytes = NetClient.Socket?.Statistics?.TotalBytesSent ?? 0;
@@ -188,6 +231,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ApplyLayout()
         {
+            _refreshTime = 0;
+            if (_tiny)
+            {
+                uint ping = NetClient.Socket?.Statistics?.Ping ?? 0;
+                _pingLabel.Text = $"Ping: {ping} ms";
+                _pingLabel.Hue = GetLatencyHue(ping, 0);
+            }
+
             bool showDetails = !_collapsed;
             _titleLabel.IsVisible = showDetails;
             _fpsLabel.IsVisible = showDetails;
@@ -195,15 +246,16 @@ namespace ClassicUO.Game.UI.Gumps
             _queueLabel.IsVisible = showDetails;
             _gcLabel.IsVisible = showDetails;
             _stallLabel.IsVisible = showDetails;
-            _pingLabel.Y = _collapsed ? 4 : 38;
+            _pingLabel.Y = _tiny ? 3 : _collapsed ? 4 : 38;
 
-            Width = _collapsed ? MINI_WIDTH : WIDTH;
-            Height = _collapsed ? MINI_HEIGHT : HEIGHT;
+            Width = _tiny ? Math.Max(120, _pingLabel.Width + 30) : _collapsed ? MINI_WIDTH : WIDTH;
+            Height = _tiny ? TINY_HEIGHT : _collapsed ? MINI_HEIGHT : HEIGHT;
             _bg.Width = Width;
             _bg.Height = Height;
             _collapseButton.X = Width - 22;
             _collapseButton.SetText(_collapsed ? "+" : "-");
-            _collapseButton.SetTooltip(_collapsed ? "Expand performance HUD" : "Collapse performance HUD");
+            _collapseButton.SetTooltip(_tiny ? "Show ping graph" : _collapsed ? "Expand performance HUD" : "Collapse performance HUD");
+            _tinyButton.IsVisible = _collapsed && !_tiny;
         }
 
         private static ushort GetLatencyHue(uint ping, double jitter)
@@ -259,19 +311,24 @@ namespace ClassicUO.Game.UI.Gumps
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
             bool result = base.Draw(batcher, x, y);
+            Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, 1f);
+            if (_tiny)
+                batcher.Draw(SolidColorTextureCache.GetTexture(new Color(25, 25, 25)),
+                    new Rectangle(x + 6, y + TINY_GRAPH_Y, Width - 12, TINY_GRAPH_HEIGHT), hue);
             if (_pingCount < 2) return result;
 
-            int graphY = _collapsed ? MINI_GRAPH_Y : _stallLabel.Y + _stallLabel.Height + 6;
-            int first = (_pingNext - _pingCount + HISTORY) % HISTORY;
+            int graphY = _tiny ? TINY_GRAPH_Y : _collapsed ? MINI_GRAPH_Y : _stallLabel.Y + _stallLabel.Height + 6;
+            int graphHeight = _tiny ? TINY_GRAPH_HEIGHT : GRAPH_HEIGHT;
+            int samples = _tiny ? Math.Min(_pingCount, Width - 12) : _pingCount;
+            int first = (_pingNext - samples + HISTORY) % HISTORY;
             uint max = 1;
-            for (int i = 0; i < _pingCount; i++) max = Math.Max(max, _pingHistory[(first + i) % HISTORY]);
-            Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, 1f);
-            for (int i = 0; i < _pingCount; i++)
+            for (int i = 0; i < samples; i++) max = Math.Max(max, _pingHistory[(first + i) % HISTORY]);
+            for (int i = 0; i < samples; i++)
             {
                 uint value = _pingHistory[(first + i) % HISTORY];
-                int height = Math.Max(1, (int)(value * GRAPH_HEIGHT / max));
+                int height = Math.Max(1, (int)(value * graphHeight / max));
                 batcher.Draw(SolidColorTextureCache.GetTexture(GetPingColor(value)),
-                    new Rectangle(x + 6 + i * 2, y + graphY + GRAPH_HEIGHT - height, 2, height), hue);
+                    new Rectangle(x + 6 + i * (_tiny ? 1 : 2), y + graphY + graphHeight - height, _tiny ? 1 : 2, height), hue);
             }
             return result;
         }
