@@ -2861,6 +2861,7 @@ public class BaseOptionsGump : Gump
         private readonly TextBox _label;
         private readonly Slider _slider;
         public int GetValue() => _slider.Value;
+        public void SetValue(int value) => _slider.Value = value;
 
         public SliderWithLabel(string label, int textWidth, int barWidth, int min, int max, int value, Action<int> valueChanged = null)
         {

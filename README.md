@@ -22,7 +22,7 @@ It has many features, some of them are:
   - Performance HUD with ping and jitter history
   - Profile recovery and safe graphics startup
   - Individual opacity controls for supported gumps, with optional Alt + scroll and hover boost
-  - World Explorer for scanning rune books, pinning destinations, and quick travel
+  - World Explorer for scanning rune books, pinning destinations, and quick travel, with 1–4 compact columns
   - Optional boss health bar with compact and ornate layouts
   - Tithing-point tracking and low-point warnings for Chivalry users
 ...and many many more features.

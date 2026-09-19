@@ -113,7 +113,7 @@ namespace ClassicUO.Game.Managers
                 }
             }
 
-            Mobile pet = FindLowestPet(out int worstPct);
+            Mobile pet = FindLowestPet(out _);
             if (pet == null) return;
 
             Item bandage = World.Player.FindBandage();
@@ -126,8 +126,6 @@ namespace ClassicUO.Game.Managers
             GameActions.DoubleClick(bandage.Serial);
             BandageScheduler.MarkFired(pet.Serial, CycleMs);
             if (Mode != MultiPetMode.AlwaysWeakest) _focusedSerial = pet.Serial;
-
-            try { UI.Gumps.ToastManager.Show($"Pet bandage: {pet.Name ?? "pet"} ({worstPct}%)", 0x44, 1800); } catch { }
         }
 
         private static Mobile FindLowestPet(out int worstPct)
