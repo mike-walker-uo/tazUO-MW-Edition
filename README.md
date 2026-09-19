@@ -29,6 +29,13 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.5.1 highlights
+
+- Compact World Explorer now fits its pinned destinations, with a 1–4 column selector, narrower buttons, wrapped labels, and less unused space.
+- Set supported gump opacity values together with `-gumpopacityall <0-100>` or the new options control. Grid item borders and hover opacity stay separate. Custom utility and chat gumps retain their 20% minimum.
+- Macro buttons now follow custom gump opacity. Themed equipment durability rows have corrected spacing.
+- Pet bandaging no longer shows a success toast. Runebook travel no longer crashes when a gump response has empty fields.
+
 ## Version 0.5 highlights
 
 - Open the visual theme picker with `-gumpthemes`, or switch directly with `-gumptheme <name>`. The themes now keep decorative borders clear of window content and use readable macro button text.
@@ -42,7 +49,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.5 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.5.1 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 

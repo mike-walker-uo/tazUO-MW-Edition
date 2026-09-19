@@ -11,6 +11,16 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.5.1]\n" +
+            """
+            - Made compact World Explorer fit its pinned destinations, with 1-4 columns, narrower buttons, and wrapped labels
+            - Added -gumpopacityall and an options control to set supported gump opacity values together; grid borders and hover remain separate
+            - Applied custom gump opacity to macro buttons
+            - Corrected themed equipment-durability row spacing
+            - Removed pet-bandage success toasts
+            - Fixed a crash when traveling through a runebook with empty gump response fields
+            """ +
+            "\n",
             "[0.5]\n" +
             """
             - Added custom gump themes and improved decorative-border spacing and macro-button readability
@@ -164,7 +174,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(pos.Position(TextBox.GetOne(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 22, titleColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
-            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(2), TrueTypeLoader.EMBEDDED_FONT, 20, textColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
+            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(3), TrueTypeLoader.EMBEDDED_FONT, 20, textColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
             int footerTop = Height - 43 - inset;
             _scrollArea = new ScrollArea(0, 0, contentWidth, System.Math.Max(1, footerTop - pos.Y - 6), true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };
