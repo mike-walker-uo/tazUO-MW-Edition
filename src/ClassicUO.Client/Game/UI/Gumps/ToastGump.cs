@@ -42,7 +42,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace ClassicUO.Game.UI.Gumps
 {
     /// <summary>
-    /// Simple non-modal toast notifications. Stack in bottom-right of the
+    /// Simple non-modal toast notifications. Stack at the top center of the
     /// screen, fade out as their lifetime expires. One sticky gump auto-
     /// instantiated on first call to ToastManager.Show.
     /// </summary>
@@ -60,8 +60,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public static IReadOnlyList<Toast> Toasts => _toasts;
 
-        // Anchor offset for the toast stack. (0, 0) = default position
-        // (bottom-right, 12px from edge, 60px from bottom).
+        // Anchor offset for the toast stack. (0, 0) = top center.
+        internal const int DefaultTop = 60;
         public static int AnchorX = 0;
         public static int AnchorY = 0;
         public static int ToastWidth = 280;
@@ -73,6 +73,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (_loaded) return;
             _loaded = true;
+            bool hasAnchor = false;
+            bool currentLayout = false;
             foreach (string line in ProfileDataStore.ReadAllLines("toast.tsv"))
             {
                 var bits = line.Split('\t');
@@ -80,12 +82,29 @@ namespace ClassicUO.Game.UI.Gumps
                 if (!int.TryParse(bits[1], out int v)) continue;
                 switch (bits[0])
                 {
-                    case "AnchorX":    AnchorX = v; break;
-                    case "AnchorY":    AnchorY = v; break;
+                    case "AnchorX":    AnchorX = v; hasAnchor = true; break;
+                    case "AnchorY":    AnchorY = v; hasAnchor = true; break;
                     case "ToastWidth": ToastWidth = System.Math.Max(120, System.Math.Min(800, v)); break;
+                    case "LayoutVersion": currentLayout = v >= 2; break;
                 }
             }
+
+            // Preserve a custom position saved before the top-center layout.
+            if (hasAnchor && !currentLayout)
+            {
+                if (AnchorX != 0 || AnchorY != 0)
+                {
+                    var camera = Client.Game.Scene?.Camera;
+                    int screenW = camera != null ? camera.Bounds.Right : 800;
+                    int screenH = camera != null ? camera.Bounds.Bottom : 600;
+                    AnchorX += screenW - ToastWidth - 12 - (screenW - ToastWidth) / 2;
+                    AnchorY += screenH - 60 - DefaultTop;
+                }
+                Save();
+            }
         }
+
+        internal static int BaseX(int screenWidth) => (screenWidth - ToastWidth) / 2;
 
         public static void Save()
         {
@@ -94,6 +113,7 @@ namespace ClassicUO.Game.UI.Gumps
                 sw.WriteLine($"AnchorX\t{AnchorX}");
                 sw.WriteLine($"AnchorY\t{AnchorY}");
                 sw.WriteLine($"ToastWidth\t{ToastWidth}");
+                sw.WriteLine("LayoutVersion\t2");
             });
         }
 
@@ -135,9 +155,15 @@ namespace ClassicUO.Game.UI.Gumps
 
     internal class ToastGump : Gump
     {
-        private const int TOAST_H = 24;
+        private const int TOAST_H = 64;
         private const int TOAST_GAP = 4;
         private const long FADE_MS = 600;
+        private readonly AlphaBlendControl _background = new AlphaBlendControl(0.85f)
+        {
+            Height = TOAST_H,
+            ArtPanel = true
+        };
+        private CustomGumpTheme _theme;
 
         public ToastGump() : base(0, 0)
         {
@@ -149,6 +175,8 @@ namespace ClassicUO.Game.UI.Gumps
             WantUpdateSize = false;
             LayerOrder = UILayer.Over;
             IsFromServer = false;
+            _theme = CustomGumpThemeManager.Current;
+            CustomGumpThemeManager.ApplyDataSurface(_background, 0.85f, false);
         }
 
         public override bool ShouldBeSaved => false;
@@ -161,9 +189,16 @@ namespace ClassicUO.Game.UI.Gumps
 
             var camera = Client.Game.Scene?.Camera;
             int screenW = camera != null ? camera.Bounds.Right : 800;
-            int screenH = camera != null ? camera.Bounds.Bottom : 600;
 
             Texture2D tex = SolidColorTextureCache.GetTexture(Color.White);
+            if (_theme != CustomGumpThemeManager.Current)
+            {
+                _theme = CustomGumpThemeManager.Current;
+                CustomGumpThemeManager.ApplyDataSurface(_background, 0.85f, false);
+            }
+            bool artTheme = CustomGumpThemeManager.IsArtTheme(_theme);
+            int inset = artTheme ? 18 : 8;
+            _background.Width = ToastManager.ToastWidth;
 
             int idx = 0;
             for (int i = toasts.Count - 1; i >= 0 && idx < 6; i--, idx++)
@@ -174,27 +209,37 @@ namespace ClassicUO.Game.UI.Gumps
                 if (remaining < FADE_MS) alpha = remaining / (float)FADE_MS;
                 if (alpha < 0) alpha = 0;
 
-                int tx = screenW - ToastManager.ToastWidth - 12 + ToastManager.AnchorX;
-                int ty = screenH - 60 - idx * (TOAST_H + TOAST_GAP) + ToastManager.AnchorY;
+                int tx = ToastManager.BaseX(screenW) + ToastManager.AnchorX;
+                int ty = ToastManager.DefaultTop + idx * (TOAST_H + TOAST_GAP) + ToastManager.AnchorY;
 
-                // Background.
-                Vector3 bgHue = ShaderHueTranslator.GetHueVector(0, false, 0.65f * alpha);
-                batcher.Draw(SolidColorTextureCache.GetTexture(new Color(20, 20, 20)), new Rectangle(tx, ty, ToastManager.ToastWidth, TOAST_H), bgHue);
+                _background.Alpha = 0.85f * alpha;
+                _background.Draw(batcher, tx, ty);
 
-                // Border line.
-                Vector3 borderHue = ShaderHueTranslator.GetHueVector(t.Hue == 0 ? (ushort)0x0481 : t.Hue, false, alpha);
-                batcher.DrawRectangle(tex, tx, ty, ToastManager.ToastWidth, TOAST_H, borderHue);
+                if (!artTheme)
+                {
+                    Vector3 borderHue = ShaderHueTranslator.GetHueVector(
+                        CustomGumpThemeManager.CompactBorderHue, false, alpha);
+                    batcher.DrawRectangle(tex, tx, ty, ToastManager.ToastWidth, TOAST_H, borderHue);
+                }
 
                 // Text label — drawn via a transient TextBox so we get the journal font.
+                ushort textHue = t.Hue == 0 || t.Hue == 0x0481
+                    ? CustomGumpThemeManager.DataTextHue : t.Hue;
                 var tb = TextBox.GetOne(t.Text, ProfileManager.CurrentProfile?.SelectedTTFJournalFont,
-                                       14, t.Hue == 0 ? 0x0481 : t.Hue,
-                                       new TextBox.RTLOptions { Width = ToastManager.ToastWidth - 12 });
+                                       14, textHue,
+                                       new TextBox.RTLOptions { Width = ToastManager.ToastWidth - inset * 2 });
                 tb.Alpha = alpha;
-                tb.Draw(batcher, tx + 6, ty + 4);
+                tb.Draw(batcher, tx + inset, ty + (TOAST_H - tb.Height) / 2);
                 tb.Dispose();
             }
 
             return true;
+        }
+
+        public override void Dispose()
+        {
+            _background.Dispose();
+            base.Dispose();
         }
     }
 }
