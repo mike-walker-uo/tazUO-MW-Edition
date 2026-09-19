@@ -474,6 +474,45 @@ namespace ClassicUO.Game.Managers
             return result;
         }
 
+        private static bool TryParseRazorEnhancedHotkey(string value, out SDL_Keycode key, out SDL_Keymod mod)
+        {
+            key = SDL_Keycode.SDLK_UNKNOWN;
+            mod = SDL_Keymod.SDL_KMOD_NONE;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            string[] parts = value.Split('+');
+
+            if (!Enum.TryParse("SDLK_" + parts[parts.Length - 1].Trim(), true, out key) || key == SDL_Keycode.SDLK_UNKNOWN)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < parts.Length - 1; i++)
+            {
+                switch (parts[i].Trim().ToLowerInvariant())
+                {
+                    case "ctrl":
+                    case "control":
+                        mod |= SDL_Keymod.SDL_KMOD_CTRL;
+                        break;
+                    case "alt":
+                        mod |= SDL_Keymod.SDL_KMOD_ALT;
+                        break;
+                    case "shift":
+                        mod |= SDL_Keymod.SDL_KMOD_SHIFT;
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
         private int Process(MacroObject macro)
         {
             if (macro == null)
@@ -525,6 +564,19 @@ namespace ClassicUO.Game.Managers
                         }
 
                         GameActions.Say(text, hue, type);
+                    }
+
+                    break;
+
+                case MacroType.RazorEnhancedHotkey:
+                    if (TryParseRazorEnhancedHotkey(((MacroObjectString)macro).Text, out SDL_Keycode key, out SDL_Keymod mod))
+                    {
+                        Plugin.ProcessHotkeys((int)key, (int)mod, true, true);
+                        Plugin.ProcessHotkeys(0, 0, false, true);
+                    }
+                    else
+                    {
+                        GameActions.Print("Invalid Razor Enhanced hotkey. Use Ctrl+Alt+F6, for example.", 0x21);
                     }
 
                     break;
@@ -2530,6 +2582,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.SetUpdateRange:
                 case MacroType.ModifyUpdateRange:
                 case MacroType.RazorMacro:
+                case MacroType.RazorEnhancedHotkey:
                 case MacroType.UseCounterBar:
                 case MacroType.SetSpellBarRow:
                 case MacroType.ClientCommand:
@@ -2709,6 +2762,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.SetUpdateRange:
                 case MacroType.ModifyUpdateRange:
                 case MacroType.RazorMacro:
+                case MacroType.RazorEnhancedHotkey:
                 case MacroType.UseCounterBar:
                 case MacroType.SetSpellBarRow:
                 case MacroType.ClientCommand:
@@ -2850,6 +2904,7 @@ namespace ClassicUO.Game.Managers
         AddFriend,
         RemoveFriend,
         ToggleHotkeys,
+        RazorEnhancedHotkey,
     }
 
     public enum MacroSubType

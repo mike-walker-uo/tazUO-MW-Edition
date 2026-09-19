@@ -33,6 +33,14 @@ Version 0.4 uses a pinned FNA/SDL3 graphics and input stack while remaining on .
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
+## Razor Enhanced script buttons
+
+1. Add a script to Razor Enhanced and assign it a hotkey, for example `Ctrl+Alt+F6`.
+2. In tazUO's macro options, create a named macro with the `RazorEnhancedHotkey` action. Enter the same hotkey in its text field. Supported modifiers are `Ctrl`, `Alt`, and `Shift`; separate them from the key with `+`.
+3. Use **Create Macro Button** to place a button for that macro in game.
+
+The button sends the hotkey to Razor Enhanced's plugin callback. Razor Enhanced must be loaded and its hotkeys enabled. The action does not send the key to the game or run another tazUO macro bound to that key.
+
 ## Videos of the features:
 https://youtu.be/4MyUOeN3P4A  
 https://youtu.be/81xNXowYFro  
