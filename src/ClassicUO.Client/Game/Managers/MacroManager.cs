@@ -502,6 +502,10 @@ namespace ClassicUO.Game.Managers
             {
                 key = SDL_Keycode.SDLK_PAGEDOWN;
             }
+            else if (keyName.Equals("X Button 1", StringComparison.OrdinalIgnoreCase))
+            {
+                key = (SDL_Keycode)503; // RE's X Button 1 hotkey code.
+            }
             else if (!Enum.TryParse("SDLK_" + keyName, true, out key) || key == SDL_Keycode.SDLK_UNKNOWN)
             {
                 return false;
