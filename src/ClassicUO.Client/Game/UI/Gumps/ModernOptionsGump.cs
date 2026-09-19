@@ -4164,9 +4164,35 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.BlankLine();
 
+            SliderWithLabel utilityOpacity = null;
+            SliderWithLabel durabilityOpacity = null;
+            SliderWithLabel containerOpacity = null;
+            SliderWithLabel corpseOpacity = null;
+            SliderWithLabel journalOpacity = null;
+            SliderWithLabel buffOpacity = null;
+            SliderWithLabel slayerOpacity = null;
+
             content.AddToRight
             (
                 new SliderWithLabel
+                (
+                    "All gump opacity (no grid/hover)", 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.DurabilityGumpOpacity, value =>
+                    {
+                        utilityOpacity.SetValue(Math.Max(20, value));
+                        durabilityOpacity.SetValue(value);
+                        containerOpacity.SetValue(value);
+                        corpseOpacity.SetValue(value);
+                        journalOpacity.SetValue(value);
+                        buffOpacity.SetValue(value);
+                        slayerOpacity.SetValue(value);
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                utilityOpacity = new SliderWithLabel
                 (
                     "Custom utility/chat gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     20, 100, profile.CustomGumpOpacity,
@@ -4176,7 +4202,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                durabilityOpacity = new SliderWithLabel
                 (
                     "Durability gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.DurabilityGumpOpacity, (i) =>
@@ -4189,7 +4215,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                containerOpacity = new SliderWithLabel
                 (
                     lang.GetTazUO.ContainerOpacity, 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.ContainerOpacity, (i) =>
@@ -4202,7 +4228,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                corpseOpacity = new SliderWithLabel
                 (
                     "Corpse container opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.CorpseContainerOpacity, (i) =>
@@ -4222,7 +4248,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                journalOpacity = new SliderWithLabel
                 (
                     lang.GetTazUO.JournalOpacity, 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.JournalOpacity, (i) =>
@@ -4235,7 +4261,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                buffOpacity = new SliderWithLabel
                 (
                     "Buff/debuff bar opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.BuffBarOpacity,
@@ -4245,7 +4271,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new SliderWithLabel
+                slayerOpacity = new SliderWithLabel
                 (
                     "Slayer/equipment bar opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     0, 100, profile.SlayerBarOpacity,

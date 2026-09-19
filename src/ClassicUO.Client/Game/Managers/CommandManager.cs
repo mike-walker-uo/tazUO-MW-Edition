@@ -3336,7 +3336,6 @@ Register("pathpreview", (s) =>
                 profile.DurabilityGumpOpacity = (byte)allPercent;
                 profile.ContainerOpacity = (byte)allPercent;
                 profile.CorpseContainerOpacity = (byte)allPercent;
-                profile.GridBorderAlpha = (byte)allPercent;
                 profile.JournalOpacity = (byte)allPercent;
                 profile.BuffBarOpacity = (byte)allPercent;
                 profile.SlayerBarOpacity = (byte)allPercent;
@@ -3348,7 +3347,7 @@ Register("pathpreview", (s) =>
                 PaperDollBackpackEquipmentGump.UpdateAllOptions();
                 profile.Save(ProfileManager.ProfilePath, false);
                 CustomGumpThemeManager.RefreshOptionsGump();
-                GameActions.Print($"Gump opacity: {allPercent}% (utility/chat {profile.CustomGumpOpacity}%; hover unchanged).", 0x35);
+                GameActions.Print($"Gump opacity: {allPercent}% (utility/chat {profile.CustomGumpOpacity}%; grid borders and hover unchanged).", 0x35);
                 return;
             }
 
