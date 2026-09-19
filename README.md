@@ -54,12 +54,13 @@ On Windows, the client uses Windows system DPI scaling by default so the interfa
 The button sends the hotkey to Razor Enhanced's plugin callback. Razor Enhanced must be loaded and its hotkeys enabled. The action does not send the key to the game or run another tazUO macro bound to that key.
 
 ## Videos of the features:
-https://youtu.be/4MyUOeN3P4A  
-https://youtu.be/81xNXowYFro  
-https://youtu.be/YFjpZDvHfBE  
-https://youtu.be/5MwT_lsuTXw  
-https://youtu.be/fs3JoYBPhLc  
-https://youtu.be/4BqKIRYgKqI
+Version 0.5 Features: https://youtu.be/vvJwCNPXpms
+Version 0.3 Features: https://youtu.be/4MyUOeN3P4A
+Custom Chivalry Effects: https://youtu.be/81xNXowYFro
+Custom Spell Effects: https://youtu.be/YFjpZDvHfBE
+Custom Nether Blast Effects: https://youtu.be/5MwT_lsuTXw
+Custom Water Skins: https://youtu.be/fs3JoYBPhLc
+Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 
 ## Installation
 
