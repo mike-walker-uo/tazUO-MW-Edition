@@ -2206,7 +2206,7 @@ public class BaseOptionsGump : Gump
         private Combobox _comboBox;
         private readonly string[] options;
 
-        public ComboBoxWithLabel(string label, int labelWidth, int comboWidth, string[] options, int selectedIndex, Action<int, string> onOptionSelected = null)
+        public ComboBoxWithLabel(string label, int labelWidth, int comboWidth, string[] options, int selectedIndex, Action<int, string> onOptionSelected = null, bool searchable = false)
         {
             AcceptMouseInput = true;
             CanMove = true;
@@ -2218,7 +2218,7 @@ public class BaseOptionsGump : Gump
 
             Add
             (
-                _comboBox = new Combobox(comboWidth, options, selectedIndex, onOptionSelected: onOptionSelected)
+                _comboBox = new Combobox(comboWidth, options, selectedIndex, onOptionSelected: onOptionSelected, searchable: searchable)
                 {
                     X = _label.MeasuredSize.X + _label.X + 5
                 }
@@ -2290,14 +2290,16 @@ public class BaseOptionsGump : Gump
             private int _selectedIndex = 0;
             private readonly int[] _originalIndices;
             private readonly string[] _sortedItems;
+            private readonly bool _searchable;
 
 
-            public Combobox(int width, string[] items, int selected = -1, int maxHeight = 400, Action<int, string> onOptionSelected = null)
+            public Combobox(int width, string[] items, int selected = -1, int maxHeight = 400, Action<int, string> onOptionSelected = null, bool searchable = false)
             {
                 Width = width;
                 Height = 25;
                 _items = items;
                 _maxHeight = maxHeight;
+                _searchable = searchable;
                 OnOptionSelected = onOptionSelected;
                 AcceptMouseInput = true;
 
@@ -2367,7 +2369,9 @@ public class BaseOptionsGump : Gump
                     comboY = Client.Game.Window.ClientBounds.Height - _maxHeight;
                 }
 
-                UIManager.Add(new ComboboxGump(ScreenCoordinateX, comboY, Width, _maxHeight, _sortedItems, _originalIndices, this));
+                ComboboxGump gump = new ComboboxGump(ScreenCoordinateX, comboY, Width, _maxHeight, _sortedItems, _originalIndices, this, _searchable);
+                UIManager.Add(gump);
+                gump.FocusSearch();
 
                 base.OnMouseUp(x, y, button);
             }
@@ -2375,8 +2379,9 @@ public class BaseOptionsGump : Gump
             private class ComboboxGump : Gump
             {
                 private readonly Combobox _combobox;
+                private readonly InputField _search;
 
-                public ComboboxGump(int x, int y, int width, int maxHeight, string[] items, int[] originalIndices, Combobox combobox) : base(0, 0)
+                public ComboboxGump(int x, int y, int width, int maxHeight, string[] items, int[] originalIndices, Combobox combobox, bool searchable) : base(0, 0)
                 {
                     CanMove = false;
                     AcceptMouseInput = true;
@@ -2419,10 +2424,11 @@ public class BaseOptionsGump : Gump
                         labels[i] = label;
                     }
 
-                    int totalHeight = Math.Min(maxHeight, labels.Max(o => o.Y + o.Height));
+                    int searchHeight = searchable ? 35 : 0;
+                    int totalHeight = Math.Min(maxHeight, labels.Max(o => o.Y + o.Height) + searchHeight);
                     int maxWidth = Math.Max(width, labels.Max(o => o.X + o.Width));
 
-                    ScrollArea area = new ScrollArea(0, 0, maxWidth + 15, totalHeight)
+                    ScrollArea area = new ScrollArea(0, searchHeight, maxWidth + 15, totalHeight - searchHeight)
                     {
                         AcceptMouseInput = true
                     };
@@ -2434,11 +2440,38 @@ public class BaseOptionsGump : Gump
 
                     Add(area);
 
+                    if (searchable)
+                    {
+                        Add(_search = new InputField(maxWidth, 30) { Y = 2 });
+                        _search.Stb.PlaceHolderText = "Search actions";
+                        _search.TextChanged += (s, e) =>
+                        {
+                            int nextY = 5;
+
+                            for (int i = 0; i < labels.Length; i++)
+                            {
+                                HoveredLabel label = labels[i];
+                                label.IsVisible = !string.IsNullOrEmpty(items[i])
+                                    && items[i].IndexOf(_search.Text, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                                if (label.IsVisible)
+                                {
+                                    label.Y = nextY;
+                                    nextY += label.Height;
+                                }
+                            }
+
+                            area.GetScrollBar.Value = 0;
+                        };
+                    }
+
                     cb.Width = maxWidth;
                     cb.Height = totalHeight;
                     Width = maxWidth;
                     Height = totalHeight;
                 }
+
+                public void FocusSearch() => _search?.Stb.SetKeyboardFocus();
 
                 private void LabelOnMouseUp(object sender, MouseEventArgs e)
                 {

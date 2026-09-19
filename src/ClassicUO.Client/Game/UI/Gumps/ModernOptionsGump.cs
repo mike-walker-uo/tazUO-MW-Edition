@@ -5086,7 +5086,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _items = items;
                     _obj = obj;
 
-                    mainBox = new ComboBoxWithLabel(string.Empty, 0, 200, _items, (int)obj.Code, BoxOnOnOptionSelected)
+                    mainBox = new ComboBoxWithLabel(string.Empty, 0, 200, _items, (int)obj.Code, BoxOnOnOptionSelected, searchable: true)
                     {
                         Tag = obj
                     };
