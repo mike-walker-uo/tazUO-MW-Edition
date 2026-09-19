@@ -4179,7 +4179,7 @@ namespace ClassicUO.Game.UI.Gumps
                 new SliderWithLabel
                 (
                     "Durability gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
-                    10, 100, profile.DurabilityGumpOpacity, (i) =>
+                    0, 100, profile.DurabilityGumpOpacity, (i) =>
                     {
                         profile.DurabilityGumpOpacity = (byte)i;
                         DurabilitysGump.UpdateAllOpacity();
@@ -4238,7 +4238,7 @@ namespace ClassicUO.Game.UI.Gumps
                 new SliderWithLabel
                 (
                     "Buff/debuff bar opacity", 0, ThemeSettings.SLIDER_WIDTH,
-                    10, 100, profile.BuffBarOpacity,
+                    0, 100, profile.BuffBarOpacity,
                     (i) => { profile.BuffBarOpacity = (byte)i; }
                 ), true, page
             );
