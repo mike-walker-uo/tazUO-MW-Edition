@@ -498,6 +498,10 @@ namespace ClassicUO.Game.Managers
             {
                 key = (SDL_Keycode)1073742051; // SDLK_LGUI, mapped to LWin by RE.
             }
+            else if (keyName.Equals("Next", StringComparison.OrdinalIgnoreCase))
+            {
+                key = SDL_Keycode.SDLK_PAGEDOWN;
+            }
             else if (!Enum.TryParse("SDLK_" + keyName, true, out key) || key == SDL_Keycode.SDLK_UNKNOWN)
             {
                 return false;
