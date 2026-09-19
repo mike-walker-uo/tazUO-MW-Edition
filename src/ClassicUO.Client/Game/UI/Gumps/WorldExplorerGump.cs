@@ -26,13 +26,20 @@ namespace ClassicUO.Game.UI.Gumps
         private const int LibraryWidth = 400;
         private const int PinX = 30;
         private const int PinWidth = 275;
-        private const int DefaultCompactWidth = 280;
-        private const int MinCompactWidth = 200;
+        private const int DefaultCompactWidth = 180;
+        private const int MinCompactWidth = 148;
         private const int MaxCompactWidth = 900;
-        private const int MinCompactHeight = 104;
+        private const int MinCompactHeight = 118;
         private const int MaxCompactHeight = 550;
         private const int DefaultCompactRowsPerPage = 10;
-        private const int MaxCompactRowsPerPage = 16;
+        private const int CompactButtonHeight = 44;
+        private const int CompactRowHeight = 46;
+        private const int CompactButtonMaxWidth = 128;
+        private const int SingleCompactButtonMaxWidth = 160;
+        private const int MaxCompactColumns = 4;
+        private const int MinCompactColumnWidth = 110;
+        private const int CompactColumnGap = 8;
+        private const int CompactColumnWidthStep = 120;
 
         private readonly List<WorldExplorerPin> _catalog = new List<WorldExplorerPin>();
         private readonly List<Item> _books = new List<Item>();
@@ -51,6 +58,7 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _scanCompleted;
         private int _compactWidth;
         private int _compactHeight;
+        private int _compactColumns;
         private bool _resizingCompact;
         private int _resizeStartX;
         private int _resizeStartY;
@@ -84,8 +92,21 @@ namespace ClassicUO.Game.UI.Gumps
             if (profile != null && profile.WorldExplorerPins == null)
                 profile.WorldExplorerPins = new List<WorldExplorerPin>();
             _minimized = profile?.WorldExplorerMinimized ?? false;
-            _compactWidth = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
-                profile?.WorldExplorerCompactWidth ?? DefaultCompactWidth));
+            _compactColumns = Math.Max(1, Math.Min(MaxCompactColumns,
+                (int)(profile?.WorldExplorerCompactColumns ?? 1)));
+            int savedWidth = profile?.WorldExplorerCompactWidth ?? DefaultCompactWidth;
+            // Carry previous default and minimum widths into the narrower layout.
+            if (_compactColumns == 1 && savedWidth == 200)
+                savedWidth = MinCompactWidth;
+            else if (savedWidth == 280 + (_compactColumns - 1) * 190
+                || savedWidth == 220 + (_compactColumns - 1) * 120)
+                savedWidth = DefaultCompactWidth + (_compactColumns - 1) * CompactColumnWidthStep;
+            if (profile != null && savedWidth != profile.WorldExplorerCompactWidth)
+            {
+                profile.WorldExplorerCompactWidth = savedWidth;
+            }
+            _compactWidth = Math.Max(MinCompactWidthForColumns(_compactColumns), Math.Min(MaxCompactWidth,
+                savedWidth));
             _compactHeight = profile?.WorldExplorerCompactHeight > 0
                 ? Math.Max(MinCompactHeight, Math.Min(MaxCompactHeight, profile.WorldExplorerCompactHeight)) : 0;
             Point location = profile?.WorldExplorerPosition ?? new Point(160, 90);
@@ -186,40 +207,61 @@ namespace ClassicUO.Game.UI.Gumps
         {
             List<WorldExplorerPin> pins = Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>();
             Width = _compactWidth;
-            if (_compactHeight == 0)
-                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pins.Count)) * 28
-                    + (pins.Count > DefaultCompactRowsPerPage ? 27 : 8);
-            else
-                Height = _compactHeight;
-            int maxRows = _compactHeight == 0 ? DefaultCompactRowsPerPage : MaxCompactRowsPerPage;
-            int rowsWithoutPager = Math.Max(1, Math.Min(maxRows, (Height - 43) / 28));
-            int rowsPerPage = pins.Count > rowsWithoutPager
-                ? Math.Max(1, Math.Min(maxRows, (Height - 65) / 28)) : rowsWithoutPager;
-            _compactPage = Math.Min(_compactPage, Math.Max(0, (pins.Count - 1) / rowsPerPage));
-            int start = _compactPage * rowsPerPage;
-            int count = Math.Min(rowsPerPage, pins.Count - start);
-            bool hasPages = pins.Count > rowsPerPage;
+            int pinRows = (pins.Count + _compactColumns - 1) / _compactColumns;
+            int heightLimit = _compactHeight == 0
+                ? 43 + DefaultCompactRowsPerPage * CompactRowHeight + 27 : _compactHeight;
+            int rowsWithoutPager = Math.Max(1, (heightLimit - 51) / CompactRowHeight);
+            int rowsPerPage = pinRows > rowsWithoutPager
+                ? Math.Max(1, (heightLimit - 70) / CompactRowHeight) : rowsWithoutPager;
+            int pinsPerPage = rowsPerPage * _compactColumns;
+            int pageCount = Math.Max(1, (pins.Count + pinsPerPage - 1) / pinsPerPage);
+            _compactPage = Math.Min(_compactPage, pageCount - 1);
+            int start = _compactPage * pinsPerPage;
+            int count = Math.Min(pinsPerPage, pins.Count - start);
+            int visibleRows = Math.Max(1, (count + _compactColumns - 1) / _compactColumns);
+            Height = 43 + visibleRows * CompactRowHeight + (pageCount > 1 ? 27 : 8);
+            int columnWidth = (Width - 24 - (_compactColumns - 1) * CompactColumnGap) / _compactColumns;
+            int buttonWidth = Math.Min(columnWidth,
+                _compactColumns == 1 ? SingleCompactButtonMaxWidth : CompactButtonMaxWidth);
             Add(new ExplorerPanel(Width, Height, Classic, true));
-            Add(new Label("WORLD EXPLORER", true, Ink, font: 1) { X = 12, Y = 9 });
+            Add(new Label(Width < 175 ? "EXP" : Width < 270 ? "EXPLORER" : "WORLD EXPLORER", true, Ink, font: 1)
+            {
+                X = 12, Y = 9
+            });
+            ExplorerButton columns = Button(Width - 90, 6, 48, _compactColumns + " col", 5);
+            columns.SetTooltip("Click to cycle through 1 to 4 columns");
+            Add(columns);
             ExplorerButton expand = Button(Width - 36, 6, 24, "+", 4);
             expand.SetTooltip("Expand World Explorer");
             Add(expand);
 
             if (pins.Count == 0)
-                Add(new Label("Pin locations in the full view.", true, Ink, font: 1) { X = 13, Y = 43 });
+                Add(new Label("Pin locations in the full view.", true, Ink, Width - 26, font: 1)
+                {
+                    X = 13, Y = 43
+                });
             else
                 for (int i = 0; i < count; i++)
                 {
                     WorldExplorerPin pin = pins[start + i];
-                    ExplorerButton button = Button(12, 38 + i * 28, Width - 24, DisplayName(pin), 1000 + start + i);
+                    int column = i % _compactColumns;
+                    int row = i / _compactColumns;
+                    ExplorerButton button = new ExplorerButton(
+                        12 + column * (columnWidth + CompactColumnGap) + (columnWidth - buttonWidth) / 2,
+                        38 + row * CompactRowHeight, buttonWidth, CompactButtonHeight,
+                        DisplayName(pin), 1000 + start + i, Classic, Ink, true);
                     button.SetTooltip(pin.Kind == "portal" ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name);
                     Add(button);
                 }
 
-            if (hasPages)
+            if (pageCount > 1)
             {
-                Add(Button(12, Height - 29, 32, "<", 20));
-                Add(Button(Width - 62, Height - 29, 32, ">", 21));
+                Add(Button(12, Height - 29, 24, "<", 20));
+                Add(Button(Width - 44, Height - 29, 24, ">", 21));
+                var pageLabel = new Label((_compactPage + 1) + "/" + pageCount, true, Ink, font: 1);
+                pageLabel.X = (Width - pageLabel.Width) / 2;
+                pageLabel.Y = Height - 25;
+                Add(pageLabel);
             }
             Add(new Label("//", true, Ink, font: 1) { X = Width - 24, Y = Height - 22 });
             var resizeGrip = new HitBox(Width - 16, Height - 16, 16, 16, "Drag to resize World Explorer", 0.5f);
@@ -234,6 +276,12 @@ namespace ClassicUO.Game.UI.Gumps
                 _resizeStartHeight = Height;
             };
             Add(resizeGrip);
+        }
+
+        private static int MinCompactWidthForColumns(int columns)
+        {
+            return Math.Max(MinCompactWidth, 24 + columns * MinCompactColumnWidth
+                + (columns - 1) * CompactColumnGap);
         }
 
         private ExplorerButton Button(int x, int y, int width, string title, int id)
@@ -906,14 +954,30 @@ namespace ClassicUO.Game.UI.Gumps
                     Build();
                     SetInScreen();
                     break;
+                case 5:
+                    int nextColumns = _compactColumns % MaxCompactColumns + 1;
+                    _compactWidth = Math.Max(MinCompactWidthForColumns(nextColumns),
+                        Math.Min(MaxCompactWidth, _compactWidth
+                            + (nextColumns - _compactColumns) * CompactColumnWidthStep));
+                    _compactColumns = nextColumns;
+                    _compactPage = 0;
+                    if (Profile != null)
+                    {
+                        Profile.WorldExplorerCompactColumns = (byte)_compactColumns;
+                        Profile.WorldExplorerCompactWidth = _compactWidth;
+                        Save();
+                    }
+                    Build();
+                    SetInScreen();
+                    break;
                 case 10: case 11: case 12: case 13:
                     _filter = buttonID - 10; _libraryPage = 0; RebuildRows(); break;
                 case 20:
-                    if (_minimized) { _compactPage = Math.Max(0, _compactPage - 1); Build(); }
+                    if (_minimized) { _compactPage = Math.Max(0, _compactPage - 1); Build(); SetInScreen(); }
                     else { _pinPage = Math.Max(0, _pinPage - 1); RebuildRows(); }
                     break;
                 case 21:
-                    if (_minimized) { _compactPage++; Build(); }
+                    if (_minimized) { _compactPage++; Build(); SetInScreen(); }
                     else { _pinPage++; RebuildRows(); }
                     break;
                 case 22: _libraryPage = Math.Max(0, _libraryPage - 1); RebuildRows(); break;
@@ -931,13 +995,14 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (Mouse.LButtonPressed && _minimized)
                 {
-                    int width = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
+                    int width = Math.Max(MinCompactWidthForColumns(_compactColumns), Math.Min(MaxCompactWidth,
                         _resizeStartWidth + Mouse.Position.X - _resizeStartX));
                     int heightDelta = Mouse.Position.Y - _resizeStartY;
-                    if (_compactHeight > 0 || Math.Abs(heightDelta) >= 10)
+                    int previousHeightLimit = _compactHeight;
+                    if (heightDelta != 0 && (_compactHeight > 0 || Math.Abs(heightDelta) >= 10))
                         _compactHeight = Math.Max(MinCompactHeight, Math.Min(MaxCompactHeight,
                             _resizeStartHeight + heightDelta));
-                    if (_compactWidth != width || (_compactHeight > 0 && Height != _compactHeight))
+                    if (_compactWidth != width || _compactHeight != previousHeightLimit)
                     {
                         _compactWidth = width;
                         Build();
@@ -1183,11 +1248,21 @@ namespace ClassicUO.Game.UI.Gumps
         private sealed class ExplorerButton : NiceButton
         {
             private readonly bool _classic;
+            private readonly bool _compactPin;
 
-            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink)
+            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink,
+                bool wrapText = false)
                 : base(x, y, width, height, ButtonAction.Activate, text,
                     hue: classic ? (ushort)0x0481 : ink, font: 1)
             {
+                _compactPin = wrapText;
+                if (wrapText)
+                {
+                    TextLabel.SetFontStyle(FontStyle.BlackBorder);
+                    if (TextLabel.Height > height - 4)
+                        TextLabel.SetFontStyle(FontStyle.BlackBorder | FontStyle.Cropped);
+                    TextLabel.Y = (height - TextLabel.Height) / 2;
+                }
                 _classic = classic && width >= 60;
                 ButtonParameter = id;
                 IsSelectable = false;
@@ -1201,10 +1276,21 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (_classic)
                 {
-                    Texture2D texture = ExplorerArt.Button
-                        ?? SolidColorTextureCache.GetTexture(new Color(56, 37, 23));
-                    batcher.Draw(texture, new Rectangle(x, y, Width, Height),
-                        ShaderHueTranslator.GetHueVector(0));
+                    Texture2D texture = ExplorerArt.Button;
+                    Rectangle destination = new Rectangle(x, y, Width, Height);
+                    Vector3 hue = ShaderHueTranslator.GetHueVector(0);
+                    if (texture == null)
+                        batcher.Draw(SolidColorTextureCache.GetTexture(new Color(56, 37, 23)), destination, hue);
+                    else if (_compactPin)
+                    {
+                        // Trim the artwork's transparent top and bottom padding between compact rows.
+                        int top = texture.Height * 14 / 100;
+                        int bottom = texture.Height * 17 / 100;
+                        batcher.Draw(texture, destination,
+                            new Rectangle(0, top, texture.Width, texture.Height - top - bottom), hue);
+                    }
+                    else
+                        batcher.Draw(texture, destination, hue);
                 }
                 return base.Draw(batcher, x, y);
             }

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
-using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
@@ -215,8 +214,14 @@ namespace ClassicUO.Game.UI.Gumps
                     ishtml: true));
                 name.AcceptMouseInput = true;
                 name.SetTooltip(itemName);
+                Label value = new Label(
+                    $"{durability.Durabilty} / {durability.MaxDurabilty}",
+                    true,
+                    durabilityTextHue);
+                int barWidth = Math.Max(1, Math.Min(barBounds.Width, a.Width - value.Width - 8));
                 GumpPic red;
                 a.Add(red = new GumpPic(0, name.Y + name.Height + 5, (ushort)DurabilityColors.RED, 0));
+                red.Width = barWidth;
 
                 DurabilityColors statusGump = DurabilityColors.GREEN;
 
@@ -229,24 +234,15 @@ namespace ClassicUO.Game.UI.Gumps
                     statusGump = DurabilityColors.BLUE;
                 }
 
-                if (durability.Percentage > 0)
+                int fillWidth = Math.Min(barWidth, (int)Math.Floor(barWidth * durability.Percentage));
+                if (fillWidth > 0)
                 {
-                    a.Add(new GumpPicTiled(0, red.Y, (int)Math.Floor(barBounds.Width * durability.Percentage), barBounds.Height, (ushort)statusGump));
+                    a.Add(new GumpPicTiled(0, red.Y, fillWidth, barBounds.Height, (ushort)statusGump));
                 }
 
-                var durWidth = FontsLoader.Instance.GetWidthUnicode(0, $"{durability.Durabilty} / {durability.MaxDurabilty}");
-
-                a.Add
-                (
-                    new Label(
-                        $"{durability.Durabilty} / {durability.MaxDurabilty}",
-                        true,
-                        durabilityTextHue)
-                    {
-                        Y = red.Y - 2,
-                        X = repairBtnX - 6 - durWidth
-                    }
-                );
+                value.X = red.X + barWidth + 8;
+                value.Y = red.Y - 2;
+                a.Add(value);
 
                 uint itemSerial = item.Serial;
                 NiceButton repairBtn = new NiceButton(repairBtnX, name.Y + 1, REPAIR_BTN_W, REPAIR_BTN_H, ButtonAction.Default, "Repair")

@@ -287,6 +287,7 @@ namespace ClassicUO.Game.Managers
             });
 
             Register("gumpopacity", SetGumpOpacity);
+            Register("gumpopacityall", s => SetGumpOpacityOption("all", s, 1));
             Register("gumpopacitycustom", s => SetGumpOpacityOption("custom", s, 1));
             Register("gumpopacitydurability", s => SetGumpOpacityOption("durability", s, 1));
             Register("gumpopacitycontainer", s => SetGumpOpacityOption("container", s, 1));
@@ -3300,7 +3301,7 @@ Register("pathpreview", (s) =>
                 return;
             }
 
-            const string usage = "Usage: -gumpopacity <custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]";
+            const string usage = "Usage: -gumpopacity <all|custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]";
             if (args == null || args.Length < 2 || args[1].Equals("list", StringComparison.OrdinalIgnoreCase))
             {
                 GameActions.Print($"Opacity: custom {profile.CustomGumpOpacity}%, durability {profile.DurabilityGumpOpacity}%, container {profile.ContainerOpacity}%, corpse {profile.CorpseContainerOpacity}%, gridborder {profile.GridBorderAlpha}%.", 0x35);
@@ -3324,6 +3325,32 @@ Register("pathpreview", (s) =>
 
             area = area.Trim().ToLowerInvariant();
             int argCount = args?.Length ?? 0;
+            if (area == "all")
+            {
+                if (argCount != valueIndex + 1 || !int.TryParse(args[valueIndex], out int allPercent) || allPercent < 0 || allPercent > 100)
+                {
+                    GameActions.Print("Usage: -gumpopacityall <0-100> (or -gumpopacity all <0-100>).", 0x21);
+                    return;
+                }
+
+                profile.DurabilityGumpOpacity = (byte)allPercent;
+                profile.ContainerOpacity = (byte)allPercent;
+                profile.CorpseContainerOpacity = (byte)allPercent;
+                profile.JournalOpacity = (byte)allPercent;
+                profile.BuffBarOpacity = (byte)allPercent;
+                profile.SlayerBarOpacity = (byte)allPercent;
+
+                CustomGumpThemeManager.SetOpacity(allPercent);
+                GridContainer.UpdateAllGridContainers();
+                ContainerGump.UpdateAllCorpseOpacity();
+                ResizableJournal.UpdateJournalOptions();
+                PaperDollBackpackEquipmentGump.UpdateAllOptions();
+                profile.Save(ProfileManager.ProfilePath, false);
+                CustomGumpThemeManager.RefreshOptionsGump();
+                GameActions.Print($"Gump opacity: {allPercent}% (utility/chat {profile.CustomGumpOpacity}%; grid borders and hover unchanged).", 0x35);
+                return;
+            }
+
             if (area == "altscroll" || area == "hoverboost")
             {
                 bool current = area == "altscroll"
@@ -3360,7 +3387,6 @@ Register("pathpreview", (s) =>
                     break;
                 case "durability":
                     currentPercent = profile.DurabilityGumpOpacity;
-                    minimum = 10;
                     apply = value => { profile.DurabilityGumpOpacity = (byte)value; DurabilitysGump.UpdateAllOpacity(); };
                     break;
                 case "container":
@@ -3389,7 +3415,6 @@ Register("pathpreview", (s) =>
                 case "buff":
                 case "buffbar":
                     currentPercent = profile.BuffBarOpacity;
-                    minimum = 10;
                     apply = value => profile.BuffBarOpacity = (byte)value;
                     break;
                 case "slayer":

@@ -174,7 +174,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x034E, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", false, 0x034E, font: 9)
                     {
                         X = 266,
                         Y = 465
@@ -275,7 +275,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(2)}", false, 0x0481, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", false, 0x0481, font: 9)
                     {
                         X = 266,
                         Y = 465

@@ -91,7 +91,7 @@ namespace ClassicUO
 
             Window.ClientSizeChanged += WindowOnClientSizeChanged;
             Window.AllowUserResizing = true;
-            Window.Title = $"TazUO MW Edition {CUOEnviroment.Version.ToString(2)}";
+            Window.Title = $"TazUO MW Edition {CUOEnviroment.Version.ToString(3)}";
             IsMouseVisible = Settings.GlobalSettings.RunMouseInASeparateThread;
 
             IsFixedTimeStep = false; // Settings.GlobalSettings.FixedTimeStep;
@@ -402,12 +402,12 @@ namespace ClassicUO
 
 #if DEV_BUILD
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(2)}"
-                : $"{left} - TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(2)}";
+                ? $"TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(3)}"
+                : $"{left} - TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(3)}";
 #else
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"TazUO MW Edition {CUOEnviroment.Version.ToString(2)}"
-                : $"{left} - TazUO MW Edition {CUOEnviroment.Version.ToString(2)}";
+                ? $"TazUO MW Edition {CUOEnviroment.Version.ToString(3)}"
+                : $"{left} - TazUO MW Edition {CUOEnviroment.Version.ToString(3)}";
 #endif
 
             if (newTitle != _lastTitleString)

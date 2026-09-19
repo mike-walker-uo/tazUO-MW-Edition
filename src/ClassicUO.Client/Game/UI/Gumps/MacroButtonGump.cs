@@ -219,9 +219,12 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (!IsVisible) return false;
 
+            float backgroundAlpha = Alpha * CustomGumpThemeManager.OpacityScale;
+            Vector3 backgroundHue = hueVector;
+            backgroundHue.Z = backgroundAlpha;
             bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
             if (ornate)
-                CustomThemeArt.DrawButton(batcher, x, y, Width, Height, Alpha);
+                CustomThemeArt.DrawButton(batcher, x, y, Width, Height, backgroundAlpha);
             else
                 batcher.Draw
             (
@@ -233,7 +236,7 @@ namespace ClassicUO.Game.UI.Gumps
                     Width,
                     Height
                 ),
-                hueVector
+                backgroundHue
             );
 
             if (Graphic.HasValue)
@@ -248,7 +251,7 @@ namespace ClassicUO.Game.UI.Gumps
                         texture.Texture,
                         rect,
                         texture.UV,
-                        hueVector
+                        backgroundHue
                     );
                 }
             }
@@ -261,12 +264,12 @@ namespace ClassicUO.Game.UI.Gumps
                         y,
                         Width,
                         Height,
-                        hueVector
+                        backgroundHue
                     );
             }
 
             if (ornate && Graphic.HasValue)
-                CustomThemeArt.DrawFrame(batcher, x, y, Width, Height, Alpha);
+                CustomThemeArt.DrawFrame(batcher, x, y, Width, Height, backgroundAlpha);
 
             if (!HideLabel && _gText != null)
             {
