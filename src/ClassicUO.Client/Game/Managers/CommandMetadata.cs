@@ -103,7 +103,7 @@ namespace ClassicUO.Game.Managers
             { "worldexplorer",  new Entry { Category="Map/Markers", Description="Scan rune books and pin quick travel destinations.", Usage="" } },
             { "openjournal",    new Entry { Category="UI", Description="Open journal.", Usage="" } },
             { "toast",          new Entry { Category="UI", Description="Show a test toast.", Usage="<text>" } },
-            { "toastanchor",    new Entry { Category="UI", Description="Drag-anchor toast position; right-click to save.", Usage="" } },
+            { "toastanchor",    new Entry { Category="UI", Description="Move or resize the top-center toast stack; right-click to save.", Usage="" } },
             { "friendsfloater", new Entry { Category="UI", Description="Open friends list floater.", Usage="" } },
             { "partyhud",       new Entry { Category="UI", Description="Show or hide the compact party HUD.", Usage="on|off" } },
             { "compass",        new Entry { Category="UI", Description="Toggle compass overlay.", Usage="on|off" } },

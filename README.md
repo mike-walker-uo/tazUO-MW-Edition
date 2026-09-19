@@ -36,6 +36,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 - Set opacity with `-gumpopacity <area> <percent>` or its dedicated commands, such as `-gumpopacitycustom 80`. Run `-gumpopacity` to see current values and supported areas.
 - Razor Enhanced hotkey macro buttons support displayed key names, including mouse X Button 1, Page Down, and Windows keys.
 - Windows defaults to system DPI scaling; use `-native-dpi` for native per-monitor pixels.
+- Toast alerts, including low tithing points for Chivalry users, use the selected gump theme and appear at the top center. Use `-toastanchor` to drag their position or resize their width, then right-click to save.
 
 See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for the complete command list and theme names.
 

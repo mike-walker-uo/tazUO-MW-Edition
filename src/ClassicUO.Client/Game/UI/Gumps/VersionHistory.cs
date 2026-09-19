@@ -8,9 +8,21 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal class VersionHistory : NineSliceGump
     {
+        // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
-            "/c[white][0.4]/cd\n" +
+            "[0.5]\n" +
+            """
+            - Added custom gump themes and improved decorative-border spacing and macro-button readability
+            - Added World Explorer with rune and rune-book scanning, pinned destinations, and travel options
+            - Added per-area gump opacity commands and controls
+            - Improved Razor Enhanced hotkey labels on macro buttons
+            - Added a Windows system-DPI default with an optional native-DPI mode
+            - Moved themed toast alerts to the top center with a movable, resizable anchor
+            - Added low-tithing toast alerts for Chivalry users
+            """ +
+            "\n",
+            "[0.4]\n" +
             """
             - Updated the graphics and input stack from SDL2 to pinned SDL3/FNA while retaining .NET Framework 4.7.2 and Razor Enhanced compatibility
             - Added native graphics runtime details to crash diagnostics
@@ -21,7 +33,7 @@ namespace ClassicUO.Game.UI.Gumps
             - Bundled the official TazUO fonts and restored Chakra Petch
             """ +
             "\n",
-            "/c[white][0.3]/cd\n" +
+            "[0.3]\n" +
             """
             - Added nearby player-speech history with session clearing
             - Added nearby-speech filters for the player and owned pets
@@ -73,14 +85,14 @@ namespace ClassicUO.Game.UI.Gumps
             - Fixed buff-bar hover opacity flickering
             """ +
             "\n",
-            "/c[white][0.21]/cd\n" +
+            "[0.21]\n" +
             """
             - Replaced the original TazUO history with MW Edition release notes
             - Added a centered TazUO MW Edition GitHub link to the version-history gump
             - Updated the version-history title and version formatting
             """ +
             "\n",
-            "/c[white][0.2]/cd\n" +
+            "[0.2]\n" +
             """
             - Improved client performance and reduced render-loop allocations
             - Optimized network processing and improved reconnect stability
@@ -100,7 +112,7 @@ namespace ClassicUO.Game.UI.Gumps
             - Added packet, configuration, durability, and hang-diagnostic regression tests
             """ +
             "\n",
-            "/c[white][0.1]/cd\n" +
+            "[0.1]\n" +
             """
             - Initial TazUO MW Edition release based on TazUO 4.5.22.0
             - Added TazUO MW Edition branding and version information
@@ -112,11 +124,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         private ScrollArea _scrollArea;
         private VBoxContainer _vBoxContainer;
+        private CustomGumpTheme _theme;
 
         public VersionHistory() : base(0, 0, 400, 500, ModernUIConstants.ModernUIPanel, ModernUIConstants.ModernUIPanel_BoderSize, true, 200, 200)
         {
             CanCloseWithRightClick = true;
             CanMove = true;
+            _theme = CustomGumpThemeManager.Current;
 
             Build();
 
@@ -127,30 +141,61 @@ namespace ClassicUO.Game.UI.Gumps
         private void Build()
         {
             Clear();
+            DrawNineSliceBackground = _theme == CustomGumpTheme.TazUO;
+            if (!DrawNineSliceBackground)
+            {
+                AlphaBlendControl background = new(0.95f)
+                {
+                    Width = Width,
+                    Height = Height,
+                    ArtPanel = true
+                };
+                CustomGumpThemeManager.ApplyDataSurface(background, 0.95f);
+                Add(background);
+            }
 
-            Positioner pos = new(13, 13);
+            int inset = CustomThemeArt.ContentInset;
+            int contentWidth = Width - 26 - inset * 2;
+            Color textColor = _theme == CustomGumpTheme.BritannianChronicle ? Color.Black : Color.Orange;
+            Color titleColor = _theme == CustomGumpTheme.BritannianChronicle || _theme == CustomGumpTheme.Classic
+                ? Color.Black : Color.White;
+            Positioner pos = new(13 + inset, 13);
+            pos.Y += inset;
 
-            Add(pos.Position(TextBox.GetOne(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 22, Color.White, TextBox.RTLOptions.DefaultCentered(Width))));
+            Add(pos.Position(TextBox.GetOne(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 22, titleColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
-            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(2), TrueTypeLoader.EMBEDDED_FONT, 20, Color.Orange, TextBox.RTLOptions.DefaultCentered(Width))));
+            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(2), TrueTypeLoader.EMBEDDED_FONT, 20, textColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
-            _scrollArea = new ScrollArea(0, 0, Width - 26, Height - (pos.LastY + pos.LastHeight) - 32, true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };
+            int footerTop = Height - 43 - inset;
+            _scrollArea = new ScrollArea(0, 0, contentWidth, System.Math.Max(1, footerTop - pos.Y - 6), true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };
             _vBoxContainer = new VBoxContainer(_scrollArea.Width - _scrollArea.ScrollBarWidth());
             _scrollArea.Add(_vBoxContainer);
 
             foreach (string s in updateTexts)
             {
-                _vBoxContainer.Add(TextBox.GetOne(s, TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, TextBox.RTLOptions.Default(_scrollArea.Width - _scrollArea.ScrollBarWidth())));
+                _vBoxContainer.Add(TextBox.GetOne(s, TrueTypeLoader.EMBEDDED_FONT, 15, textColor, TextBox.RTLOptions.Default(_scrollArea.Width - _scrollArea.ScrollBarWidth())));
             }
 
             Add(pos.Position(_scrollArea));
 
-            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUOWiki, "https://github.com/PlayTazUO/TazUO/wiki", Color.Orange, 15), 25, Height - 20));
+            Color linkColor = _theme == CustomGumpTheme.BritannianChronicle ? new Color(95, 50, 20) : Color.Orange;
+            int linkY = Height - 22 - inset;
+            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUOWiki, "https://github.com/PlayTazUO/TazUO/wiki", linkColor, 15), 13 + inset, footerTop));
 
-            HttpClickableLink githubLink = new("TazUO MW Edition Github", "https://github.com/mike-walker-uo/tazUO-MW-Edition", Color.Orange, 15);
-            Add(pos.PositionExact(githubLink, (Width - githubLink.Width) / 2, Height - 20));
+            HttpClickableLink githubLink = new("TazUO MW Edition Github", "https://github.com/mike-walker-uo/tazUO-MW-Edition", linkColor, 15);
+            Add(pos.PositionExact(githubLink, (Width - githubLink.Width) / 2, linkY));
 
-            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUODiscord, "https://discord.gg/QvqzkB95G4", Color.Orange, 15), Width - 110, Height - 20));
+            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUODiscord, "https://discord.gg/QvqzkB95G4", linkColor, 15), Width - 110 - inset, footerTop));
+        }
+
+        public override void Update()
+        {
+            base.Update();
+            if (_theme != CustomGumpThemeManager.Current)
+            {
+                _theme = CustomGumpThemeManager.Current;
+                Build();
+            }
         }
 
         protected override void OnResize(int oldWidth, int oldHeight, int newWidth, int newHeight)

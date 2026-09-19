@@ -966,7 +966,7 @@ namespace ClassicUO.Game.Managers
                     return;
                 }
                 UIManager.Add(new UI.Gumps.ToastAnchorGump());
-                GameActions.Print("Drag the bar to move toasts. Right-click or re-run -toastanchor to save.", 0x35);
+                GameActions.Print("Drag the bar to move toasts or its right edge to resize. Right-click or re-run -toastanchor to save.", 0x35);
             });
 
             Register("bandageopts", (s) =>
