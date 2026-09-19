@@ -33,6 +33,10 @@ namespace ClassicUO.Game.UI.Gumps
         private const int MaxCompactHeight = 550;
         private const int DefaultCompactRowsPerPage = 10;
         private const int MaxCompactRowsPerPage = 16;
+        private const int MaxCompactColumns = 4;
+        private const int MinCompactColumnWidth = 176;
+        private const int CompactColumnGap = 8;
+        private const int CompactColumnWidthStep = 190;
 
         private readonly List<WorldExplorerPin> _catalog = new List<WorldExplorerPin>();
         private readonly List<Item> _books = new List<Item>();
@@ -51,6 +55,7 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _scanCompleted;
         private int _compactWidth;
         private int _compactHeight;
+        private int _compactColumns;
         private bool _resizingCompact;
         private int _resizeStartX;
         private int _resizeStartY;
@@ -84,7 +89,9 @@ namespace ClassicUO.Game.UI.Gumps
             if (profile != null && profile.WorldExplorerPins == null)
                 profile.WorldExplorerPins = new List<WorldExplorerPin>();
             _minimized = profile?.WorldExplorerMinimized ?? false;
-            _compactWidth = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
+            _compactColumns = Math.Max(1, Math.Min(MaxCompactColumns,
+                profile?.WorldExplorerCompactColumns ?? 1));
+            _compactWidth = Math.Max(MinCompactWidthForColumns(_compactColumns), Math.Min(MaxCompactWidth,
                 profile?.WorldExplorerCompactWidth ?? DefaultCompactWidth));
             _compactHeight = profile?.WorldExplorerCompactHeight > 0
                 ? Math.Max(MinCompactHeight, Math.Min(MaxCompactHeight, profile.WorldExplorerCompactHeight)) : 0;
@@ -186,21 +193,30 @@ namespace ClassicUO.Game.UI.Gumps
         {
             List<WorldExplorerPin> pins = Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>();
             Width = _compactWidth;
+            int pinRows = (pins.Count + _compactColumns - 1) / _compactColumns;
             if (_compactHeight == 0)
-                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pins.Count)) * 28
-                    + (pins.Count > DefaultCompactRowsPerPage ? 27 : 8);
+                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pinRows)) * 28
+                    + (pinRows > DefaultCompactRowsPerPage ? 27 : 8);
             else
                 Height = _compactHeight;
             int maxRows = _compactHeight == 0 ? DefaultCompactRowsPerPage : MaxCompactRowsPerPage;
             int rowsWithoutPager = Math.Max(1, Math.Min(maxRows, (Height - 43) / 28));
-            int rowsPerPage = pins.Count > rowsWithoutPager
+            int rowsPerPage = pinRows > rowsWithoutPager
                 ? Math.Max(1, Math.Min(maxRows, (Height - 65) / 28)) : rowsWithoutPager;
-            _compactPage = Math.Min(_compactPage, Math.Max(0, (pins.Count - 1) / rowsPerPage));
-            int start = _compactPage * rowsPerPage;
-            int count = Math.Min(rowsPerPage, pins.Count - start);
-            bool hasPages = pins.Count > rowsPerPage;
+            int pinsPerPage = rowsPerPage * _compactColumns;
+            int pageCount = Math.Max(1, (pins.Count + pinsPerPage - 1) / pinsPerPage);
+            _compactPage = Math.Min(_compactPage, pageCount - 1);
+            int start = _compactPage * pinsPerPage;
+            int count = Math.Min(pinsPerPage, pins.Count - start);
+            int columnWidth = (Width - 24 - (_compactColumns - 1) * CompactColumnGap) / _compactColumns;
             Add(new ExplorerPanel(Width, Height, Classic, true));
-            Add(new Label("WORLD EXPLORER", true, Ink, font: 1) { X = 12, Y = 9 });
+            Add(new Label(Width < 270 ? "EXPLORER" : "WORLD EXPLORER", true, Ink, font: 1)
+            {
+                X = 12, Y = 9
+            });
+            ExplorerButton columns = Button(Width - 90, 6, 48, _compactColumns + " col", 5);
+            columns.SetTooltip("Click to cycle through 1 to 4 columns");
+            Add(columns);
             ExplorerButton expand = Button(Width - 36, 6, 24, "+", 4);
             expand.SetTooltip("Expand World Explorer");
             Add(expand);
@@ -211,15 +227,22 @@ namespace ClassicUO.Game.UI.Gumps
                 for (int i = 0; i < count; i++)
                 {
                     WorldExplorerPin pin = pins[start + i];
-                    ExplorerButton button = Button(12, 38 + i * 28, Width - 24, DisplayName(pin), 1000 + start + i);
+                    int column = i % _compactColumns;
+                    int row = i / _compactColumns;
+                    ExplorerButton button = Button(12 + column * (columnWidth + CompactColumnGap),
+                        38 + row * 28, columnWidth, DisplayName(pin), 1000 + start + i);
                     button.SetTooltip(pin.Kind == "portal" ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name);
                     Add(button);
                 }
 
-            if (hasPages)
+            if (pageCount > 1)
             {
                 Add(Button(12, Height - 29, 32, "<", 20));
                 Add(Button(Width - 62, Height - 29, 32, ">", 21));
+                var pageLabel = new Label((_compactPage + 1) + " / " + pageCount, true, Ink, font: 1);
+                pageLabel.X = (Width - pageLabel.Width) / 2;
+                pageLabel.Y = Height - 25;
+                Add(pageLabel);
             }
             Add(new Label("//", true, Ink, font: 1) { X = Width - 24, Y = Height - 22 });
             var resizeGrip = new HitBox(Width - 16, Height - 16, 16, 16, "Drag to resize World Explorer", 0.5f);
@@ -234,6 +257,12 @@ namespace ClassicUO.Game.UI.Gumps
                 _resizeStartHeight = Height;
             };
             Add(resizeGrip);
+        }
+
+        private static int MinCompactWidthForColumns(int columns)
+        {
+            return Math.Max(MinCompactWidth, 24 + columns * MinCompactColumnWidth
+                + (columns - 1) * CompactColumnGap);
         }
 
         private ExplorerButton Button(int x, int y, int width, string title, int id)
@@ -906,6 +935,22 @@ namespace ClassicUO.Game.UI.Gumps
                     Build();
                     SetInScreen();
                     break;
+                case 5:
+                    int nextColumns = _compactColumns % MaxCompactColumns + 1;
+                    _compactWidth = Math.Max(MinCompactWidthForColumns(nextColumns),
+                        Math.Min(MaxCompactWidth, _compactWidth
+                            + (nextColumns - _compactColumns) * CompactColumnWidthStep));
+                    _compactColumns = nextColumns;
+                    _compactPage = 0;
+                    if (Profile != null)
+                    {
+                        Profile.WorldExplorerCompactColumns = (byte)_compactColumns;
+                        Profile.WorldExplorerCompactWidth = _compactWidth;
+                        Save();
+                    }
+                    Build();
+                    SetInScreen();
+                    break;
                 case 10: case 11: case 12: case 13:
                     _filter = buttonID - 10; _libraryPage = 0; RebuildRows(); break;
                 case 20:
@@ -931,7 +976,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (Mouse.LButtonPressed && _minimized)
                 {
-                    int width = Math.Max(MinCompactWidth, Math.Min(MaxCompactWidth,
+                    int width = Math.Max(MinCompactWidthForColumns(_compactColumns), Math.Min(MaxCompactWidth,
                         _resizeStartWidth + Mouse.Position.X - _resizeStartX));
                     int heightDelta = Mouse.Position.Y - _resizeStartY;
                     if (_compactHeight > 0 || Math.Abs(heightDelta) >= 10)
