@@ -29,10 +29,14 @@ namespace ClassicUO.Game.UI.Gumps
         private const int DefaultCompactWidth = 280;
         private const int MinCompactWidth = 200;
         private const int MaxCompactWidth = 900;
-        private const int MinCompactHeight = 104;
+        private const int MinCompactHeight = 114;
         private const int MaxCompactHeight = 550;
         private const int DefaultCompactRowsPerPage = 10;
         private const int MaxCompactRowsPerPage = 16;
+        private const int CompactButtonHeight = 44;
+        private const int CompactRowHeight = 48;
+        private const int CompactButtonMaxWidth = 160;
+        private const int SingleCompactButtonMaxWidth = 220;
         private const int MaxCompactColumns = 4;
         private const int MinCompactColumnWidth = 176;
         private const int CompactColumnGap = 8;
@@ -195,20 +199,22 @@ namespace ClassicUO.Game.UI.Gumps
             Width = _compactWidth;
             int pinRows = (pins.Count + _compactColumns - 1) / _compactColumns;
             if (_compactHeight == 0)
-                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pinRows)) * 28
+                Height = 43 + Math.Max(1, Math.Min(DefaultCompactRowsPerPage, pinRows)) * CompactRowHeight
                     + (pinRows > DefaultCompactRowsPerPage ? 27 : 8);
             else
                 Height = _compactHeight;
             int maxRows = _compactHeight == 0 ? DefaultCompactRowsPerPage : MaxCompactRowsPerPage;
-            int rowsWithoutPager = Math.Max(1, Math.Min(maxRows, (Height - 43) / 28));
+            int rowsWithoutPager = Math.Max(1, Math.Min(maxRows, (Height - 43) / CompactRowHeight));
             int rowsPerPage = pinRows > rowsWithoutPager
-                ? Math.Max(1, Math.Min(maxRows, (Height - 65) / 28)) : rowsWithoutPager;
+                ? Math.Max(1, Math.Min(maxRows, (Height - 65) / CompactRowHeight)) : rowsWithoutPager;
             int pinsPerPage = rowsPerPage * _compactColumns;
             int pageCount = Math.Max(1, (pins.Count + pinsPerPage - 1) / pinsPerPage);
             _compactPage = Math.Min(_compactPage, pageCount - 1);
             int start = _compactPage * pinsPerPage;
             int count = Math.Min(pinsPerPage, pins.Count - start);
             int columnWidth = (Width - 24 - (_compactColumns - 1) * CompactColumnGap) / _compactColumns;
+            int buttonWidth = Math.Min(columnWidth,
+                _compactColumns == 1 ? SingleCompactButtonMaxWidth : CompactButtonMaxWidth);
             Add(new ExplorerPanel(Width, Height, Classic, true));
             Add(new Label(Width < 270 ? "EXPLORER" : "WORLD EXPLORER", true, Ink, font: 1)
             {
@@ -229,8 +235,10 @@ namespace ClassicUO.Game.UI.Gumps
                     WorldExplorerPin pin = pins[start + i];
                     int column = i % _compactColumns;
                     int row = i / _compactColumns;
-                    ExplorerButton button = Button(12 + column * (columnWidth + CompactColumnGap),
-                        38 + row * 28, columnWidth, DisplayName(pin), 1000 + start + i);
+                    ExplorerButton button = new ExplorerButton(
+                        12 + column * (columnWidth + CompactColumnGap) + (columnWidth - buttonWidth) / 2,
+                        38 + row * CompactRowHeight, buttonWidth, CompactButtonHeight,
+                        DisplayName(pin), 1000 + start + i, Classic, Ink, true);
                     button.SetTooltip(pin.Kind == "portal" ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name);
                     Add(button);
                 }
@@ -1229,10 +1237,18 @@ namespace ClassicUO.Game.UI.Gumps
         {
             private readonly bool _classic;
 
-            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink)
+            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink,
+                bool wrapText = false)
                 : base(x, y, width, height, ButtonAction.Activate, text,
                     hue: classic ? (ushort)0x0481 : ink, font: 1)
             {
+                if (wrapText)
+                {
+                    TextLabel.SetFontStyle(FontStyle.BlackBorder);
+                    if (TextLabel.Height > height - 4)
+                        TextLabel.SetFontStyle(FontStyle.BlackBorder | FontStyle.Cropped);
+                    TextLabel.Y = (height - TextLabel.Height) / 2;
+                }
                 _classic = classic && width >= 60;
                 ButtonParameter = id;
                 IsSelectable = false;
