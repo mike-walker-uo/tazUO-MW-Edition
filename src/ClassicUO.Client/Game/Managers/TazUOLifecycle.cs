@@ -174,6 +174,7 @@ namespace ClassicUO.Game.Managers
             JournalOpenerManager.ResetSession();
             ManaStamAlertManager.ResetSession();
             NotorietyChangeWatcher.ResetSession();
+            PetGuardTintManager.ResetSession();
             PetLoyaltyAlertManager.ResetSession();
             PingSpikeWarner.ResetSession();
             PoisonAlertManager.ResetSession();

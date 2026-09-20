@@ -55,7 +55,7 @@ namespace ClassicUO.Game.Managers
                 typeof(HiddenStateWatcher), typeof(HostileLoiteringWarner), typeof(HungerThirstAlertManager),
                 typeof(IdleMonitorManager), typeof(ItemDropSoundManager), typeof(JournalKeywordToastManager),
                 typeof(KillReadyManager), typeof(NotorietyChangeWatcher), typeof(ParagonGlowManager),
-                typeof(PartyInviteAlertManager), typeof(PetLoyaltyAlertManager), typeof(PetWatcherManager),
+                typeof(PartyInviteAlertManager), typeof(PetGuardTintManager), typeof(PetLoyaltyAlertManager), typeof(PetWatcherManager),
                 typeof(PoisonAlertManager), typeof(PoisonCureManager), typeof(ReagentWatcherManager),
                 typeof(ReflectCounterManager), typeof(SkillCapTracker), typeof(StartupBannerManager),
                 typeof(StatChangeAlertManager), typeof(SystemMessageMuteManager), typeof(TargetRangeWarnManager),

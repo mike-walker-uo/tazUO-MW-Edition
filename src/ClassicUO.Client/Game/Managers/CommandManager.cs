@@ -1399,6 +1399,22 @@ Register("pathpreview", (s) =>
                 else GameActions.Print("Usage: -hidetrash <range>  (0=off)", 0x21);
             });
 
+            Register("petguardtint", (s) =>
+            {
+                if (s != null && s.Length >= 2)
+                {
+                    string action = s[1].Trim();
+                    if (action.Equals("on", System.StringComparison.OrdinalIgnoreCase))
+                        PetGuardTintManager.SetEnabled(true);
+                    else if (action.Equals("off", System.StringComparison.OrdinalIgnoreCase))
+                        PetGuardTintManager.SetEnabled(false);
+                    else
+                        GameActions.Print("Usage: -petguardtint on|off", 0x21);
+                    return;
+                }
+                PetGuardTintManager.SetEnabled(!PetGuardTintManager.Enabled);
+            });
+
             Register("petloyalty", (s) =>
             {
                 if (s != null && s.Length >= 2)

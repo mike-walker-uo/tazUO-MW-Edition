@@ -799,6 +799,13 @@ namespace ClassicUO.Game.GameObjects
                     }
                 }
 
+                if (entity == null && !isMount && overridedHue == 0 && !owner.IsHidden
+                    && PetGuardTintManager.ShouldTint(owner))
+                {
+                    hue = 0x038A;
+                    partialHue = false;
+                }
+
                 hueVec = ShaderHueTranslator.GetHueVector(hue, partialHue, hueVec.Z);
 
                 if (spriteInfo.Texture != null)

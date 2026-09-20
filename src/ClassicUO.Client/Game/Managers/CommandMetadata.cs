@@ -79,6 +79,7 @@ namespace ClassicUO.Game.Managers
             { "petstay",    new Entry { Category="Pets", Description="Pet stay command.", Usage="" } },
             { "petstop",    new Entry { Category="Pets", Description="Pet stop command.", Usage="" } },
             { "pethp",      new Entry { Category="Pets", Description="Show pet HP bars overhead.", Usage="on|off" } },
+            { "petguardtint", new Entry { Category="Pets", Description="Tint pets gray when they are not guarding you.", Usage="on|off" } },
             { "petloyalty", new Entry { Category="Pets", Description="Remind when nearby pet loyalty is below 90%.", Usage="on|off|status" } },
             { "petwatch",   new Entry { Category="Pets", Description="Watch a pet's HP and alert on low.", Usage="on|off" } },
             { "claim",      new Entry { Category="Pets", Description="Claim stabled pets.", Usage="" } },
