@@ -7648,16 +7648,12 @@ namespace ClassicUO.Network
                 gump.CenterYInViewPort();
             }
 
-            // Suppress server-sent Global Chat gump if our TazUO-native replacement is active.
+            // Native Global Chat opens from new messages when enabled, so suppress the server gump.
             // PacketGumpText ordering varies by shard/layout, so locate the
             // distinctive header anywhere in the server gump text.
             if (ProfileManager.CurrentProfile?.UseNativeGlobalChatReplacement == true &&
                 gump.IsFromServer && IsGlobalChatSignature(gump.PacketGumpText))
             {
-                if (UIManager.GetGump<GlobalChatGump>() == null)
-                {
-                    UIManager.Add(new GlobalChatGump());
-                }
                 gump.Dispose();
                 return null;
             }

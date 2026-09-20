@@ -46,7 +46,23 @@ namespace ClassicUO.Game.UI.Gumps
         public static readonly ChatHistoryStore Instance =
             new ChatHistoryStore(IsNearbySpeech, 100);
 
-        public static void EnsureHooked() => Instance.EnsureHooked();
+        private static bool _autoOpenHooked;
+
+        public static void EnsureHooked()
+        {
+            if (!_autoOpenHooked)
+            {
+                Instance.RecordAdded += _ =>
+                {
+                    if (World.Player != null && ProfileManager.CurrentProfile?.AutoOpenNearbySpeech == true &&
+                        UIManager.GetGump<NearbySpeechGump>() == null)
+                        UIManager.Add(new NearbySpeechGump());
+                };
+                _autoOpenHooked = true;
+            }
+
+            Instance.EnsureHooked();
+        }
 
         private static bool IsNearbySpeech(MessageEventArgs e)
         {
@@ -118,6 +134,30 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         public override GumpType GumpType => GumpType.NearbySpeechHistory;
+
+        public static void OpenByUser(int x, int y)
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenNearbySpeech = true;
+
+            UIManager.Add(new NearbySpeechGump(x, y));
+        }
+
+        public void CloseByUser()
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenNearbySpeech = false;
+
+            Dispose();
+        }
+
+        protected override void CloseWithRightClick()
+        {
+            base.CloseWithRightClick();
+
+            if (IsDisposed && ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenNearbySpeech = false;
+        }
 
         protected override int GetProfileFontSize() =>
             ProfileManager.CurrentProfile?.SelectedJournalFontSize ?? 16;

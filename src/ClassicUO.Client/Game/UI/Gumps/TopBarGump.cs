@@ -301,20 +301,20 @@ namespace ClassicUO.Game.UI.Gumps
                 var existing = UIManager.GetGump<GlobalChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new GlobalChatGump(200, 200));
+                GlobalChatGump.OpenByUser(200, 200);
             }));
             submenu.Add(new ContextMenuItemEntry("Guild Chat", () =>
             {
                 var existing = UIManager.GetGump<GuildChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new GuildChatGump(220, 220));
+                GuildChatGump.OpenByUser(220, 220);
             }));
             submenu.Add(new ContextMenuItemEntry("Pet Status Panel", () =>
             {

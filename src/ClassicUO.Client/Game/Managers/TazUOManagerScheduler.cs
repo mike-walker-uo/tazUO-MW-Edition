@@ -44,6 +44,7 @@ namespace ClassicUO.Game.Managers
             new Feature("ReagentWatcher", ReagentWatcherManager.Tick, () => ReagentWatcherManager.Enabled),
             new Feature("AggroIndicator", AggroIndicatorManager.Tick, () => AggroIndicatorManager.HasAggressors),
             new Feature("PetWatcher", PetWatcherManager.Tick, () => PetWatcherManager.Enabled),
+            new Feature("PetGuardTint", PetGuardTintManager.Tick, () => PetGuardTintManager.Enabled),
             new Feature("PetLoyalty", PetLoyaltyAlertManager.Tick, () => PetLoyaltyAlertManager.Enabled),
             new Feature("AutoRespawnTarget", AutoRespawnTargetManager.Tick, () => AutoRespawnTargetManager.Enabled),
             new Feature("CrashRecovery", CrashRecoveryManager.Tick),

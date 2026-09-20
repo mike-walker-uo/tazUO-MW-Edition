@@ -104,10 +104,10 @@ namespace ClassicUO.Game.Managers
                 var existing = UIManager.GetGump<UI.Gumps.GlobalChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new UI.Gumps.GlobalChatGump(200, 200));
+                UI.Gumps.GlobalChatGump.OpenByUser(200, 200);
             });
 
             Register("guildchat", (s) =>
@@ -115,10 +115,10 @@ namespace ClassicUO.Game.Managers
                 var existing = UIManager.GetGump<UI.Gumps.GuildChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new UI.Gumps.GuildChatGump(220, 220));
+                UI.Gumps.GuildChatGump.OpenByUser(220, 220);
             });
 
             Register("speechhistory", (s) =>
@@ -138,11 +138,11 @@ namespace ClassicUO.Game.Managers
 
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
 
-                UIManager.Add(new UI.Gumps.NearbySpeechGump(240, 240));
+                UI.Gumps.NearbySpeechGump.OpenByUser(240, 240);
             });
 
             Register("targetenemy", (s) => TargetOrAttackNearestEnemy(false));
@@ -1397,6 +1397,22 @@ Register("pathpreview", (s) =>
                         (ushort)(UI.HideTrashOverlay.Range > 0 ? 0x35 : 0x21));
                 }
                 else GameActions.Print("Usage: -hidetrash <range>  (0=off)", 0x21);
+            });
+
+            Register("petguardtint", (s) =>
+            {
+                if (s != null && s.Length >= 2)
+                {
+                    string action = s[1].Trim();
+                    if (action.Equals("on", System.StringComparison.OrdinalIgnoreCase))
+                        PetGuardTintManager.SetEnabled(true);
+                    else if (action.Equals("off", System.StringComparison.OrdinalIgnoreCase))
+                        PetGuardTintManager.SetEnabled(false);
+                    else
+                        GameActions.Print("Usage: -petguardtint on|off", 0x21);
+                    return;
+                }
+                PetGuardTintManager.SetEnabled(!PetGuardTintManager.Enabled);
             });
 
             Register("petloyalty", (s) =>

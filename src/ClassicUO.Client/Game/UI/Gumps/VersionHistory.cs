@@ -11,6 +11,14 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.5.2]\n" +
+            """
+            - Restored compact World Explorer buttons while retaining the 1-4 column layout
+            - Added -petguardtint on|off to gray out pets that are not guarding you
+            - Added per-profile auto-open options for Global Chat, Guild and Alliance Chat, and Nearby Speech in Speech settings
+            - Closing a chat window now disables its auto-open setting; reopening it manually enables it again
+            """ +
+            "\n",
             "[0.5.1]\n" +
             """
             - Made compact World Explorer fit its pinned destinations, with 1-4 columns, narrower buttons, and wrapped labels

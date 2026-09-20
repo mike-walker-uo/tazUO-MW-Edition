@@ -29,6 +29,12 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.5.2 highlights
+
+- Restored the compact World Explorer buttons while keeping the 1–4 column layout.
+- Tint pets gray when they are not guarding you with `-petguardtint on|off`.
+- Set Global Chat, Guild and Alliance Chat, and Nearby Speech to open on new messages in **Options → Speech**. Global and guild chat default on; nearby speech defaults off. Closing a chat window disables its auto-open setting until you reopen it or enable the setting again.
+
 ## Version 0.5.1 highlights
 
 - Compact World Explorer now fits its pinned destinations, with a 1–4 column selector, narrower buttons, wrapped labels, and less unused space.
@@ -49,7 +55,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.5.1 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.5.2 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
