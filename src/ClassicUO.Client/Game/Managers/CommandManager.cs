@@ -104,10 +104,10 @@ namespace ClassicUO.Game.Managers
                 var existing = UIManager.GetGump<UI.Gumps.GlobalChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new UI.Gumps.GlobalChatGump(200, 200));
+                UI.Gumps.GlobalChatGump.OpenByUser(200, 200);
             });
 
             Register("guildchat", (s) =>
@@ -115,10 +115,10 @@ namespace ClassicUO.Game.Managers
                 var existing = UIManager.GetGump<UI.Gumps.GuildChatGump>();
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
-                UIManager.Add(new UI.Gumps.GuildChatGump(220, 220));
+                UI.Gumps.GuildChatGump.OpenByUser(220, 220);
             });
 
             Register("speechhistory", (s) =>
@@ -138,11 +138,11 @@ namespace ClassicUO.Game.Managers
 
                 if (existing != null && !existing.IsDisposed)
                 {
-                    existing.Dispose();
+                    existing.CloseByUser();
                     return;
                 }
 
-                UIManager.Add(new UI.Gumps.NearbySpeechGump(240, 240));
+                UI.Gumps.NearbySpeechGump.OpenByUser(240, 240);
             });
 
             Register("targetenemy", (s) => TargetOrAttackNearestEnemy(false));

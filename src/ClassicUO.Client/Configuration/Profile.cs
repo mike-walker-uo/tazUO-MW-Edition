@@ -268,6 +268,9 @@ namespace ClassicUO.Configuration
         public bool ReduceWeatherMotion { get; set; }
         public bool AutomationEnabled { get; set; } = true;
         public bool UseNativeGlobalChatReplacement { get; set; } = true;
+        public bool AutoOpenGlobalChat { get; set; } = true;
+        public bool AutoOpenGuildChat { get; set; } = true;
+        public bool AutoOpenNearbySpeech { get; set; } = false;
         public int NativeGlobalChatPreferenceVersion { get; set; }
         public int WaterStyleDefaultsVersion { get; set; }
         public int WaterIntensityDefaultsVersion { get; set; }

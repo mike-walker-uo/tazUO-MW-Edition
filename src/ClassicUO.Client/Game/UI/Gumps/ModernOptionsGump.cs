@@ -1839,6 +1839,27 @@ namespace ClassicUO.Game.UI.Gumps
             PositionHelper.BlankLine();
 
 
+            CheckboxWithLabel autoOpenChat = new CheckboxWithLabel("Open Global Chat on new messages", 0,
+                profile.AutoOpenGlobalChat, b => profile.AutoOpenGlobalChat = b);
+            autoOpenChat.SetTooltip("Closing the window turns this off. Reopen with -globalchat or enable it here.");
+            options.Add(s = new SettingsOption("", autoOpenChat, MainContent.RightWidth, (int)PAGE.Speech));
+            PositionHelper.PositionControl(s.FullControl);
+
+            autoOpenChat = new CheckboxWithLabel("Open Guild and Alliance Chat on new messages", 0,
+                profile.AutoOpenGuildChat, b => profile.AutoOpenGuildChat = b);
+            autoOpenChat.SetTooltip("Closing the window turns this off. Reopen with -guildchat or enable it here.");
+            options.Add(s = new SettingsOption("", autoOpenChat, MainContent.RightWidth, (int)PAGE.Speech));
+            PositionHelper.PositionControl(s.FullControl);
+
+            autoOpenChat = new CheckboxWithLabel("Open Nearby Speech on new messages", 0,
+                profile.AutoOpenNearbySpeech, b => profile.AutoOpenNearbySpeech = b);
+            autoOpenChat.SetTooltip("Closing the window turns this off. Reopen with -speechhistory or enable it here.");
+            options.Add(s = new SettingsOption("", autoOpenChat, MainContent.RightWidth, (int)PAGE.Speech));
+            PositionHelper.PositionControl(s.FullControl);
+
+            PositionHelper.BlankLine();
+
+
             options.Add
             (
                 s = new SettingsOption

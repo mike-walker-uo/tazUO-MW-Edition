@@ -45,7 +45,23 @@ namespace ClassicUO.Game.UI.Gumps
         public static readonly ChatHistoryStore Instance =
             new ChatHistoryStore((MessageType t) => t == MessageType.ChatSystem, 1000);
 
-        public static void EnsureHooked() => Instance.EnsureHooked();
+        private static bool _autoOpenHooked;
+
+        public static void EnsureHooked()
+        {
+            if (!_autoOpenHooked)
+            {
+                Instance.RecordAdded += _ =>
+                {
+                    if (World.Player != null && ProfileManager.CurrentProfile?.AutoOpenGlobalChat == true &&
+                        UIManager.GetGump<GlobalChatGump>() == null)
+                        UIManager.Add(new GlobalChatGump());
+                };
+                _autoOpenHooked = true;
+            }
+
+            Instance.EnsureHooked();
+        }
     }
 
     internal class GlobalChatGump : BaseChatGump
@@ -65,6 +81,30 @@ namespace ClassicUO.Game.UI.Gumps
         { }
 
         public override GumpType GumpType => GumpType.GlobalChat;
+
+        public static void OpenByUser(int x, int y)
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGlobalChat = true;
+
+            UIManager.Add(new GlobalChatGump(x, y));
+        }
+
+        public void CloseByUser()
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGlobalChat = false;
+
+            Dispose();
+        }
+
+        protected override void CloseWithRightClick()
+        {
+            base.CloseWithRightClick();
+
+            if (IsDisposed && ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGlobalChat = false;
+        }
 
         protected override int GetProfileFontSize() =>
             ProfileManager.CurrentProfile?.SelectedJournalFontSize ?? 16;

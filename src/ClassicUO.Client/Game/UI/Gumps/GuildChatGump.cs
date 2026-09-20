@@ -44,7 +44,28 @@ namespace ClassicUO.Game.UI.Gumps
         public static readonly ChatHistoryStore Instance =
             new ChatHistoryStore((MessageType t) => t == MessageType.Guild || t == MessageType.Alliance, 1000);
 
-        public static void EnsureHooked() => Instance.EnsureHooked();
+        private static bool _autoOpenHooked;
+
+        public static void EnsureHooked()
+        {
+            if (!_autoOpenHooked)
+            {
+                Instance.RecordAdded += record =>
+                {
+                    Profile profile = ProfileManager.CurrentProfile;
+                    if (World.Player == null || profile?.AutoOpenGuildChat != true ||
+                        record.MsgType == MessageType.Guild && profile.IgnoreGuildMessages ||
+                        record.MsgType == MessageType.Alliance && profile.IgnoreAllianceMessages)
+                        return;
+
+                    if (UIManager.GetGump<GuildChatGump>() == null)
+                        UIManager.Add(new GuildChatGump());
+                };
+                _autoOpenHooked = true;
+            }
+
+            Instance.EnsureHooked();
+        }
     }
 
     internal class GuildChatGump : BaseChatGump
@@ -65,6 +86,30 @@ namespace ClassicUO.Game.UI.Gumps
         { }
 
         public override GumpType GumpType => GumpType.GuildChat;
+
+        public static void OpenByUser(int x, int y)
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGuildChat = true;
+
+            UIManager.Add(new GuildChatGump(x, y));
+        }
+
+        public void CloseByUser()
+        {
+            if (ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGuildChat = false;
+
+            Dispose();
+        }
+
+        protected override void CloseWithRightClick()
+        {
+            base.CloseWithRightClick();
+
+            if (IsDisposed && ProfileManager.CurrentProfile != null)
+                ProfileManager.CurrentProfile.AutoOpenGuildChat = false;
+        }
 
         protected override int GetProfileFontSize() =>
             ProfileManager.CurrentProfile?.SelectedJournalFontSize ?? 16;
