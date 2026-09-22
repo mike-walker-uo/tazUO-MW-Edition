@@ -58,7 +58,8 @@ namespace ClassicUO.Game.Managers
             bool full = World.Player.Hits >= max;
             if (full && !_wasFull)
             {
-                try { UI.Gumps.ToastManager.Show("Full HP", 0x44, 2000); } catch { }
+                try { UI.Gumps.ToastManager.Show("Full HP", 0x44, 2000, "full-health",
+                    AlertCategory.Combat, AlertSeverity.Info); } catch { }
             }
             _wasFull = full;
         }

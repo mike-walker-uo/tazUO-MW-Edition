@@ -69,7 +69,8 @@ namespace ClassicUO.Game.Managers
                 if (t.IndexOf(Phrases[i], StringComparison.OrdinalIgnoreCase) < 0) continue;
                 if (Time.Ticks - _lastAlertAt < MIN_GAP_MS) return;
                 _lastAlertAt = (long)Time.Ticks;
-                try { UI.Gumps.ToastManager.Show("Party invite", 0x44, 5000); } catch { }
+                try { UI.Gumps.ToastManager.Show("Party invite", 0x44, 5000, "party-invite",
+                    AlertCategory.System, AlertSeverity.Info); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
                 return;
             }

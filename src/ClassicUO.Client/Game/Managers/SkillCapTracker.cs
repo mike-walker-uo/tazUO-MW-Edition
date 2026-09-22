@@ -69,7 +69,8 @@ namespace ClassicUO.Game.Managers
                 {
                     if (_warned.Add(s.Name))
                     {
-                        ToastManager.Show($"{s.Name} near cap: {s.Value:0.0} / {s.Cap:0.0}", 0x35, 5000);
+                        ToastManager.Show($"{s.Name} near cap: {s.Value:0.0} / {s.Cap:0.0}", 0x35, 5000,
+                            "skill-cap", AlertCategory.System, AlertSeverity.Info);
                     }
                 }
                 else if (s.Value < s.Cap - (WarnDelta + 2))

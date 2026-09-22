@@ -80,7 +80,8 @@ namespace ClassicUO.Game.Managers
             GameActions.DoubleClick(bandage.Serial);
             BandageScheduler.MarkFired(target.Serial, AutoBandageManager.CycleMs);
 
-            try { UI.Gumps.ToastManager.Show($"Ext bandage: {target.Name ?? "target"} ({pct}%)", 0x44, 1800); } catch { }
+            try { UI.Gumps.ToastManager.Show($"Ext bandage: {target.Name ?? "target"} ({pct}%)", 0x44, 1800,
+                "external-bandage", AlertCategory.Combat, AlertSeverity.Info); } catch { }
         }
 
         public static async void PickTarget()

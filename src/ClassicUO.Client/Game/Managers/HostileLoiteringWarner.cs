@@ -82,7 +82,8 @@ namespace ClassicUO.Game.Managers
                 if (!_alerted.Contains(m.Serial) && now - _dwell[m.Serial] >= DwellSeconds * 1000L)
                 {
                     _alerted.Add(m.Serial);
-                    try { UI.Gumps.ToastManager.Show($"Loitering: {m.Name ?? "?"}", 0x21, 3500); } catch { }
+                    try { UI.Gumps.ToastManager.Show($"Loitering: {m.Name ?? "?"}", 0x21, 3500,
+                        "hostile-loitering", AlertCategory.Combat, AlertSeverity.Warning); } catch { }
                 }
             }
 

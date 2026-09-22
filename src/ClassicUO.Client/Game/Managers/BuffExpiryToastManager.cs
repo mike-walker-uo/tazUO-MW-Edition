@@ -53,7 +53,8 @@ namespace ClassicUO.Game.Managers
         {
             if (!Enabled || e?.Buff == null) return;
             string name = string.IsNullOrEmpty(e.Buff.Title) ? e.Buff.Type.ToString() : e.Buff.Title;
-            try { UI.Gumps.ToastManager.Show($"Buff lost: {name}", 0x21, 2500); } catch { }
+            try { UI.Gumps.ToastManager.Show($"Buff lost: {name}", 0x21, 2500, "buff-expired",
+                AlertCategory.Combat, AlertSeverity.Warning); } catch { }
         }
 
         public static void SetEnabled(bool on)

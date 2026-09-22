@@ -1853,7 +1853,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             autoOpenChat = new CheckboxWithLabel("Open Nearby Speech on new messages", 0,
                 profile.AutoOpenNearbySpeech, b => profile.AutoOpenNearbySpeech = b);
-            autoOpenChat.SetTooltip("Closing the window turns this off. Reopen with -speechhistory or enable it here.");
+            autoOpenChat.SetTooltip("Closing the window turns this off. Reopen with -nearbychat or enable it here.");
             options.Add(s = new SettingsOption("", autoOpenChat, MainContent.RightWidth, (int)PAGE.Speech));
             PositionHelper.PositionControl(s.FullControl);
 
@@ -4186,6 +4186,7 @@ namespace ClassicUO.Game.UI.Gumps
             content.BlankLine();
 
             SliderWithLabel utilityOpacity = null;
+            SliderWithLabel paperdollOpacity = null;
             SliderWithLabel durabilityOpacity = null;
             SliderWithLabel containerOpacity = null;
             SliderWithLabel corpseOpacity = null;
@@ -4201,6 +4202,7 @@ namespace ClassicUO.Game.UI.Gumps
                     0, 100, profile.DurabilityGumpOpacity, value =>
                     {
                         utilityOpacity.SetValue(Math.Max(20, value));
+                        paperdollOpacity.SetValue(value);
                         durabilityOpacity.SetValue(value);
                         containerOpacity.SetValue(value);
                         corpseOpacity.SetValue(value);
@@ -4215,9 +4217,19 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 utilityOpacity = new SliderWithLabel
                 (
-                    "Custom utility/chat gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    "Custom gump opacity", 0, ThemeSettings.SLIDER_WIDTH,
                     20, 100, profile.CustomGumpOpacity,
                     CustomGumpThemeManager.SetOpacity
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                paperdollOpacity = new SliderWithLabel
+                (
+                    "Paperdoll background opacity", 0, ThemeSettings.SLIDER_WIDTH,
+                    0, 100, profile.PaperdollOpacity,
+                    (i) => { profile.PaperdollOpacity = (byte)i; }
                 ), true, page
             );
 

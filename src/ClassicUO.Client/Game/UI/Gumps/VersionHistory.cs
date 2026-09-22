@@ -11,6 +11,24 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6 Beta]\n" +
+            """
+            - Added Universal Item Finder with persistent area scans, multi-property ALL/NOT/count queries, saved searches, full property help, and item or house-position location tracking
+            - Preserved catalog items from unreachable containers during later scans and closed container gumps opened by scanning
+            - Added Restock Agent with multiple ordered sources, supply presets, custom destination containers, live stock counts, reusable loadouts, and integrated readiness checks
+            - Added Equipment Guru with editable build and skill targets, three recommended loadouts, clear item comparisons, fixed weapon/spellbook/talisman rules, and race-compatible candidates
+            - Added Alert Center history, severity filters, snooze, mute, source suppression, and category settings
+            - Made low durability, low pet loyalty, and legendary creature alerts persistent until right-clicked; recurring warnings return after ten minutes
+            - Added dedicated UO-style art and controls for Item Finder, Restock Agent, Equipment Guru, and Alert Center
+            - Added paperdoll quick-access buttons for the new tools and World Explorer
+            - Extended opacity controls to the world-map border, main menu, buff bar, compact World Explorer, and independently controlled paperdoll
+            - Improved critical durability rows with deep-plum styling, violet borders and bars, red Repair actions, and a brief first-warning pulse
+            - Renamed the primary nearby speech command to -nearbychat while keeping -speechhistory as an alias
+            - Fixed Global and Guild Chat input layout and retained separate auto-open settings for Global, Guild/Alliance, and Nearby Chat
+            - Restored compact World Explorer after restart when it was previously open
+            - Allowed pinned command groups to be detached with Alt
+            """ +
+            "\n",
             "[0.5.2]\n" +
             """
             - Restored compact World Explorer buttons while retaining the 1-4 column layout

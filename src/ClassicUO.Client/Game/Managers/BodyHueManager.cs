@@ -112,7 +112,8 @@ namespace ClassicUO.Game.Managers
             {
                 if (Debug && !string.IsNullOrEmpty(name) && _toastedParagons.Add(name))
                 {
-                    try { UI.Gumps.ToastManager.Show($"Paragon hue applied: {name} → 0x{ParagonAutoHue:X}", 0x35, 4000); } catch { }
+                    try { UI.Gumps.ToastManager.Show($"Paragon hue applied: {name} → 0x{ParagonAutoHue:X}", 0x35, 4000,
+                        "paragon-hue", AlertCategory.System, AlertSeverity.Info); } catch { }
                 }
                 return ParagonAutoHue;
             }

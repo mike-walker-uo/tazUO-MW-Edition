@@ -153,6 +153,42 @@ namespace ClassicUO.Game.Managers
             Save();
         }
 
+        internal static bool Undock(int groupId, string commandLine, int x, int y)
+        {
+            Group source = Find(groupId);
+
+            if (source == null || source.Commands.Count <= 1)
+            {
+                return false;
+            }
+
+            int commandIndex = source.Commands.FindIndex(command => string.Equals(
+                command, commandLine, StringComparison.OrdinalIgnoreCase));
+
+            if (commandIndex < 0)
+            {
+                return false;
+            }
+
+            string command = source.Commands[commandIndex];
+            source.Commands.RemoveAt(commandIndex);
+
+            var detached = new Group
+            {
+                Id = _nextId++,
+                X = x,
+                Y = y
+            };
+            detached.Commands.Add(command);
+            _groups.Add(detached);
+
+            DisposeGump(source.Id);
+            Show(source);
+            Show(detached);
+            Save();
+            return true;
+        }
+
         internal static void TryMergeNearby(PinnedCommandGroupGump source)
         {
             if (source == null || source.IsDisposed) return;

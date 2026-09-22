@@ -101,7 +101,8 @@ namespace ClassicUO.Game.Managers
                 if (e.Text.IndexOf(kw, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 if (Time.Ticks - _lastToastAt < MIN_GAP_MS) return;
                 _lastToastAt = (long)Time.Ticks;
-                try { UI.Gumps.ToastManager.Show(kw, 0x44, 3500); } catch { }
+                try { UI.Gumps.ToastManager.Show(kw, 0x44, 3500, "journal-keyword",
+                    AlertCategory.Journal, AlertSeverity.Info); } catch { }
                 return;
             }
         }

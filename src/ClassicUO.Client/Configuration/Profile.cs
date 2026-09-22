@@ -95,6 +95,11 @@ namespace ClassicUO.Configuration
         public byte MusicPlaybackMode { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point MusicPlayerPosition { get; set; } = new Point(200, 40);
         [JsonConverter(typeof(Point2Converter))] public Point WorldExplorerPosition { get; set; } = new Point(160, 90);
+        [JsonConverter(typeof(Point2Converter))] public Point ItemFinderPosition { get; set; } = new Point(220, 130);
+        [JsonConverter(typeof(Point2Converter))] public Point AlertCenterPosition { get; set; } = new Point(180, 70);
+        [JsonConverter(typeof(Point2Converter))] public Point RestockAgentPosition { get; set; } = new Point(220, 120);
+        [JsonConverter(typeof(Point2Converter))] public Point EquipmentGuruPosition { get; set; } = new Point(150, 80);
+        public bool PaperdollToolsCollapsed { get; set; }
         public byte WorldExplorerTravelMethod { get; set; }
         public byte WorldExplorerTheme { get; set; }
         public bool WorldExplorerMinimized { get; set; }
@@ -106,6 +111,7 @@ namespace ClassicUO.Configuration
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
         public byte CustomGumpTheme { get; set; }
         public byte CustomGumpOpacity { get; set; } = 100;
+        public byte PaperdollOpacity { get; set; } = 100;
         public byte DurabilityGumpOpacity { get; set; } = 100;
         public bool BoostGumpOpacityOnHover { get; set; }
         public byte GumpHoverOpacityPercent { get; set; } = 100;
@@ -1120,6 +1126,11 @@ namespace ClassicUO.Configuration
 
                                 case GumpType.WorldMap:
                                     gump = new WorldMapGump();
+
+                                    break;
+
+                                case GumpType.WorldExplorer:
+                                    gump = new WorldExplorerGump();
 
                                     break;
 

@@ -74,7 +74,8 @@ namespace ClassicUO.Game.Managers
                 }
                 string name = $"Death {DateTime.Now:HH:mm}";
                 gump.AddUserMarker(name, x, y, map, "red");
-                ToastManager.Show($"Death marker placed at ({x},{y}).", 0x21, 6000);
+                ToastManager.Show($"Death marker placed at ({x},{y}).", 0x21, 6000,
+                    "death-marker", AlertCategory.System, AlertSeverity.Info);
             }
             _wasAlive = alive;
         }

@@ -38,12 +38,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System;
+using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.Managers
 {
     public class DurabilityManager : IDisposable
     {
+        internal const int CriticalDurability = 10;
+        internal const ushort CriticalHue = 0x04E6;
+        private const long WARNING_INTERVAL_MS = 10 * 60 * 1000;
+
         private readonly Dictionary<uint, DurabiltyProp> _itemLayerSlots = new();
+        private long _nextWarningAt;
         private static Regex _durabilityRegex;
         private static string _durabilityTemplate;
 
@@ -67,6 +73,36 @@ namespace ClassicUO.Game.Managers
         public bool TryGetDurability(uint serial, out DurabiltyProp durability)
         {
             return _itemLayerSlots.TryGetValue(serial, out durability);
+        }
+
+        public void Tick()
+        {
+            if (World.Player == null || !World.InGame || Time.Ticks < _nextWarningAt)
+                return;
+
+            DurabiltyProp lowest = null;
+            Item lowestItem = null;
+            foreach (DurabiltyProp durability in _itemLayerSlots.Values)
+            {
+                if (durability.MaxDurabilty <= 0 || durability.Durabilty >= CriticalDurability ||
+                    (lowest != null && durability.Durabilty >= lowest.Durabilty))
+                    continue;
+
+                Item item = World.Items.Get((uint)durability.Serial);
+                if (item == null || item.IsDestroyed)
+                    continue;
+
+                lowest = durability;
+                lowestItem = item;
+            }
+
+            if (lowest == null)
+                return;
+
+            string name = string.IsNullOrWhiteSpace(lowestItem.Name) ? lowestItem.Layer.ToString() : lowestItem.Name;
+            ToastManager.ShowPersistent("low-durability", $"Low durability: {name} ({lowest.Durabilty}/{lowest.MaxDurabilty})",
+                0x21, new Color(255, 160, 168), AlertCategory.Equipment, AlertSeverity.Warning);
+            _nextWarningAt = (long)Time.Ticks + WARNING_INTERVAL_MS;
         }
 
         private void OnOPLReceive(object s, OPLEventArgs e)
@@ -97,6 +133,7 @@ namespace ClassicUO.Game.Managers
 
         private void OnDisconnected(object sender, EventArgs e)
         {
+            _nextWarningAt = 0;
             if (_itemLayerSlots.Count == 0)
                 return;
 
@@ -128,9 +165,13 @@ namespace ClassicUO.Game.Managers
                 DurabiltyProp durability = ParseDurability((int)item.Serial, data);
                 if (durability.Serial != 0)
                 {
-                    changed = !_itemLayerSlots.TryGetValue(item.Serial, out DurabiltyProp previous)
-                              || previous.Durabilty != durability.Durabilty
+                    _itemLayerSlots.TryGetValue(item.Serial, out DurabiltyProp previous);
+                    changed = previous == null || previous.Durabilty != durability.Durabilty
                               || previous.MaxDurabilty != durability.MaxDurabilty;
+                    if (durability.Durabilty < CriticalDurability)
+                        durability.CriticalPulseStartedAt = previous != null && previous.Durabilty < CriticalDurability
+                            ? previous.CriticalPulseStartedAt
+                            : (long)Time.Ticks;
                     _itemLayerSlots[item.Serial] = durability;
                 }
                 else
@@ -195,6 +236,7 @@ namespace ClassicUO.Game.Managers
             EventSink.OnDisconnected -= OnDisconnected;
             _itemLayerSlots.Clear();
             HasDurabilityData = false;
+            _nextWarningAt = 0;
         }
     }
 
@@ -203,6 +245,7 @@ namespace ClassicUO.Game.Managers
         public int Serial { get; set; }
         public int Durabilty { get; set; }
         public int MaxDurabilty { get; set; }
+        internal long CriticalPulseStartedAt { get; set; }
 
         public float Percentage => MaxDurabilty > 0 ? ((float)Durabilty / (float)MaxDurabilty) : 0;
 

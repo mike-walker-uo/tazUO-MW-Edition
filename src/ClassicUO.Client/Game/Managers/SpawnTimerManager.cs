@@ -84,7 +84,8 @@ namespace ClassicUO.Game.Managers
                 if (!t.Fired && now >= t.ExpireAt)
                 {
                     t.Fired = true;
-                    ToastManager.Show($"⏰ {t.Name}", 0x35, 6000);
+                    ToastManager.Show($"⏰ {t.Name}", 0x35, 6000, "spawn-timer",
+                        AlertCategory.System, AlertSeverity.Warning);
                 }
                 // Auto-prune 30s after fire.
                 if (t.Fired && (now - t.ExpireAt).TotalSeconds > 30)

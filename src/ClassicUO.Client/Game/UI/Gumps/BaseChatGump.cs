@@ -66,6 +66,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly ChatBody _body;
         private readonly ScrollBar _scrollBar;
         private readonly StbTextBox _input;
+        private readonly AlphaBlendControl _inputBackground;
         private readonly Label _inputPrompt;
         private readonly HitBox _resizeGrip;
         private readonly int _artInset;
@@ -180,9 +181,9 @@ namespace ClassicUO.Game.UI.Gumps
                     Width = inputW,
                     Height = INPUT_HEIGHT - 4
                 };
-                AlphaBlendControl inputBackground = new AlphaBlendControl(0.6f) { Width = _input.Width, Height = _input.Height };
-                CustomGumpThemeManager.ApplyInputSurface(inputBackground, 0.6f);
-                _input.Add(inputBackground);
+                _inputBackground = new AlphaBlendControl(0.6f) { Width = _input.Width, Height = _input.Height };
+                CustomGumpThemeManager.ApplyInputSurface(_inputBackground, 0.6f);
+                _input.Add(_inputBackground);
                 Add(_input);
             }
 
@@ -320,6 +321,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _inputPrompt.Y = h - INPUT_HEIGHT - _artInset + 2;
                 _input.Y = h - INPUT_HEIGHT - _artInset + 2;
                 _input.Width = w - (PADDING + _artInset) * 2 - promptWidth - 8;
+                _inputBackground.Width = _input.Width;
             }
             _resizeGrip.X = w - 12;
             _resizeGrip.Y = h - 12;

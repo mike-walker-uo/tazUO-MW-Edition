@@ -48,7 +48,7 @@ namespace ClassicUO.Game.Managers
     {
         public static bool Enabled;
         private static bool _hooked;
-        private static long _lastToastAt;
+        private static long _lastToastAt = -REMINDER_GAP_MS;
         private static long _nextTooltipRefresh;
         private const int FEED_BELOW = 90;
         private const long TOOLTIP_REFRESH_MS = 60_000;
@@ -59,12 +59,11 @@ namespace ClassicUO.Game.Managers
 
         public static void ResetSession()
         {
-            _lastToastAt = 0;
+            _lastToastAt = -REMINDER_GAP_MS;
             _nextTooltipRefresh = 0;
             _loyalty.Clear();
             _lastReminderAt.Clear();
         }
-        private const long MIN_GAP_MS = 5000;
 
         private static readonly string[] Phrases =
         {
@@ -145,7 +144,8 @@ namespace ClassicUO.Game.Managers
 
             _lastReminderAt[pet.Serial] = now;
             string name = string.IsNullOrWhiteSpace(pet.Name) ? "Your pet" : pet.Name;
-            UI.Gumps.ToastManager.Show($"Feed {name}: loyalty {value}%", 0x21, 6000);
+            UI.Gumps.ToastManager.ShowPersistent($"pet-loyalty-{pet.Serial}", $"Feed {name}: loyalty {value}%", 0x21,
+                null, AlertCategory.Pets, AlertSeverity.Warning);
             Client.Game?.Audio?.PlaySound(0x0055);
         }
 
@@ -193,9 +193,10 @@ namespace ClassicUO.Game.Managers
             for (int i = 0; i < Phrases.Length; i++)
             {
                 if (t.IndexOf(Phrases[i], StringComparison.OrdinalIgnoreCase) < 0) continue;
-                if (Time.Ticks - _lastToastAt < MIN_GAP_MS) return;
+                if (Time.Ticks - _lastToastAt < REMINDER_GAP_MS) return;
                 _lastToastAt = (long)Time.Ticks;
-                try { UI.Gumps.ToastManager.Show("Pet loyalty: " + Phrases[i], 0x21, 5000); } catch { }
+                try { UI.Gumps.ToastManager.ShowPersistent("pet-loyalty-message", "Pet loyalty: " + Phrases[i], 0x21,
+                    null, AlertCategory.Pets, AlertSeverity.Warning); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
                 return;
             }

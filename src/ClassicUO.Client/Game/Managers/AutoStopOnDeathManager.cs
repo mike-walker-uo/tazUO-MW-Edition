@@ -68,7 +68,8 @@ namespace ClassicUO.Game.Managers
 
                 AutoFollowManager.Set(0); // also clears Pathfinder
                 if (_resumeAfterDeath)
-                    UI.Gumps.ToastManager.Show("Automations paused (dead)", 0x21, 3000);
+                    UI.Gumps.ToastManager.Show("Automations paused (dead)", 0x21, 3000,
+                        "automation-state", AlertCategory.System, AlertSeverity.Warning);
             }
             else if (!d && _wasDead)
             {
@@ -76,7 +77,8 @@ namespace ClassicUO.Game.Managers
                 if (ShouldResumeAutomation(_resumeAfterDeath, profileAllowsAutomation))
                 {
                     AutomationCoordinator.SetEnabled(true, announce: false);
-                    UI.Gumps.ToastManager.Show("Automations resumed", 0x35, 2500);
+                    UI.Gumps.ToastManager.Show("Automations resumed", 0x35, 2500,
+                        "automation-state", AlertCategory.System, AlertSeverity.Info);
                 }
 
                 _resumeAfterDeath = false;

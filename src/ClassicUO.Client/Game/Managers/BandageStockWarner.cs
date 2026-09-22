@@ -35,7 +35,8 @@ namespace ClassicUO.Game.Managers
             if (count < Threshold && !_alerted)
             {
                 _alerted = true;
-                try { UI.Gumps.ToastManager.Show($"Low on bandages: {count} (threshold {Threshold})", 0x21, 4500); } catch { }
+                try { UI.Gumps.ToastManager.Show($"Low on bandages: {count} (threshold {Threshold})", 0x21, 4500,
+                    "low-bandages", AlertCategory.Supplies, AlertSeverity.Warning); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
             }
             else if (count >= Threshold + 10 && _alerted)

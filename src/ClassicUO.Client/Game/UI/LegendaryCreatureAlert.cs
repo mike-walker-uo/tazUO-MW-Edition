@@ -67,10 +67,13 @@ namespace ClassicUO.Game.UI
             _triggeredAt = Math.Max(1, now);
             _soundStage = 0;
 
-            ToastManager.Show(
+            ToastManager.ShowPersistent(
+                "legendary-creature",
                 "LEGENDARY CREATURE NEARBY! Search the area!",
                 0x0035,
-                (uint)DURATION_MS
+                null,
+                AlertCategory.Creatures,
+                AlertSeverity.Critical
             );
             PlaySound(0x0038);
         }

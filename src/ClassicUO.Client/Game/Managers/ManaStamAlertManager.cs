@@ -63,7 +63,8 @@ namespace ClassicUO.Game.Managers
                 if (!_manaAlerted && cur < ManaPct)
                 {
                     _manaAlerted = true;
-                    try { UI.Gumps.ToastManager.Show($"Low mana ({cur}%)", 0x53, 3000); } catch { }
+                    try { UI.Gumps.ToastManager.Show($"Low mana ({cur}%)", 0x53, 3000, "low-mana",
+                        AlertCategory.Combat, AlertSeverity.Warning); } catch { }
                 }
                 else if (_manaAlerted && cur >= ManaPct + 10) _manaAlerted = false;
             }
@@ -74,7 +75,8 @@ namespace ClassicUO.Game.Managers
                 if (!_stamAlerted && cur < StamPct)
                 {
                     _stamAlerted = true;
-                    try { UI.Gumps.ToastManager.Show($"Low stamina ({cur}%)", 0x49, 3000); } catch { }
+                    try { UI.Gumps.ToastManager.Show($"Low stamina ({cur}%)", 0x49, 3000, "low-stamina",
+                        AlertCategory.Combat, AlertSeverity.Warning); } catch { }
                 }
                 else if (_stamAlerted && cur >= StamPct + 10) _stamAlerted = false;
             }

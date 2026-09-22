@@ -142,6 +142,16 @@ namespace ClassicUO.Game.UI.Controls
 
             bool partialHue = IsPartialHue;
             ushort hue = Hue;
+            Item highlightedItem = World.Items.Get(LocalSerial);
+            bool locateTarget = ItemFinderManager.IsLocateTarget(LocalSerial);
+
+            if (locateTarget || (highlightedItem != null
+                && highlightedItem.MatchesHighlightData
+                && highlightedItem.HighlightColor == new Color(255, 20, 147)))
+            {
+                hue = 0x0026;
+                partialHue = false;
+            }
 
             if (HighlightOnMouseOver && MouseIsOver)
             {
@@ -161,7 +171,7 @@ namespace ClassicUO.Game.UI.Controls
 
                 batcher.Draw(spriteInfo.Texture, rect, spriteInfo.UV, hueVector);
 
-                Item item = World.Items.Get(LocalSerial);
+                Item item = highlightedItem;
 
                 if (
                     item != null
@@ -176,6 +186,19 @@ namespace ClassicUO.Game.UI.Controls
 
                     batcher.Draw(spriteInfo.Texture, rect, spriteInfo.UV, hueVector);
                 }
+            }
+
+            if (locateTarget)
+            {
+                float pulse = 0.68f + 0.32f
+                    * (0.5f + 0.5f * (float)Math.Sin(Time.Ticks * 0.012f));
+                var marker = SolidColorTextureCache.GetTexture(new Color(255, 35, 210));
+                Vector3 markerHue = new Vector3(1, 0, pulse);
+
+                batcher.DrawRectangle(marker, x - 4, y - 4,
+                    Width + 8, Height + 8, markerHue);
+                batcher.DrawRectangle(marker, x - 2, y - 2,
+                    Width + 4, Height + 4, markerHue);
             }
 
             return true;

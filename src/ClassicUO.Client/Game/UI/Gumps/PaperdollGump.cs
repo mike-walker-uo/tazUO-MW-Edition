@@ -58,6 +58,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private PaperDollInteractable _paperDollInteractable;
         private PaperDollBackpackEquipmentGump _backpackEquipmentStrip;
+        private PaperDollFeatureToolsGump _featureTools;
         private GumpPic _partyManifestPic;
 
         private GumpPic _picBase;
@@ -113,15 +114,18 @@ namespace ClassicUO.Game.UI.Gumps
         {
             bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
                 && !IsMinimized && _picBase != null;
-            float backgroundAlpha = _picBase?.Alpha ?? 1f;
+            float originalAlpha = _picBase?.Alpha ?? 1f;
+            float backgroundAlpha = (ProfileManager.CurrentProfile?.PaperdollOpacity ?? 100) / 100f;
             if (ornate)
             {
                 CustomThemeArt.DrawPanel(batcher, x, y, _picBase.Width, _picBase.Height, backgroundAlpha);
                 _picBase.Alpha = 0f;
             }
-            bool result = base.Draw(batcher, x, y);
-            if (ornate)
+            else if (_picBase != null && !IsMinimized)
                 _picBase.Alpha = backgroundAlpha;
+            bool result = base.Draw(batcher, x, y);
+            if (_picBase != null)
+                _picBase.Alpha = originalAlpha;
             return result;
         }
 
@@ -157,6 +161,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _backpackEquipmentStrip?.Dispose();
             _backpackEquipmentStrip = null;
+            _featureTools?.Dispose();
+            _featureTools = null;
 
             UIManager.SavePosition(LocalSerial, Location);
 
@@ -545,6 +551,12 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     _backpackEquipmentStrip = new PaperDollBackpackEquipmentGump(this);
                     UIManager.Add(_backpackEquipmentStrip);
+                }
+
+                if (_featureTools == null || _featureTools.IsDisposed)
+                {
+                    _featureTools = new PaperDollFeatureToolsGump(this);
+                    UIManager.Add(_featureTools);
                 }
 
                 // This is to update the state of the war mode button.

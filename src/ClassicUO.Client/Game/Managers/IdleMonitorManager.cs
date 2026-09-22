@@ -78,7 +78,8 @@ namespace ClassicUO.Game.Managers
             if (idleMs / 1000 >= IdleSeconds)
             {
                 _alerted = true;
-                try { UI.Gumps.ToastManager.Show($"Idle {IdleSeconds}s", 0x53, 4000); } catch { }
+                try { UI.Gumps.ToastManager.Show($"Idle {IdleSeconds}s", 0x53, 4000, "idle-monitor",
+                    AlertCategory.System, AlertSeverity.Warning); } catch { }
             }
         }
     }

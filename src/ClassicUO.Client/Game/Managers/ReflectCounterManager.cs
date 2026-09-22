@@ -38,7 +38,8 @@ namespace ClassicUO.Game.Managers
              && s.IndexOf("absorb", StringComparison.OrdinalIgnoreCase) < 0)
                 return;
             SessionCount++;
-            try { UI.Gumps.ToastManager.Show($"Reflect #{SessionCount}", 0x44, 1500); } catch { }
+            try { UI.Gumps.ToastManager.Show($"Reflect #{SessionCount}", 0x44, 1500, "reflect-counter",
+                AlertCategory.Combat, AlertSeverity.Info); } catch { }
         }
 
         public static void SetEnabled(bool on)

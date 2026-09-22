@@ -59,7 +59,8 @@ namespace ClassicUO.Game.Managers
             if (!_alerted && pct >= ThresholdPct)
             {
                 _alerted = true;
-                try { UI.Gumps.ToastManager.Show($"Bag {pct}% full ({World.Player.Weight}/{max})", 0x44, 3500); } catch { }
+                try { UI.Gumps.ToastManager.Show($"Bag {pct}% full ({World.Player.Weight}/{max})", 0x44, 3500,
+                    "inventory-weight", AlertCategory.Inventory, AlertSeverity.Warning); } catch { }
             }
             else if (_alerted && pct < ThresholdPct - 10) _alerted = false;
         }

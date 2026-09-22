@@ -128,6 +128,36 @@ namespace ClassicUO.Game.Managers
             GameActions.Print($"Loadout '{name}' saved ({map.Count} pieces).", 0x35);
         }
 
+        internal static bool SaveSet(string name, IReadOnlyDictionary<Layer, uint> items)
+        {
+            EnsureLoaded();
+
+            if (string.IsNullOrWhiteSpace(name) || items == null)
+            {
+                return false;
+            }
+
+            var map = new Dictionary<Layer, uint>();
+
+            foreach (KeyValuePair<Layer, uint> item in items)
+            {
+                if (item.Value != 0)
+                {
+                    map[item.Key] = item.Value;
+                }
+            }
+
+            if (map.Count == 0)
+            {
+                return false;
+            }
+
+            _sets[name.Trim()] = map;
+            Save();
+            GameActions.Print($"Loadout '{name}' saved ({map.Count} pieces).", 0x35);
+            return true;
+        }
+
         public static void LoadSet(string name)
         {
             EnsureLoaded();

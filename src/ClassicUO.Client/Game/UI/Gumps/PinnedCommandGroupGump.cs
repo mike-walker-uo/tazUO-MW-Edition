@@ -14,12 +14,15 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private const int PAD = 3;
         private const int BUTTON_HEIGHT = 21;
+        private readonly int _commandCount;
+        private string _undockCommand;
 
         internal int GroupId { get; }
 
         internal PinnedCommandGroupGump(int groupId, IReadOnlyList<string> commands) : base(0, 0)
         {
             GroupId = groupId;
+            _commandCount = commands.Count;
             CanMove = true;
             CanCloseWithRightClick = false;
             AcceptMouseInput = true;
@@ -46,14 +49,36 @@ namespace ClassicUO.Game.UI.Gumps
                     CanCloseWithRightClick = false
                 };
                 CustomGumpThemeManager.StyleButton(button);
-                button.SetTooltip("Left-click: run command\nDrag: move; drop onto another pinned command to group\nRight-click: remove", 350);
+                button.SetTooltip(commands.Count > 1
+                    ? "Left-click: run command\nDrag: move the group\nAlt+drag: undock this command\nAlt+click: undock beside the group\nDrop onto another pinned command to group\nRight-click: remove"
+                    : "Left-click: run command\nDrag: move; drop onto another pinned command to group\nRight-click: remove",
+                    350);
                 string captured = command;
+                button.MouseDown += (s, e) =>
+                {
+                    _undockCommand = e.Button == MouseButtonType.Left
+                        && Keyboard.Alt && _commandCount > 1
+                            ? captured
+                            : null;
+                };
                 button.MouseUp += (s, e) =>
                 {
                     if (e.Button == MouseButtonType.Left)
-                        PinnedCommandManager.Execute(captured);
+                    {
+                        if (Keyboard.Alt && _commandCount > 1)
+                        {
+                            PinnedCommandManager.Undock(
+                                GroupId, captured, X + Width + 8, Y);
+                        }
+                        else
+                        {
+                            PinnedCommandManager.Execute(captured);
+                        }
+                    }
                     else if (e.Button == MouseButtonType.Right)
                         PinnedCommandManager.Remove(GroupId, captured);
+
+                    _undockCommand = null;
                 };
                 Add(button);
             }
@@ -62,6 +87,18 @@ namespace ClassicUO.Game.UI.Gumps
         protected override void OnDragEnd(int x, int y)
         {
             base.OnDragEnd(x, y);
+
+            if (_undockCommand != null && _commandCount > 1)
+            {
+                string command = _undockCommand;
+                _undockCommand = null;
+
+                if (PinnedCommandManager.Undock(GroupId, command, X, Y))
+                {
+                    return;
+                }
+            }
+
             PinnedCommandManager.UpdatePosition(GroupId, X, Y);
             PinnedCommandManager.TryMergeNearby(this);
         }

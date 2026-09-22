@@ -88,7 +88,8 @@ namespace ClassicUO.Game.Managers
                         {
                             _hpWarnAt[m.Serial] = (long)Time.Ticks;
                             string nm = string.IsNullOrEmpty(m.Name) ? "Pet" : m.Name;
-                            ToastManager.Show($"{nm} HP {pct}%", 0x21, 4000);
+                            ToastManager.Show($"{nm} HP {pct}%", 0x21, 4000, "pet-health",
+                                AlertCategory.Pets, AlertSeverity.Warning);
                         }
                     }
                     else if (pct > HpThresholdPercent + 10)
@@ -106,7 +107,8 @@ namespace ClassicUO.Game.Managers
                     {
                         _distWarnAt[m.Serial] = (long)Time.Ticks;
                         string nm = string.IsNullOrEmpty(m.Name) ? "Pet" : m.Name;
-                        ToastManager.Show($"{nm} is {dist} tiles away", 0x35, 4000);
+                        ToastManager.Show($"{nm} is {dist} tiles away", 0x35, 4000, "pet-distance",
+                            AlertCategory.Pets, AlertSeverity.Warning);
                     }
                 }
                 else if (dist < DistanceWarn - 2)

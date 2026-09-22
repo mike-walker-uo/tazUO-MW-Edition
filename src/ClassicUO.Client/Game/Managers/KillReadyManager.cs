@@ -64,7 +64,8 @@ namespace ClassicUO.Game.Managers
             if (pct < ThresholdPct && _alertedSerial != t)
             {
                 _alertedSerial = t;
-                try { UI.Gumps.ToastManager.Show($"Kill ready: {m.Name ?? "target"} ({pct}%)", 0x44, 2500); } catch { }
+                try { UI.Gumps.ToastManager.Show($"Kill ready: {m.Name ?? "target"} ({pct}%)", 0x44, 2500,
+                    "kill-ready", AlertCategory.Combat, AlertSeverity.Info); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
             }
             else if (pct >= ThresholdPct + 10 && _alertedSerial == t)

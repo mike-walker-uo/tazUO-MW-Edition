@@ -97,7 +97,8 @@ namespace ClassicUO.Game.Managers
             TargetManager.LastAttack = best.Serial;
             if (AlsoAttack)
                 GameActions.Attack(best.Serial);
-            UI.Gumps.ToastManager.Show($"Target switched: {best.Name ?? "<unknown>"} (d={bestDist})", 0x35, 2500);
+            UI.Gumps.ToastManager.Show($"Target switched: {best.Name ?? "<unknown>"} (d={bestDist})", 0x35, 2500,
+                "respawn-target", AlertCategory.Combat, AlertSeverity.Info);
         }
 
         public static void SetEnabled(bool on, bool alsoAttack)
