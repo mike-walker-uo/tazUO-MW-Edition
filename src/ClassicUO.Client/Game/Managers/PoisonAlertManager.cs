@@ -56,7 +56,8 @@ namespace ClassicUO.Game.Managers
             bool p = World.Player.IsPoisoned;
             if (p && !_wasPoisoned)
             {
-                try { UI.Gumps.ToastManager.Show("POISONED!", 0x44, 4000); } catch { }
+                try { UI.Gumps.ToastManager.Show("POISONED!", 0x44, 4000, "poisoned",
+                    AlertCategory.Combat, AlertSeverity.Warning); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0064); } catch { }
             }
             _wasPoisoned = p;

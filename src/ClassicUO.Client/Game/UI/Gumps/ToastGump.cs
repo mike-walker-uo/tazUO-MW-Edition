@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -43,8 +44,8 @@ namespace ClassicUO.Game.UI.Gumps
 {
     /// <summary>
     /// Simple non-modal toast notifications. Stack at the top center of the
-    /// screen, fade out as their lifetime expires. One sticky gump auto-
-    /// instantiated on first call to ToastManager.Show.
+    /// screen, fade out as their lifetime expires. Persistent alarms remain
+    /// until right-clicked. One sticky gump is created on the first toast.
     /// </summary>
     public static class ToastManager
     {
@@ -54,6 +55,9 @@ namespace ClassicUO.Game.UI.Gumps
             public ushort Hue;
             public long Created;
             public long ExpireAt;
+            public string Key;
+            public bool Persistent;
+            public Color? TextColor;
         }
 
         private static readonly List<Toast> _toasts = new List<Toast>();
@@ -127,10 +131,17 @@ namespace ClassicUO.Game.UI.Gumps
             AnchorEdit = false;
         }
 
-        public static void Show(string text, ushort hue = 0x0481, uint durationMs = 4000)
+        public static void Show(
+            string text,
+            ushort hue = 0x0481,
+            uint durationMs = 4000,
+            string sourceKey = null,
+            AlertCategory? category = null,
+            AlertSeverity? severity = null)
         {
             EnsureLoaded();
             if (string.IsNullOrEmpty(text)) return;
+            if (!AlertCenterManager.RecordToast(sourceKey, text, hue, false, category, severity)) return;
             _toasts.Add(new Toast
             {
                 Text = text,
@@ -138,9 +149,95 @@ namespace ClassicUO.Game.UI.Gumps
                 Created = (long)Time.Ticks,
                 ExpireAt = (long)Time.Ticks + durationMs
             });
-            // Keep at most 10 toasts on screen.
-            while (_toasts.Count > 10) _toasts.RemoveAt(0);
+            // Keep at most 10 transient toasts; persistent alarms need dismissal.
+            int transientCount = 0;
+            foreach (Toast toast in _toasts)
+                if (!toast.Persistent) transientCount++;
+            for (int i = 0; transientCount > 10; i++)
+            {
+                if (_toasts[i].Persistent) continue;
+                _toasts.RemoveAt(i--);
+                transientCount--;
+            }
 
+            EnsureGump();
+        }
+
+        public static void ShowPersistent(string key, string text, ushort hue = 0x0481,
+            Color? textColor = null, AlertCategory? category = null,
+            AlertSeverity? severity = null)
+        {
+            EnsureLoaded();
+            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(text)) return;
+
+            if (!AlertCenterManager.RecordToast(key, text, hue, true, category, severity))
+            {
+                DismissByKey(key, false);
+                return;
+            }
+
+            Toast toast = _toasts.Find(t => t.Persistent && t.Key == key);
+            if (toast == null)
+            {
+                toast = new Toast { Key = key, Persistent = true };
+            }
+            else
+            {
+                _toasts.Remove(toast);
+            }
+
+            toast.Text = text;
+            toast.Hue = hue;
+            toast.TextColor = textColor;
+            toast.Created = (long)Time.Ticks;
+            _toasts.Add(toast);
+            EnsureGump();
+        }
+
+        internal static void Dismiss(Toast toast)
+        {
+            if (toast == null)
+            {
+                return;
+            }
+
+            _toasts.Remove(toast);
+
+            if (toast.Persistent)
+            {
+                AlertCenterManager.DismissBySource(toast.Key);
+            }
+        }
+
+        internal static void DismissByKey(string key, bool notifyAlertCenter = true)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return;
+            }
+
+            _toasts.RemoveAll(toast => toast.Persistent
+                && string.Equals(toast.Key, key, StringComparison.OrdinalIgnoreCase));
+
+            if (notifyAlertCenter)
+            {
+                AlertCenterManager.DismissBySource(key);
+            }
+        }
+
+        internal static List<Toast> VisibleToasts()
+        {
+            PruneExpired();
+            var visible = new List<Toast>();
+            for (int i = _toasts.Count - 1; i >= 0; i--)
+                if (_toasts[i].Persistent) visible.Add(_toasts[i]);
+            for (int i = _toasts.Count - 1; i >= 0 && visible.Count < 6; i--)
+                if (!_toasts[i].Persistent) visible.Add(_toasts[i]);
+            return visible;
+        }
+
+        private static void EnsureGump()
+        {
             if (UIManager.GetGump<ToastGump>() == null)
                 UIManager.Add(new ToastGump());
         }
@@ -149,7 +246,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             long now = (long)Time.Ticks;
             for (int i = _toasts.Count - 1; i >= 0; i--)
-                if (_toasts[i].ExpireAt <= now) _toasts.RemoveAt(i);
+                if (!_toasts[i].Persistent && _toasts[i].ExpireAt <= now) _toasts.RemoveAt(i);
         }
     }
 
@@ -170,7 +267,7 @@ namespace ClassicUO.Game.UI.Gumps
             X = 0; Y = 0;
             Width = 4096; Height = 4096;
             CanMove = false;
-            AcceptMouseInput = false;
+            AcceptMouseInput = true;
             CanCloseWithRightClick = false;
             WantUpdateSize = false;
             LayerOrder = UILayer.Over;
@@ -181,10 +278,34 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool ShouldBeSaved => false;
 
+        private static ToastManager.Toast PersistentAt(int x, int y)
+        {
+            var camera = Client.Game.Scene?.Camera;
+            int screenW = camera != null ? camera.Bounds.Right : 800;
+            int tx = ToastManager.BaseX(screenW) + ToastManager.AnchorX;
+            if (x < tx || x >= tx + ToastManager.ToastWidth) return null;
+
+            var toasts = ToastManager.VisibleToasts();
+            for (int i = 0; i < toasts.Count; i++)
+            {
+                int ty = ToastManager.DefaultTop + i * (TOAST_H + TOAST_GAP) + ToastManager.AnchorY;
+                if (y >= ty && y < ty + TOAST_H)
+                    return toasts[i].Persistent ? toasts[i] : null;
+            }
+            return null;
+        }
+
+        public override bool Contains(int x, int y) => PersistentAt(x, y) != null;
+
+        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        {
+            if (button == MouseButtonType.Right)
+                ToastManager.Dismiss(PersistentAt(x, y));
+        }
+
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            ToastManager.PruneExpired();
-            var toasts = ToastManager.Toasts;
+            var toasts = ToastManager.VisibleToasts();
             if (toasts.Count == 0) return true;
 
             var camera = Client.Game.Scene?.Camera;
@@ -200,11 +321,10 @@ namespace ClassicUO.Game.UI.Gumps
             int inset = artTheme ? 18 : 8;
             _background.Width = ToastManager.ToastWidth;
 
-            int idx = 0;
-            for (int i = toasts.Count - 1; i >= 0 && idx < 6; i--, idx++)
+            for (int idx = 0; idx < toasts.Count; idx++)
             {
-                var t = toasts[i];
-                long remaining = t.ExpireAt - (long)Time.Ticks;
+                var t = toasts[idx];
+                long remaining = t.Persistent ? long.MaxValue : t.ExpireAt - (long)Time.Ticks;
                 float alpha = 1f;
                 if (remaining < FADE_MS) alpha = remaining / (float)FADE_MS;
                 if (alpha < 0) alpha = 0;
@@ -226,7 +346,7 @@ namespace ClassicUO.Game.UI.Gumps
                 ushort textHue = t.Hue == 0 || t.Hue == 0x0481
                     ? CustomGumpThemeManager.DataTextHue : t.Hue;
                 var tb = TextBox.GetOne(t.Text, ProfileManager.CurrentProfile?.SelectedTTFJournalFont,
-                                       14, textHue,
+                                       14, t.TextColor ?? TextBox.ConvertHueToColor(textHue),
                                        new TextBox.RTLOptions { Width = ToastManager.ToastWidth - inset * 2 });
                 tb.Alpha = alpha;
                 tb.Draw(batcher, tx + inset, ty + (TOAST_H - tb.Height) / 2);

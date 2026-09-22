@@ -109,23 +109,23 @@ namespace ClassicUO.Game.UI.Gumps
             DrawPanel(batcher, x, y, width, height, CustomGumpThemeManager.Current, alpha);
 
         internal static void DrawFrame(UltimaBatcher2D batcher, int x, int y, int width, int height,
-            CustomGumpTheme theme, float alpha = 1f)
+            CustomGumpTheme theme, float alpha = 1f, int maxEdge = 56)
         {
             Texture2D texture = GetPanel(theme);
             if (texture == null)
                 return;
             bool largeBorder = UsesLargeBorder(theme);
-            int edge = largeBorder
+            int edge = Math.Min(maxEdge, largeBorder
                 ? Math.Min(56, Math.Max(12, Math.Min(width, height) / 7))
-                : Math.Min(18, Math.Max(6, Math.Min(width, height) / 8));
+                : Math.Min(18, Math.Max(6, Math.Min(width, height) / 8)));
             int sourceEdge = largeBorder ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
             Rectangle source = new Rectangle(0, 0, texture.Width,
                 UsesSheet(theme) ? SheetSplit(theme, texture.Height) : texture.Height);
             DrawSlices(batcher, texture, source, x, y, width, height, sourceEdge, edge, true, alpha);
         }
 
-        internal static void DrawFrame(UltimaBatcher2D batcher, int x, int y, int width, int height, float alpha = 1f) =>
-            DrawFrame(batcher, x, y, width, height, CustomGumpThemeManager.Current, alpha);
+        internal static void DrawFrame(UltimaBatcher2D batcher, int x, int y, int width, int height, float alpha = 1f, int maxEdge = 56) =>
+            DrawFrame(batcher, x, y, width, height, CustomGumpThemeManager.Current, alpha, maxEdge);
 
         internal static void DrawButton(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha = 1f)

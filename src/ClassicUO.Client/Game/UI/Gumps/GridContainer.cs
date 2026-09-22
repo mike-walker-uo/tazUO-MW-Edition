@@ -984,6 +984,26 @@ namespace ClassicUO.Game.UI.Gumps
             return base.Draw(batcher, x, y);
         }
 
+        internal bool RevealItem(uint serial)
+        {
+            if (gridSlotManager == null || scrollArea == null)
+            {
+                return false;
+            }
+
+            GridItem target = gridSlotManager.GridSlots.Values.FirstOrDefault(
+                slot => slot.SlotItem?.Serial == serial && slot.IsVisible);
+
+            if (target == null)
+            {
+                return false;
+            }
+
+            scrollArea.EnsureVisible(target.Y, target.Height);
+            BringOnTop();
+            return true;
+        }
+
         public enum GridSortMode
         {
             GraphicAndHue = 0,
@@ -1371,6 +1391,8 @@ namespace ClassicUO.Game.UI.Gumps
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
                 bool itemNull = _item == null;
+                bool locateTarget = !itemNull
+                    && ItemFinderManager.IsLocateTarget(_item.Serial);
                 if (!itemNull && Keyboard.Ctrl && _item.ItemData.Layer > 0 && MouseIsOver && (toolTipThis == null || toolTipThis.IsDisposed) && (toolTipitem1 == null || toolTipitem1.IsDisposed) && (toolTipitem2 == null || toolTipitem2.IsDisposed))
                 {
                     Item compItem = World.Player.FindItemByLayer((Layer)_item.ItemData.Layer);
@@ -1509,7 +1531,10 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (_item != null && texture != null & rect != null)
                 {
-                    hueVector = ShaderHueTranslator.GetHueVector(_item.Hue, _item.ItemData.IsPartialHue, 1f);
+                    hueVector = locateTarget
+                        ? ShaderHueTranslator.GetHueVector(0x0026, false, 1f)
+                        : ShaderHueTranslator.GetHueVector(
+                            _item.Hue, _item.ItemData.IsPartialHue, 1f);
 
                     Point originalSize = new Point(Width, Height);
                     Point point = new Point();
@@ -1572,6 +1597,24 @@ namespace ClassicUO.Game.UI.Gumps
                         hueVector
                     );
                     count?.Draw(batcher, x + count.X, y + count.Y);
+                }
+
+                if (locateTarget)
+                {
+                    float pulse = 0.68f + 0.32f
+                        * (0.5f + 0.5f * (float)Math.Sin(Time.Ticks * 0.012f));
+                    Texture2D marker = SolidColorTextureCache.GetTexture(
+                        new Color(255, 35, 210));
+                    Vector3 fillHue = new Vector3(1, 0, 0.08f + pulse * 0.10f);
+                    Vector3 markerHue = new Vector3(1, 0, pulse);
+
+                    batcher.Draw(marker,
+                        new Rectangle(x + 2, y + 2, Width - 4, Height - 4),
+                        fillHue);
+                    batcher.DrawRectangle(marker, x + 1, y + 1,
+                        Width - 2, Height - 2, markerHue);
+                    batcher.DrawRectangle(marker, x + 4, y + 4,
+                        Width - 8, Height - 8, markerHue);
                 }
                 return true;
             }
@@ -1993,6 +2036,20 @@ namespace ClassicUO.Game.UI.Gumps
                 else
                 {
                     _scrollBar.Value += _scrollBar.ScrollStep;
+                }
+            }
+
+            public void EnsureVisible(int top, int height)
+            {
+                CalculateScrollBarMaxValue();
+
+                if (top < _scrollBar.Value)
+                {
+                    _scrollBar.Value = top;
+                }
+                else if (top + height > _scrollBar.Value + Height)
+                {
+                    _scrollBar.Value = top + height - Height;
                 }
             }
 

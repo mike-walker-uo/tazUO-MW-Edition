@@ -60,7 +60,8 @@ namespace ClassicUO.Game.Managers
             if (!_seeded) { _last = cur; _seeded = true; return; }
             if (cur == _last) return;
             ushort hue = HueFor(cur);
-            try { UI.Gumps.ToastManager.Show($"Notoriety → {cur}", hue, 3000); } catch { }
+            try { UI.Gumps.ToastManager.Show($"Notoriety → {cur}", hue, 3000, "notoriety-change",
+                AlertCategory.Combat, AlertSeverity.Info); } catch { }
             _last = cur;
         }
 

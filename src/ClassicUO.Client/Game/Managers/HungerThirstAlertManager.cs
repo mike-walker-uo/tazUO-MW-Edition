@@ -73,7 +73,8 @@ namespace ClassicUO.Game.Managers
                 if (t.IndexOf(Phrases[i], StringComparison.OrdinalIgnoreCase) < 0) continue;
                 if (Time.Ticks - _lastToastAt < MIN_GAP_MS) return;
                 _lastToastAt = (long)Time.Ticks;
-                try { UI.Gumps.ToastManager.Show(Phrases[i], 0x53, 3500); } catch { }
+                try { UI.Gumps.ToastManager.Show(Phrases[i], 0x53, 3500, "hunger-thirst",
+                    AlertCategory.Supplies, AlertSeverity.Warning); } catch { }
                 return;
             }
         }

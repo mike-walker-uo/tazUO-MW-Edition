@@ -39,6 +39,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const int COL_TOGGLE = 34;
         private const int ROW_H = 27;
         private const int HEADER_H = 22;
+        private const string OPTIONAL_NONE_LABEL = "(no argument)";
 
         private readonly StbTextBox _search;
         private readonly ScrollArea _scroll;
@@ -475,7 +476,10 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static string[] ExtractPickerChoices(string usage, bool isToggle)
         {
-            string normalized = usage.Trim().Trim('[', ']');
+            string trimmed = usage.Trim();
+            bool optional = trimmed.StartsWith("[", StringComparison.Ordinal)
+                && trimmed.EndsWith("]", StringComparison.Ordinal);
+            string normalized = trimmed.Trim('[', ']');
             if (normalized.IndexOf('<') >= 0 || normalized.IndexOf('>') >= 0 ||
                 normalized.IndexOf(' ') >= 0 || normalized.IndexOf("..", StringComparison.Ordinal) >= 0)
             {
@@ -484,6 +488,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             string[] parts = normalized.Split('|');
             var choices = new List<string>();
+
+            if (optional)
+            {
+                choices.Add(OPTIONAL_NONE_LABEL);
+            }
+
             foreach (string part in parts)
             {
                 string value = part.Trim();
@@ -518,6 +528,11 @@ namespace ClassicUO.Game.UI.Gumps
         private static string GetExecutionArgument(string name)
         {
             string value = GetArgument(name).Trim();
+
+            if (string.Equals(value, OPTIONAL_NONE_LABEL, StringComparison.Ordinal))
+            {
+                return string.Empty;
+            }
 
             // The field intentionally contains only the configurable duration.
             // -daycycle requires its enable verb before that duration.
@@ -577,6 +592,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case "gumptheme":
                     return CustomGumpThemeManager.Current.ToString().ToLowerInvariant();
                 case "gumpopacitycustom": return (ProfileManager.CurrentProfile?.CustomGumpOpacity ?? 100).ToString();
+                case "gumpopacitypaperdoll": return (ProfileManager.CurrentProfile?.PaperdollOpacity ?? 100).ToString();
                 case "gumpopacitydurability": return (ProfileManager.CurrentProfile?.DurabilityGumpOpacity ?? 100).ToString();
                 case "gumpopacitycontainer": return (ProfileManager.CurrentProfile?.ContainerOpacity ?? 100).ToString();
                 case "gumpopacitycorpse": return (ProfileManager.CurrentProfile?.CorpseContainerOpacity ?? 50).ToString();
@@ -676,7 +692,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case "gumpopacityhoverboost": return ProfileManager.CurrentProfile?.BoostGumpOpacityOnHover ?? false;
                 case "globalchat": return UIManager.GetGump<GlobalChatGump>() != null;
                 case "guildchat": return UIManager.GetGump<GuildChatGump>() != null;
-                case "speechhistory": return UIManager.GetGump<NearbySpeechGump>() != null;
+                case "nearbychat": return UIManager.GetGump<NearbySpeechGump>() != null;
                 case "damagetracker": return UIManager.GetGump<DamageTrackerGump>() != null;
                 case "options": return UIManager.GetGump<ModernOptionsGump>() != null;
                 case "perfhud": return UIManager.GetGump<PerfHudGump>() != null;

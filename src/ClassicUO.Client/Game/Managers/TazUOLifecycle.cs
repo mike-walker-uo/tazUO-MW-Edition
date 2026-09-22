@@ -130,6 +130,7 @@ namespace ClassicUO.Game.Managers
             CommandAliasManager.ResetForProfile();
             PinnedCommandManager.ResetForProfile();
             CrashRecoveryManager.ResetForProfile();
+            AlertCenterManager.ResetForProfile();
             UI.Gumps.ToastManager.ResetForProfile();
 
             AutoBandageManager.ResetForProfile();

@@ -129,7 +129,8 @@ namespace ClassicUO.Game.Managers
                 0x0021,
                 MessageType.System
             );
-            ToastManager.Show(warning, 0x0021);
+            ToastManager.Show(warning, 0x0021, 4000, "tithing-warning",
+                AlertCategory.Supplies, AlertSeverity.Warning);
         }
 
         private static bool HasRealChivalry(PlayerMobile player)

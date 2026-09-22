@@ -62,7 +62,8 @@ namespace ClassicUO.Game.Managers
                 if (_q[i].DueAt > now) continue;
                 string label = _q[i].Label;
                 _q.RemoveAt(i);
-                try { UI.Gumps.ToastManager.Show(label, 0x44, 4000); } catch { }
+                try { UI.Gumps.ToastManager.Show(label, 0x44, 4000, "countdown",
+                    AlertCategory.System, AlertSeverity.Info); } catch { }
                 try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
             }
         }

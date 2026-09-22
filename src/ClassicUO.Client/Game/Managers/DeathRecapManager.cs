@@ -83,7 +83,8 @@ namespace ClassicUO.Game.Managers
             GameActions.Print($"Total incoming last {WindowSeconds}s: {total}", 0x21);
             foreach (var kv in counts) GameActions.Print($"  {kv.Key}: {kv.Value} dmg", 0x21);
             GameActions.Print("-------------------", 0x21);
-            try { UI.Gumps.ToastManager.Show($"DEATH: {total} dmg in {WindowSeconds}s", 0x21, 6000); } catch { }
+            try { UI.Gumps.ToastManager.Show($"DEATH: {total} dmg in {WindowSeconds}s", 0x21, 6000,
+                "death-recap", AlertCategory.Combat, AlertSeverity.Critical); } catch { }
         }
 
         public static void SetEnabled(bool on)

@@ -56,6 +56,39 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private static int lastWidth = 300, lastHeight = 400;
         private static int lastX, lastY;
+        private const ushort CRITICAL_TEXT_HUE = 0x048D;
+        private const long REPAIR_PULSE_MS = 2400;
+
+        private sealed class CriticalDurabilityRow : Area
+        {
+            internal NiceButton RepairButton;
+            internal long PulseStartedAt;
+
+            internal CriticalDurabilityRow() : base(false) { }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                bool drawn = base.Draw(batcher, x, y);
+                batcher.DrawRectangle(
+                    SolidColorTextureCache.GetTexture(new Color(190, 100, 245)),
+                    x, y, Width - 1, Height - 3,
+                    ShaderHueTranslator.GetHueVector(0, false, 0.95f));
+
+                long age = (long)Time.Ticks - PulseStartedAt;
+                if (RepairButton != null && age >= 0 && age < REPAIR_PULSE_MS)
+                {
+                    float fade = 1f - age / (float)REPAIR_PULSE_MS;
+                    float pulse = 0.5f + 0.5f * (float)Math.Sin(age * 0.006f);
+                    batcher.DrawRectangle(
+                        SolidColorTextureCache.GetTexture(new Color(255, 65, 85)),
+                        x + RepairButton.X - 1, y + RepairButton.Y - 1,
+                        RepairButton.Width + 2, RepairButton.Height + 2,
+                        ShaderHueTranslator.GetHueVector(0, false, fade * (0.45f + 0.55f * pulse)));
+                }
+
+                return drawn;
+            }
+        }
 
         private enum DurabilityColors
         {
@@ -163,7 +196,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             var items = World.DurabilityManager?.Durabilities ?? Enumerable.Empty<DurabiltyProp>();
 
-            foreach (var durability in items.OrderBy(d => d.Percentage))
+            foreach (var durability in items.OrderBy(d => d.Durabilty >= DurabilityManager.CriticalDurability).ThenBy(d => d.Percentage))
             {
                 if (durability.MaxDurabilty <= 0)
                 {
@@ -177,31 +210,36 @@ namespace ClassicUO.Game.UI.Gumps
                     continue;
                 }
 
-                var a = new Area();
+                bool critical = durability.Durabilty < DurabilityManager.CriticalDurability;
+                Area a = critical ? new CriticalDurabilityRow { PulseStartedAt = durability.CriticalPulseStartedAt } : new Area();
                 a.AcceptMouseInput = true;
                 a.WantUpdateSize = false;
                 a.CanMove = true;
                 a.Height = 44;
                 a.Width = _dataBox.Width;
-                var rowBackground = new AlphaBlendControl(0.30f)
+                var rowBackground = new AlphaBlendControl(critical ? 0.88f : 0.30f)
                 {
                     Width = a.Width,
-                    Height = a.Height - 2
+                    Height = a.Height - 2,
+                    BaseColor = critical ? new Color(42, 15, 55) : Color.Black
                 };
-                CustomGumpThemeManager.ApplyDataSurface(rowBackground, 0.30f);
+                if (!critical)
+                    CustomGumpThemeManager.ApplyDataSurface(rowBackground, 0.30f);
                 rowBackground.Alpha *= GetOpacityScale();
                 a.Add(rowBackground);
 
                 const int REPAIR_BTN_W = 56;
                 const int REPAIR_BTN_H = 18;
                 int repairBtnX = a.Width - REPAIR_BTN_W - 4;
-                ushort durabilityTextHue = durability.Percentage < 0.30f
-                    ? (ushort)0x21
-                    : durability.Percentage < 0.60f
-                        ? CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
-                            ? CustomGumpThemeManager.TextHue
-                            : (ushort)0x35
-                        : CustomGumpThemeManager.TextHue;
+                ushort durabilityTextHue = critical
+                    ? CRITICAL_TEXT_HUE
+                    : durability.Percentage < 0.30f
+                        ? (ushort)0x21
+                        : durability.Percentage < 0.60f
+                            ? CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+                                ? CustomGumpThemeManager.TextHue
+                                : (ushort)0x35
+                            : CustomGumpThemeManager.TextHue;
 
                 string itemName = string.IsNullOrWhiteSpace(item.Name) ? item.Layer.ToString() : item.Name;
                 Label name;
@@ -219,9 +257,10 @@ namespace ClassicUO.Game.UI.Gumps
                     true,
                     durabilityTextHue);
                 int barWidth = Math.Max(1, Math.Min(barBounds.Width, a.Width - value.Width - 8));
-                GumpPic red;
-                a.Add(red = new GumpPic(0, name.Y + name.Height + 5, (ushort)DurabilityColors.RED, 0));
-                red.Width = barWidth;
+                GumpPic barBackground;
+                a.Add(barBackground = new GumpPic(0, name.Y + name.Height + 5, (ushort)DurabilityColors.RED,
+                    critical ? DurabilityManager.CriticalHue : (ushort)0));
+                barBackground.Width = barWidth;
 
                 DurabilityColors statusGump = DurabilityColors.GREEN;
 
@@ -237,11 +276,14 @@ namespace ClassicUO.Game.UI.Gumps
                 int fillWidth = Math.Min(barWidth, (int)Math.Floor(barWidth * durability.Percentage));
                 if (fillWidth > 0)
                 {
-                    a.Add(new GumpPicTiled(0, red.Y, fillWidth, barBounds.Height, (ushort)statusGump));
+                    a.Add(new GumpPicTiled(0, barBackground.Y, fillWidth, barBounds.Height, (ushort)statusGump)
+                    {
+                        Hue = critical ? DurabilityManager.CriticalHue : (ushort)0
+                    });
                 }
 
-                value.X = red.X + barWidth + 8;
-                value.Y = red.Y - 2;
+                value.X = barBackground.X + barWidth + 8;
+                value.Y = barBackground.Y - 2;
                 a.Add(value);
 
                 uint itemSerial = item.Serial;
@@ -252,6 +294,11 @@ namespace ClassicUO.Game.UI.Gumps
                 CustomGumpThemeManager.StyleDataButton(
                     repairBtn,
                     CustomGumpThemeManager.TextHue);
+                if (critical)
+                {
+                    repairBtn.TextLabel.Hue = 0x21;
+                    ((CriticalDurabilityRow)a).RepairButton = repairBtn;
+                }
                 repairBtn.SetTooltip("Use a nearby Repair Bench (range 2) on this item");
                 repairBtn.MouseUp += (s, e) =>
                 {

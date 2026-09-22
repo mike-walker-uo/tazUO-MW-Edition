@@ -177,7 +177,30 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            return base.Draw(batcher, x, y);
+            bool result = base.Draw(batcher, x, y);
+            if (!result || !CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current))
+                return result;
+
+            int top = HEIGHT;
+            int bottom = 0;
+            foreach (Control control in _box.Children)
+            {
+                if (control is CoolDownBar bar && !bar.IsDisposed)
+                {
+                    top = Math.Min(top, bar.Y);
+                    bottom = Math.Max(bottom, bar.Y + bar.Height);
+                }
+            }
+
+            if (bottom > top)
+            {
+                top = Math.Min(top, _background.Y);
+                bottom = Math.Max(bottom, _background.Y + _background.Height);
+                CustomThemeArt.DrawFrame(batcher, x - 8, y + top - 8, Width + 16,
+                    bottom - top + 16, _lastOpacity, 12);
+            }
+
+            return result;
         }
 
         private static class BuffBarManager

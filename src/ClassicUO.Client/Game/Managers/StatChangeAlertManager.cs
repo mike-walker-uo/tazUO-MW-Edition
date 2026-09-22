@@ -77,7 +77,8 @@ namespace ClassicUO.Game.Managers
         {
             string sign = delta > 0 ? "+" : "";
             ushort hue = (ushort)(delta > 0 ? 0x44 : 0x21);
-            try { UI.Gumps.ToastManager.Show($"{name} {sign}{delta} → {now}", hue, 2500); } catch { }
+            try { UI.Gumps.ToastManager.Show($"{name} {sign}{delta} → {now}", hue, 2500, "stat-change",
+                AlertCategory.Combat, AlertSeverity.Info); } catch { }
         }
 
         public static void SetEnabled(bool on)

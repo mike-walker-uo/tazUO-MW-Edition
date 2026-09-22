@@ -57,7 +57,8 @@ namespace ClassicUO.Game.Managers
             if (!_alerted && ping >= SpikeMs)
             {
                 _alerted = true;
-                try { UI.Gumps.ToastManager.Show($"Ping spike: {ping}ms", 0x21, 3000); } catch { }
+                try { UI.Gumps.ToastManager.Show($"Ping spike: {ping}ms", 0x21, 3000,
+                    "ping-spike", AlertCategory.System, AlertSeverity.Warning); } catch { }
             }
             else if (_alerted && ping < SpikeMs - 30) _alerted = false;
         }

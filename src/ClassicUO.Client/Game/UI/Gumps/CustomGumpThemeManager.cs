@@ -1040,6 +1040,9 @@ namespace ClassicUO.Game.UI.Gumps
             Refresh(UIManager.GetGump<NearbySpeechGump>(), () => new NearbySpeechGump());
             Refresh(UIManager.GetGump<GumpThemeSelectorGump>(), () => new GumpThemeSelectorGump());
             Refresh(UIManager.GetGump<DurabilitysGump>(), () => new DurabilitysGump());
+            RefreshItemFinder();
+            Refresh(UIManager.GetGump<RestockAgentGump>(), () => new RestockAgentGump());
+            RefreshAlertCenter();
             TopBarGump.RefreshTheme();
 
             RefreshOptionsGump();
@@ -1080,6 +1083,49 @@ namespace ClassicUO.Game.UI.Gumps
                 musicPlayer.Dispose();
                 UIManager.Add(new MusicPlayerGump(compact) { X = x, Y = y });
             }
+        }
+
+        private static void RefreshItemFinder()
+        {
+            ItemFinderGump gump = UIManager.GetGump<ItemFinderGump>();
+
+            if (gump == null || gump.IsDisposed)
+            {
+                return;
+            }
+
+            int x = gump.X;
+            int y = gump.Y;
+            string query = gump.CurrentQuery;
+            gump.Dispose();
+            UIManager.Add(new ItemFinderGump(query) { X = x, Y = y });
+        }
+
+        private static void RefreshAlertCenter()
+        {
+            AlertCenterGump gump = UIManager.GetGump<AlertCenterGump>();
+
+            if (gump == null || gump.IsDisposed)
+            {
+                return;
+            }
+
+            int x = gump.X;
+            int y = gump.Y;
+            bool settingsPage = gump.SettingsPage;
+            bool activeOnly = gump.ActiveOnly;
+            int severityFilter = gump.SeverityFilter;
+            int categoryFilter = gump.CategoryFilter;
+            gump.Dispose();
+            UIManager.Add(new AlertCenterGump(
+                settingsPage,
+                activeOnly,
+                severityFilter,
+                categoryFilter)
+            {
+                X = x,
+                Y = y
+            });
         }
 
         internal static void RefreshOptionsGump()

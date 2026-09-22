@@ -39,6 +39,7 @@ namespace ClassicUO.Game.UI.Gumps
         private Label titleLabel;
         private static int lastX = 100, lastY = 100;
         private GumpPicBase backgroundImage;
+        private PaperDollFeatureToolsGump featureTools;
         #endregion
 
         public override GumpType GumpType => GumpType.PaperDoll;
@@ -189,6 +190,12 @@ namespace ClassicUO.Game.UI.Gumps
             RequestUpdateContents();
         }
 
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            backgroundImage.Alpha = (ProfileManager.CurrentProfile?.PaperdollOpacity ?? 100) / 100f;
+            return base.Draw(batcher, x, y);
+        }
+
         public void UpdateTitle(string text)
         {
             titleLabel.Text = text;
@@ -262,6 +269,13 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.Update();
 
+            if (World.Player != null && LocalSerial == World.Player.Serial
+                && (featureTools == null || featureTools.IsDisposed))
+            {
+                featureTools = new PaperDollFeatureToolsGump(this);
+                UIManager.Add(featureTools);
+            }
+
             if (X != lastX || Y != lastY)
             {
                 lastX = X;
@@ -273,6 +287,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            featureTools?.Dispose();
+            featureTools = null;
+
             if (ProfileManager.CurrentProfile != null)
                 ProfileManager.CurrentProfile.ModernPaperdollPosition = new Point(X, Y);
             lastX = X;

@@ -64,12 +64,14 @@ namespace ClassicUO.Game.Managers
             if (nowIn && !_inCombat)
             {
                 _inCombat = true;
-                try { UI.Gumps.ToastManager.Show("In combat", 0x21, 1500); } catch { }
+                try { UI.Gumps.ToastManager.Show("In combat", 0x21, 1500, "combat-state",
+                    AlertCategory.Combat, AlertSeverity.Info); } catch { }
             }
             else if (!nowIn && _inCombat)
             {
                 _inCombat = false;
-                try { UI.Gumps.ToastManager.Show("Out of combat", 0x44, 2000); } catch { }
+                try { UI.Gumps.ToastManager.Show("Out of combat", 0x44, 2000, "combat-state",
+                    AlertCategory.Combat, AlertSeverity.Info); } catch { }
             }
         }
 

@@ -84,7 +84,8 @@ namespace ClassicUO.Game.Managers
         {
             _toastedReady = true;
             _readyAt = 0;
-            try { UI.Gumps.ToastManager.Show("Bandage ready", 0x44, 2500); } catch { }
+            try { UI.Gumps.ToastManager.Show("Bandage ready", 0x44, 2500, "bandage-ready",
+                AlertCategory.Supplies, AlertSeverity.Info); } catch { }
             try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
         }
 

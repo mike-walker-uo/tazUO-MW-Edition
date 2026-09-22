@@ -123,7 +123,7 @@ namespace ClassicUO.Game.UI.Gumps
             SetInScreen();
         }
 
-        public override GumpType GumpType => GumpType.None;
+        public override GumpType GumpType => GumpType.WorldExplorer;
 
         private Profile Profile => ProfileManager.CurrentProfile;
         private bool Classic => Profile?.WorldExplorerTheme == 1;
@@ -151,7 +151,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(new Label("WORLD EXPLORER", true, Ink, font: 1) { X = 32, Y = 28 });
             Add(new Label("Pinned travel", true, Ink, font: 1) { X = PinX, Y = 70 });
             Add(new Label("Destinations", true, Ink, font: 1) { X = LibraryX, Y = 70 });
-            Add(Button(548, 27, 90, "Scan bag", 1));
+            Add(Button(548, 27, 90, "Scan / Stop", 1));
             Add(Button(644, 27, 84, Classic ? "Modern" : "Classic", 2));
             Add(Button(735, 27, 20, "-", 4));
             Add(new Label("Travel:", true, Ink, font: 1) { X = PinX, Y = 101 });
@@ -223,7 +223,7 @@ namespace ClassicUO.Game.UI.Gumps
             int columnWidth = (Width - 24 - (_compactColumns - 1) * CompactColumnGap) / _compactColumns;
             int buttonWidth = Math.Min(columnWidth,
                 _compactColumns == 1 ? SingleCompactButtonMaxWidth : CompactButtonMaxWidth);
-            Add(new ExplorerPanel(Width, Height, Classic, true));
+            Add(new ExplorerPanel(Width, Height, Classic, true, true));
             Add(new Label(Width < 175 ? "EXP" : Width < 270 ? "EXPLORER" : "WORLD EXPLORER", true, Ink, font: 1)
             {
                 X = 12, Y = 9
@@ -249,7 +249,7 @@ namespace ClassicUO.Game.UI.Gumps
                     ExplorerButton button = new ExplorerButton(
                         12 + column * (columnWidth + CompactColumnGap) + (columnWidth - buttonWidth) / 2,
                         38 + row * CompactRowHeight, buttonWidth, CompactButtonHeight,
-                        DisplayName(pin), 1000 + start + i, Classic, Ink);
+                        DisplayName(pin), 1000 + start + i, Classic, Ink, true);
                     button.SetTooltip(DisplayName(pin) + "\n" + (pin.Kind == "portal"
                         ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name));
                     Add(button);
@@ -287,7 +287,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private ExplorerButton Button(int x, int y, int width, string title, int id)
         {
-            return new ExplorerButton(x, y, width, 25, title, id, Classic, Ink);
+            return new ExplorerButton(x, y, width, 25, title, id, Classic, Ink, _minimized);
         }
 
         private string MethodName()
@@ -512,7 +512,16 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void CollectBackpack(Item backpack)
         {
-            for (LinkedObject node = backpack.Items; node != null; node = node.Next)
+            CollectBackpack(backpack, new HashSet<uint>());
+            ScanRuneProperties();
+        }
+
+        private void CollectBackpack(Item container, HashSet<uint> seen)
+        {
+            if (container == null || !seen.Add(container.Serial))
+                return;
+
+            for (LinkedObject node = container.Items; node != null; node = node.Next)
             {
                 Item item = (Item)node;
                 if (!item.Exists)
@@ -528,8 +537,10 @@ namespace ClassicUO.Game.UI.Gumps
                     _runes.Add(item);
                     _sourceNames[item.Serial] = ItemName(item);
                 }
+
+                if (item.ItemData.IsContainer && !item.IsEmpty)
+                    CollectBackpack(item, seen);
             }
-            ScanRuneProperties();
         }
 
         private void ScanRuneProperties()
@@ -613,7 +624,15 @@ namespace ClassicUO.Game.UI.Gumps
         private static bool InBackpack(Item item)
         {
             Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
-            return backpack != null && item.Container == backpack.Serial;
+            if (backpack == null || item == null) return false;
+            var seen = new HashSet<uint>();
+            uint container = item.Container;
+            while (SerialHelper.IsItem(container) && seen.Add(container))
+            {
+                if (container == backpack.Serial) return true;
+                container = World.Items.Get(container)?.Container ?? 0;
+            }
+            return false;
         }
 
         private void WaitFor(PendingAction action)
@@ -928,7 +947,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             switch (buttonID)
             {
-                case 1: BeginScan(); break;
+                case 1:
+                    if (_pending == PendingAction.ScanRunes
+                        || _pending == PendingAction.ScanBook
+                        || _pending == PendingAction.ScanAtlasPage)
+                    {
+                        _pending = PendingAction.None;
+                        CloseBookGumps();
+                        Status("Scan stopped. Existing destinations were kept.");
+                    }
+                    else BeginScan();
+                    break;
                 case 2:
                     if (Profile != null)
                     {
@@ -1249,12 +1278,15 @@ namespace ClassicUO.Game.UI.Gumps
         private sealed class ExplorerButton : NiceButton
         {
             private readonly bool _classic;
+            private readonly bool _applyCustomOpacity;
 
-            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink)
+            internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink,
+                bool applyCustomOpacity = false)
                 : base(x, y, width, height, ButtonAction.Activate, text,
                     hue: classic ? (ushort)0x0481 : ink, font: 1)
             {
                 _classic = classic && width >= 60;
+                _applyCustomOpacity = applyCustomOpacity;
                 ButtonParameter = id;
                 IsSelectable = false;
                 AlwaysShowBackground = !_classic;
@@ -1265,11 +1297,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
+                Alpha = _applyCustomOpacity ? CustomGumpThemeManager.OpacityScale : 1f;
                 if (_classic)
                 {
                     Texture2D texture = ExplorerArt.Button;
                     Rectangle destination = new Rectangle(x, y, Width, Height);
-                    Vector3 hue = ShaderHueTranslator.GetHueVector(0);
+                    Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, Alpha);
                     if (texture == null)
                         batcher.Draw(SolidColorTextureCache.GetTexture(new Color(56, 37, 23)), destination, hue);
                     else
@@ -1283,9 +1316,12 @@ namespace ClassicUO.Game.UI.Gumps
         {
             private readonly bool _classic;
             private readonly bool _compact;
-            internal ExplorerPanel(int width, int height, bool classic, bool compact = false)
+            private readonly bool _applyCustomOpacity;
+            internal ExplorerPanel(int width, int height, bool classic, bool compact = false,
+                bool applyCustomOpacity = false)
             {
                 Width = width; Height = height; _classic = classic; _compact = compact;
+                _applyCustomOpacity = applyCustomOpacity;
                 AcceptMouseInput = false;
             }
 
@@ -1294,7 +1330,8 @@ namespace ClassicUO.Game.UI.Gumps
                 Texture2D texture = _classic ? ExplorerArt.Panel
                     : SolidColorTextureCache.GetTexture(new Color(10, 17, 22));
                 texture ??= SolidColorTextureCache.GetTexture(new Color(217, 197, 161));
-                Vector3 hue = ShaderHueTranslator.GetHueVector(0);
+                Vector3 hue = ShaderHueTranslator.GetHueVector(0, false,
+                    _applyCustomOpacity ? CustomGumpThemeManager.OpacityScale : 1f);
                 if (_classic && _compact && texture.Width > 192 && texture.Height > 192)
                 {
                     const int sourceEdge = 96;

@@ -86,7 +86,8 @@ namespace ClassicUO.Game.Managers
                         Time.Ticks - last > REPEAT_COOLDOWN_MS)
                     {
                         _lastWarnTime[g] = (long)Time.Ticks;
-                        ToastManager.Show($"Low reagent: {_reagents[i].Name} ({count})", 0x35, 4000);
+                        ToastManager.Show($"Low reagent: {_reagents[i].Name} ({count})", 0x35, 4000,
+                            "low-reagent", AlertCategory.Supplies, AlertSeverity.Warning);
                     }
                 }
                 else

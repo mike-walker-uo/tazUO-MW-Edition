@@ -121,7 +121,7 @@ namespace ClassicUO.Game.Managers
                 UI.Gumps.GuildChatGump.OpenByUser(220, 220);
             });
 
-            Register("speechhistory", (s) =>
+            Register("nearbychat", (s) =>
             {
                 var existing = UIManager.GetGump<UI.Gumps.NearbySpeechGump>();
 
@@ -144,6 +144,7 @@ namespace ClassicUO.Game.Managers
 
                 UI.Gumps.NearbySpeechGump.OpenByUser(240, 240);
             });
+            Register("speechhistory", _commands["nearbychat"]);
 
             Register("targetenemy", (s) => TargetOrAttackNearestEnemy(false));
             Register("attackenemy", (s) => TargetOrAttackNearestEnemy(true));
@@ -238,6 +239,89 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new WorldExplorerGump());
             });
 
+            Register("itemfinder", (s) =>
+            {
+                string query = s != null && s.Length > 1
+                    ? string.Join(" ", s.Skip(1))
+                    : string.Empty;
+                ItemFinderGump existing = UIManager.GetGump<ItemFinderGump>();
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    if (string.IsNullOrWhiteSpace(query))
+                    {
+                        existing.FocusSearch();
+                    }
+                    else
+                    {
+                        existing.SetQuery(query);
+                    }
+                    return;
+                }
+
+                UIManager.Add(new ItemFinderGump(query));
+            });
+
+            Register("equipmentguru", (s) =>
+            {
+                EquipmentGuruGump existing = UIManager.GetGump<EquipmentGuruGump>();
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.BringOnTop();
+                    return;
+                }
+
+                UIManager.Add(new EquipmentGuruGump());
+            });
+
+            Register("restock", (s) =>
+            {
+                if (s != null && s.Length > 1
+                    && s[1].Equals("run", StringComparison.OrdinalIgnoreCase))
+                {
+                    RestockAgentManager.Run();
+                    return;
+                }
+
+                RestockAgentGump existing = UIManager.GetGump<RestockAgentGump>();
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.Dispose();
+                    return;
+                }
+
+                UIManager.Add(new RestockAgentGump());
+            });
+
+            Register("readycheck", (s) =>
+            {
+                RestockAgentGump existing = UIManager.GetGump<RestockAgentGump>();
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.CheckReadiness(true);
+                    return;
+                }
+
+                UIManager.Add(new RestockAgentGump(true));
+            });
+
+            Register("alertcenter", (s) =>
+            {
+                AlertCenterGump existing = UIManager.GetGump<AlertCenterGump>();
+
+                if (existing != null && !existing.IsDisposed)
+                {
+                    existing.Dispose();
+                    return;
+                }
+
+                UIManager.Add(new AlertCenterGump());
+            });
+            Register("alerts", _commands["alertcenter"]);
+
             Register("gumptheme", (s) =>
             {
                 Profile profile = ProfileManager.CurrentProfile;
@@ -289,6 +373,7 @@ namespace ClassicUO.Game.Managers
             Register("gumpopacity", SetGumpOpacity);
             Register("gumpopacityall", s => SetGumpOpacityOption("all", s, 1));
             Register("gumpopacitycustom", s => SetGumpOpacityOption("custom", s, 1));
+            Register("gumpopacitypaperdoll", s => SetGumpOpacityOption("paperdoll", s, 1));
             Register("gumpopacitydurability", s => SetGumpOpacityOption("durability", s, 1));
             Register("gumpopacitycontainer", s => SetGumpOpacityOption("container", s, 1));
             Register("gumpopacitycorpse", s => SetGumpOpacityOption("corpse", s, 1));
@@ -437,7 +522,8 @@ namespace ClassicUO.Game.Managers
             {
                 if (s == null || s.Length < 2) { GameActions.Print("Usage: -toast <text>", 0x21); return; }
                 string text = string.Join(" ", s, 1, s.Length - 1);
-                UI.Gumps.ToastManager.Show(text, 0x0481, 4000);
+                UI.Gumps.ToastManager.Show(text, 0x0481, 4000, "manual-toast",
+                    AlertCategory.General, AlertSeverity.Info);
             });
 
             Register("petwatch", (s) =>
@@ -3317,10 +3403,10 @@ Register("pathpreview", (s) =>
                 return;
             }
 
-            const string usage = "Usage: -gumpopacity <all|custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]";
+            const string usage = "Usage: -gumpopacity <all|custom|paperdoll|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]";
             if (args == null || args.Length < 2 || args[1].Equals("list", StringComparison.OrdinalIgnoreCase))
             {
-                GameActions.Print($"Opacity: custom {profile.CustomGumpOpacity}%, durability {profile.DurabilityGumpOpacity}%, container {profile.ContainerOpacity}%, corpse {profile.CorpseContainerOpacity}%, gridborder {profile.GridBorderAlpha}%.", 0x35);
+                GameActions.Print($"Opacity: custom {profile.CustomGumpOpacity}%, paperdoll {profile.PaperdollOpacity}%, durability {profile.DurabilityGumpOpacity}%, container {profile.ContainerOpacity}%, corpse {profile.CorpseContainerOpacity}%, gridborder {profile.GridBorderAlpha}%.", 0x35);
                 GameActions.Print($"Journal {profile.JournalOpacity}%, buff {profile.BuffBarOpacity}%, slayer {profile.SlayerBarOpacity}%, hover minimum {profile.GumpHoverOpacityPercent}%.", 0x35);
                 GameActions.Print($"Alt-scroll {(profile.EnableAlphaScrollingOnGumps ? "ON" : "OFF")}; hover boost {(profile.BoostGumpOpacityOnHover ? "ON" : "OFF")}.", 0x35);
                 GameActions.Print(usage, 0x35);
@@ -3350,6 +3436,7 @@ Register("pathpreview", (s) =>
                 }
 
                 profile.DurabilityGumpOpacity = (byte)allPercent;
+                profile.PaperdollOpacity = (byte)allPercent;
                 profile.ContainerOpacity = (byte)allPercent;
                 profile.CorpseContainerOpacity = (byte)allPercent;
                 profile.JournalOpacity = (byte)allPercent;
@@ -3363,7 +3450,7 @@ Register("pathpreview", (s) =>
                 PaperDollBackpackEquipmentGump.UpdateAllOptions();
                 profile.Save(ProfileManager.ProfilePath, false);
                 CustomGumpThemeManager.RefreshOptionsGump();
-                GameActions.Print($"Gump opacity: {allPercent}% (utility/chat {profile.CustomGumpOpacity}%; grid borders and hover unchanged).", 0x35);
+                GameActions.Print($"Gump opacity: {allPercent}% (custom {profile.CustomGumpOpacity}%; grid borders and hover unchanged).", 0x35);
                 return;
             }
 
@@ -3404,6 +3491,10 @@ Register("pathpreview", (s) =>
                 case "durability":
                     currentPercent = profile.DurabilityGumpOpacity;
                     apply = value => { profile.DurabilityGumpOpacity = (byte)value; DurabilitysGump.UpdateAllOpacity(); };
+                    break;
+                case "paperdoll":
+                    currentPercent = profile.PaperdollOpacity;
+                    apply = value => profile.PaperdollOpacity = (byte)value;
                     break;
                 case "container":
                 case "containers":

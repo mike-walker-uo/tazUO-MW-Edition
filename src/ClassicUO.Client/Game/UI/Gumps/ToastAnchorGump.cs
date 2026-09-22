@@ -3,6 +3,7 @@
 #endregion
 
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Game.Managers;
 using ClassicUO.Renderer;
 using ClassicUO.Input;
 using Microsoft.Xna.Framework;
@@ -111,7 +112,8 @@ namespace ClassicUO.Game.UI.Gumps
             if (Time.Ticks >= _nextSample)
             {
                 _nextSample = (long)Time.Ticks + 1000;
-                ToastManager.Show("Toast anchor preview", 0x44, 1100);
+                ToastManager.Show("Toast anchor preview", 0x44, 1100, "toast-preview",
+                    AlertCategory.System, AlertSeverity.Info);
             }
         }
 

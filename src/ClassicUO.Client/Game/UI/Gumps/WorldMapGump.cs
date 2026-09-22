@@ -2366,6 +2366,14 @@ namespace ClassicUO.Game.UI.Gumps
             int gY = y + 4;
             int gWidth = Width - 8;
             int gHeight = Height - 8;
+            bool themedBorder = ShowBorder && CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current);
+
+            if (_northIcon != null)
+            {
+                int iconInset = themedBorder ? 12 : BorderControl.BorderSize;
+                _northIcon.X = Width - _northIcon.Width - iconInset;
+                _northIcon.Y = !_flipMap ? Height - _northIcon.Height - iconInset : iconInset;
+            }
 
             int centerX = _center.X + 1;
             int centerY = _center.Y + 1;
@@ -2449,6 +2457,8 @@ namespace ClassicUO.Game.UI.Gumps
             string facetName = GetFacetName(World.MapIndex);
             Vector2 facetSize = Fonts.Bold.MeasureString(facetName);
             int facetRight = gX + gWidth - 5;
+            if (themedBorder)
+                facetRight -= 8;
 
             if (!_flipMap && _northIcon != null)
             {
@@ -2457,6 +2467,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             int facetX = facetRight - (int)Math.Ceiling(facetSize.X);
             int facetY = gY + gHeight - (int)Math.Ceiling(facetSize.Y) - 5;
+            if (themedBorder)
+                facetY -= 8;
 
             batcher.DrawString
             (
@@ -2485,7 +2497,17 @@ namespace ClassicUO.Game.UI.Gumps
             //}
 
 
-            return base.Draw(batcher, x, y);
+            if (themedBorder)
+            {
+                CustomThemeArt.DrawFrame(batcher, x, y, Width, Height,
+                    CustomGumpThemeManager.OpacityScale, 12);
+                BorderControl.IsVisible = false;
+            }
+
+            bool result = base.Draw(batcher, x, y);
+            if (themedBorder)
+                BorderControl.IsVisible = true;
+            return result;
         }
 
         private void DrawAll(UltimaBatcher2D batcher, Rectangle srcRect, int gX, int gY, int halfWidth, int halfHeight)

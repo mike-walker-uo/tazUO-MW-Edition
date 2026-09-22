@@ -26,6 +26,9 @@ namespace ClassicUO.Game.Managers
 
         private static readonly Feature[] _features =
         {
+            new Feature("AlertCenter", AlertCenterManager.Tick),
+            new Feature("ItemFinderLocate", ItemFinderManager.UpdateHighlights),
+            new Feature("RestockVerify", RestockAgentManager.Tick),
             new Feature("BandageSettings", BandageSettings.Tick),
             new Feature("FeatureSettings", TazUOFeatureSettings.Tick),
             // Priority order for competing automatic actions: emergency care,
@@ -44,6 +47,7 @@ namespace ClassicUO.Game.Managers
             new Feature("ReagentWatcher", ReagentWatcherManager.Tick, () => ReagentWatcherManager.Enabled),
             new Feature("AggroIndicator", AggroIndicatorManager.Tick, () => AggroIndicatorManager.HasAggressors),
             new Feature("PetWatcher", PetWatcherManager.Tick, () => PetWatcherManager.Enabled),
+            new Feature("DurabilityWarn", World.DurabilityManager.Tick, () => DurabilityManager.HasDurabilityData),
             new Feature("PetGuardTint", PetGuardTintManager.Tick, () => PetGuardTintManager.Enabled),
             new Feature("PetLoyalty", PetLoyaltyAlertManager.Tick, () => PetLoyaltyAlertManager.Enabled),
             new Feature("AutoRespawnTarget", AutoRespawnTargetManager.Tick, () => AutoRespawnTargetManager.Enabled),

@@ -391,6 +391,18 @@ submenu.Add(new ContextMenuItemEntry("Profile Export/Import", () =>
 
         public bool IsMinimized { get; private set; }
 
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            float opacity = CustomGumpThemeManager.OpacityScale;
+            foreach (Control control in Children)
+            {
+                if (control is Button || control is ResizePic)
+                    control.Alpha = opacity;
+            }
+
+            return base.Draw(batcher, x, y);
+        }
+
         public void RefreshXmlGumps()
         {
             XmlGumps.ContextMenu?.Dispose();
@@ -600,7 +612,7 @@ submenu.Add(new ContextMenuItemEntry("Profile Export/Import", () =>
                 }
 
                 _themedText.Draw(batcher, x + (Width - _themedText.Width) / 2,
-                    y + (Height - _themedText.Height) / 2, Alpha);
+                    y + (Height - _themedText.Height) / 2);
                 return true;
             }
 

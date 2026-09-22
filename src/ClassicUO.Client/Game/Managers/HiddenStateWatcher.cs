@@ -56,7 +56,8 @@ namespace ClassicUO.Game.Managers
             if (!_seeded) { _wasHidden = h; _seeded = true; return; }
             if (h == _wasHidden) return;
             _wasHidden = h;
-            try { UI.Gumps.ToastManager.Show(h ? "Hidden" : "Visible!", (ushort)(h ? 0x44 : 0x21), 2500); } catch { }
+            try { UI.Gumps.ToastManager.Show(h ? "Hidden" : "Visible!", (ushort)(h ? 0x44 : 0x21), 2500,
+                "hidden-state", AlertCategory.System, AlertSeverity.Info); } catch { }
             if (!h) try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
         }
 

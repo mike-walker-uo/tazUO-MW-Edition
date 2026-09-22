@@ -96,12 +96,17 @@ namespace ClassicUO.Game.Managers
             // --- UI ---
             { "globalchat",     new Entry { Category="UI", Description="Open global chat.", Usage="" } },
             { "guildchat",      new Entry { Category="UI", Description="Open guild chat.", Usage="" } },
-            { "speechhistory",  new Entry { Category="UI", Description="Open nearby speech history. Use Clear inside the gump to reset it.", Usage="" } },
+            { "nearbychat",     new Entry { Category="UI", Description="Toggle nearby chat. Use Clear in the window or -nearbychat clear to reset its history.", Usage="[clear]" } },
             { "damagetracker",  new Entry { Category="UI", Description="Open damage tracker gump.", Usage="" } },
             { "options",        new Entry { Category="UI", Description="Open modern options gump.", Usage="" } },
             { "optlink",        new Entry { Category="UI", Description="Jump to a specific options page.", Usage="<name>" } },
             { "paperdoll",      new Entry { Category="UI", Description="Open paperdoll.", Usage="" } },
             { "worldexplorer",  new Entry { Category="Map/Markers", Description="Scan rune books and pin quick travel destinations.", Usage="" } },
+            { "itemfinder",     new Entry { Category="UI", Description="Scan reachable containers and search the accumulated catalog with ALL, NOT, and count logic.", Usage="[*] [name/type] [hci>=10] [not:cursed|not:hci>=10] [2of(hci>=10,di>=20,ssi>=10)]" } },
+            { "equipmentguru", new Entry { Category="UI", Description="Analyze real skills and equipped totals, then recommend target-driven loadouts from the Item Finder catalog.", Usage="" } },
+            { "restock",       new Entry { Category="Loot", Description="Open the Restock Agent or run it immediately.", Usage="[run]" } },
+            { "readycheck",    new Entry { Category="Loot", Description="Check supplies, equipped-layer baseline, durability, weight, and backpack capacity.", Usage="" } },
+            { "alertcenter",   new Entry { Category="Alerts", Description="Open alert history, filters, snooze, mute, and severity settings.", Usage="" } },
             { "openjournal",    new Entry { Category="UI", Description="Open journal.", Usage="" } },
             { "toast",          new Entry { Category="UI", Description="Show a test toast.", Usage="<text>" } },
             { "toastanchor",    new Entry { Category="UI", Description="Move or resize the top-center toast stack; right-click to save.", Usage="" } },
@@ -122,9 +127,10 @@ namespace ClassicUO.Game.Managers
             { "musicmode",      new Entry { Category="UI", Description="Choose original/new/mixed music, or scan Music/Digital for newly added MP3s.", Usage="original|new|mixed|rescan" } },
             { "musicplayer",    new Entry { Category="UI", Description="Open or close the auto-started music/radio player with playlist favorites; login starts in mini layout.", Usage="" } },
             { "gumptheme",      new Entry { Category="UI", Description="Theme supported utility, HUD, tracker, grid-container, journal and modern chat gumps.", Usage="[minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|next]" } },
-            { "gumpopacity",    new Entry { Category="UI", Description="Set a gump opacity option. All: 0-100 (utility/chat min 20; grid borders and hover unchanged).", Usage="<all|custom|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]" } },
-            { "gumpopacityall",        new Entry { Category="UI", Description="Set supported gump opacity values; utility/chat min 20, grid borders and hover unchanged.", Usage="<0-100>" } },
-            { "gumpopacitycustom",     new Entry { Category="UI", Description="Gump opacity: themed utility and chat gumps.", Usage="<20-100>" } },
+            { "gumpopacity",    new Entry { Category="UI", Description="Set a gump opacity option. All: 0-100 (custom min 20; grid borders and hover unchanged).", Usage="<all|custom|paperdoll|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]" } },
+            { "gumpopacityall",        new Entry { Category="UI", Description="Set supported gump opacity values; custom min 20, grid borders and hover unchanged.", Usage="<0-100>" } },
+            { "gumpopacitycustom",     new Entry { Category="UI", Description="Gump opacity: themed windows, main menu, and map border.", Usage="<20-100>" } },
+            { "gumpopacitypaperdoll",  new Entry { Category="UI", Description="Gump opacity: paperdoll background.", Usage="<0-100>" } },
             { "gumpopacitydurability", new Entry { Category="UI", Description="Gump opacity: durability display.", Usage="<0-100>" } },
             { "gumpopacitycontainer",  new Entry { Category="UI", Description="Gump opacity: containers.", Usage="<0-100>" } },
             { "gumpopacitycorpse",     new Entry { Category="UI", Description="Gump opacity: corpse containers.", Usage="<0-100>" } },
@@ -320,7 +326,7 @@ namespace ClassicUO.Game.Managers
                 "autohit", "cast", "lastenemy", "smartcast", "targetenemy",
                 "hidetrash", "dismounttilt", "jump", "mark", "recall",
                 "debug", "diagnostics", "eventlog", "findground",
-                "gumpopacity"
+                "gumpopacity", "speechhistory", "alerts"
             };
 
         private static readonly Dictionary<string, bool> _runtimeStates =

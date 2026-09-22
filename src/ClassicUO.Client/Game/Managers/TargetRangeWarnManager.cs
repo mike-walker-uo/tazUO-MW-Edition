@@ -69,7 +69,8 @@ namespace ClassicUO.Game.Managers
                 {
                     _warned = true;
                     _warnedSerial = last;
-                    ToastManager.Show($"{mob.Name ?? "Target"} out of range (d={d}).", 0x21, 3000);
+                    ToastManager.Show($"{mob.Name ?? "Target"} out of range (d={d}).", 0x21, 3000,
+                        "target-range", AlertCategory.Combat, AlertSeverity.Warning);
                 }
             }
             else if (d <= WarnDistance - 1)

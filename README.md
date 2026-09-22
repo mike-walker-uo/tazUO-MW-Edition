@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download the latest release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/latest)
+[Download version 0.6 Beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6-beta)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -23,11 +23,29 @@ It has many features, some of them are:
   - Profile recovery and safe graphics startup
   - Individual opacity controls for supported gumps, with optional Alt + scroll and hover boost
   - World Explorer for scanning rune books, pinning destinations, and quick travel, with 1–4 compact columns
+  - Universal Item Finder with persistent area scans, multi-property queries, saved searches, and item location tracking
+  - Restock Agent with multiple sources, custom destinations, reusable loadouts, and readiness checks
+  - Equipment Guru for target-driven equipment recommendations using the Item Finder catalog
+  - Alert Center with history, severity filters, snooze, mute, and persistent critical alerts
   - Optional boss health bar with compact and ornate layouts
   - Tithing-point tracking and low-point warnings for Chivalry users
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6 Beta highlights
+
+- Added **Universal Item Finder**. Scan reachable containers into a persistent, character-specific catalog; combine text and numeric properties with ALL, NOT, and count logic; save searches; inspect full properties; and locate items or their last known house position. Area scans close containers they opened and preserve catalog entries from containers that were unreachable during a later scan.
+- Added **Restock Agent** with ordered source containers, supply presets, exact target amounts, custom destination containers, source and destination stock counts, reusable loadouts, and integrated supply, equipment, durability, weight, and backpack readiness checks.
+- Added **Equipment Guru**. It reads real and effective skills, current equipment, and Item Finder candidates to recommend three target-driven fighter, archer, tamer, or mage loadouts. Goals and active skill targets are editable per character; comparisons highlight gains and losses; weapons, spellbooks, and talismans remain fixed; race equipment restrictions are respected.
+- Added **Alert Center** with active/history views, category and severity filters, snooze, mute, source suppression, and per-category severity settings. Low durability, low pet loyalty, and legendary creature alerts remain visible until right-clicked; recurring low durability and loyalty warnings return after ten minutes.
+- Added dedicated UO-style artwork and controls for Item Finder, Restock Agent, Equipment Guru, and Alert Center. Paperdolls expose matching quick-access buttons for these tools and World Explorer.
+- Expanded gump opacity support to the world-map border, main menu, buff bar, compact World Explorer, and paperdoll. Paperdoll opacity has its own option and `-gumpopacitypaperdoll` command.
+- Improved the durability display with prominent deep-plum critical rows, violet borders and bars, red Repair actions, and a brief pulse when an item first drops below 10 durability.
+- Renamed the primary nearby speech command to `-nearbychat`; `-speechhistory` remains available as an alias. Fixed Global and Guild Chat input layout and retained separate auto-open options for Global, Guild/Alliance, and Nearby Chat.
+- Compact World Explorer now restores after restart when it was open. Pinned command groups can be detached with Alt.
+
+This is a beta release. Keep a backup of your existing client folder and profile before installing.
 
 ## Version 0.5.2 highlights
 
@@ -55,7 +73,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.5.2 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6 Beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
@@ -79,7 +97,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [latest release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/latest).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6 Beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6-beta).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Place the contents of the `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.
