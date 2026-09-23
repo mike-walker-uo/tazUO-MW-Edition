@@ -99,7 +99,7 @@ namespace ClassicUO.Configuration
         [JsonConverter(typeof(Point2Converter))] public Point AlertCenterPosition { get; set; } = new Point(180, 70);
         [JsonConverter(typeof(Point2Converter))] public Point RestockAgentPosition { get; set; } = new Point(220, 120);
         [JsonConverter(typeof(Point2Converter))] public Point EquipmentGuruPosition { get; set; } = new Point(150, 80);
-        public bool PaperdollToolsCollapsed { get; set; }
+        [JsonConverter(typeof(Point2Converter))] public Point PaperdollToolsPosition { get; set; } = Point.Zero;
         public byte WorldExplorerTravelMethod { get; set; }
         public byte WorldExplorerTheme { get; set; }
         public bool WorldExplorerMinimized { get; set; }

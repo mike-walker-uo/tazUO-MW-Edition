@@ -58,7 +58,6 @@ namespace ClassicUO.Game.UI.Gumps
 
         private PaperDollInteractable _paperDollInteractable;
         private PaperDollBackpackEquipmentGump _backpackEquipmentStrip;
-        private PaperDollFeatureToolsGump _featureTools;
         private GumpPic _partyManifestPic;
 
         private GumpPic _picBase;
@@ -161,8 +160,6 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _backpackEquipmentStrip?.Dispose();
             _backpackEquipmentStrip = null;
-            _featureTools?.Dispose();
-            _featureTools = null;
 
             UIManager.SavePosition(LocalSerial, Location);
 
@@ -283,6 +280,16 @@ namespace ClassicUO.Game.UI.Gumps
                         Y = settings.Position_Y_Guild,
                         ButtonAction = ButtonAction.Activate
                     }.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale)
+                );
+
+                Add(
+                    new PaperDollToolsLauncherButton(
+                        settings.Position_X_Tools,
+                        settings.Position_Y_Tools,
+                        settings.Size_Width_Tools,
+                        settings.Size_Height_Tools,
+                        (int)Buttons.Tools
+                    ).ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale)
                 );
 
                 // TOGGLE PEACE/WAR BUTTON
@@ -553,12 +560,6 @@ namespace ClassicUO.Game.UI.Gumps
                     UIManager.Add(_backpackEquipmentStrip);
                 }
 
-                if (_featureTools == null || _featureTools.IsDisposed)
-                {
-                    _featureTools = new PaperDollFeatureToolsGump(this);
-                    UIManager.Add(_featureTools);
-                }
-
                 // This is to update the state of the war mode button.
                 if (mobile != null && _isWarMode != mobile.InWarMode)
                 {
@@ -800,6 +801,11 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
+                case Buttons.Tools:
+                    ToggleFeatureTools();
+
+                    break;
+
                 case Buttons.PeaceWarToggle:
                     GameActions.ToggleWarMode();
 
@@ -864,6 +870,18 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        private void ToggleFeatureTools()
+        {
+            PaperDollFeatureToolsGump tools = UIManager.GetGump<PaperDollFeatureToolsGump>();
+            if (tools != null && !tools.IsDisposed)
+            {
+                tools.Dispose();
+                return;
+            }
+
+            UIManager.Add(new PaperDollFeatureToolsGump(this));
+        }
+
         private enum Buttons
         {
             Help,
@@ -873,6 +891,7 @@ namespace ClassicUO.Game.UI.Gumps
             Quests,
             Skills,
             Guild,
+            Tools,
             PeaceWarToggle,
             Status
         }
@@ -1174,6 +1193,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             public int Position_X_Guild { get; set; } = 185;
             public int Position_Y_Guild { get; set; } = 44 + 27 * 5;
+
+            public int Position_X_Tools { get; set; } = 185;
+            public int Position_Y_Tools { get; set; } = 18;
+            public int Size_Width_Tools { get; set; } = 62;
+            public int Size_Height_Tools { get; set; } = 20;
 
             public int Position_X_WarMode { get; set; } = 185;
             public int Position_Y_Warmode { get; set; } = 44 + 27 * 6;

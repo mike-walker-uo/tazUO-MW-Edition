@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
@@ -35,14 +36,28 @@ namespace ClassicUO.Game.UI.Gumps
             new GoalDefinition("LowerManaCost", "LMC"),
             new GoalDefinition("LowerReagentCost", "LRC"),
             new GoalDefinition("SpellDamageIncrease", "SDI"),
+            new GoalDefinition("HitPointRegeneration", "HP regen"),
+            new GoalDefinition("StaminaRegeneration", "Stamina regen"),
             new GoalDefinition("ManaRegeneration", "Mana regen"),
-            new GoalDefinition("Resist", "Each resist")
+            new GoalDefinition("PhysicalResist", "Physical resist"),
+            new GoalDefinition("FireResist", "Fire resist"),
+            new GoalDefinition("ColdResist", "Cold resist"),
+            new GoalDefinition("PoisonResist", "Poison resist"),
+            new GoalDefinition("EnergyResist", "Energy resist")
         };
 
         private readonly Dictionary<string, GoalInput> _goalInputs =
             new Dictionary<string, GoalInput>(StringComparer.Ordinal);
         private readonly Dictionary<string, GoalInput> _skillGoalInputs =
             new Dictionary<string, GoalInput>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Checkbox> _goalMustInputs =
+            new Dictionary<string, Checkbox>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Checkbox> _skillMustInputs =
+            new Dictionary<string, Checkbox>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Checkbox> _goalPreserveInputs =
+            new Dictionary<string, Checkbox>(StringComparer.Ordinal);
+        private readonly Dictionary<string, Checkbox> _skillPreserveInputs =
+            new Dictionary<string, Checkbox>(StringComparer.OrdinalIgnoreCase);
         private readonly VBoxContainer _goalBox;
         private readonly VBoxContainer _resultBox;
         private readonly Label _detected;
@@ -51,7 +66,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Label _status;
         private readonly NiceButton _buildButton;
         private readonly NiceButton _analyzeButton;
-        private readonly NiceButton[] _loadoutButtons = new NiceButton[3];
+        private readonly NiceButton[] _loadoutButtons = new NiceButton[4];
         private readonly List<EquipmentGuruManager.RecommendedItem> _visibleChanges =
             new List<EquipmentGuruManager.RecommendedItem>();
 
@@ -62,6 +77,8 @@ namespace ClassicUO.Game.UI.Gumps
         private int _selectedLoadout;
         private bool _analysisQueued;
         private long _analyzeAt;
+        private long _nextResistanceCheck;
+        private int _lastResistanceSignature;
 
         internal EquipmentGuruGump() : base(0, 0)
         {
@@ -171,7 +188,7 @@ namespace ClassicUO.Game.UI.Gumps
                 BaseColor = FeatureGumpArtwork.BorderColor(FeatureGumpArtworkKind.EquipmentGuru)
             });
 
-            Add(new Label("RECOMMENDED LOADOUTS", true,
+            Add(new Label("LOADOUT OPTIONS", true,
                 FeatureGumpArtwork.TitleHue(FeatureGumpArtworkKind.EquipmentGuru), RIGHT_WIDTH, font: 1)
             {
                 X = RIGHT_X,
@@ -179,9 +196,9 @@ namespace ClassicUO.Game.UI.Gumps
             });
             for (int i = 0; i < _loadoutButtons.Length; i++)
             {
-                _loadoutButtons[i] = CreateButton(RIGHT_X + i * 128, 146, 120, 30,
+                _loadoutButtons[i] = CreateButton(RIGHT_X + i * 105, 146, 99, 30,
                     $"Loadout {i + 1}", 10 + i);
-                _loadoutButtons[i].SetTooltip("Show this recommended complete equipment set.");
+                _loadoutButtons[i].SetTooltip("Show this equipment option and its tradeoffs.");
                 Add(_loadoutButtons[i]);
             }
             NiceButton saveLoadout = CreateButton(844, 146, 132, 30, "Save loadout", 4);
@@ -234,6 +251,13 @@ namespace ClassicUO.Game.UI.Gumps
                 _analysisQueued = false;
                 _analyzeButton.SetText("Analyze gear");
                 RunAnalysis();
+            }
+
+            if (_analysis != null && !_analysisQueued && Time.Ticks >= _nextResistanceCheck)
+            {
+                _nextResistanceCheck = (long)Time.Ticks + 1000;
+                if (EquipmentGuruManager.LiveResistanceSignature() != _lastResistanceSignature)
+                    RunAnalysis(false);
             }
         }
 
@@ -306,14 +330,16 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            if (buttonID >= 10 && buttonID < 13)
+            if (buttonID >= 10 && buttonID < 14)
             {
                 int loadout = buttonID - 10;
                 if (_analysis != null && loadout < _analysis.Loadouts.Count)
                 {
                     _selectedLoadout = loadout;
                     RenderSelectedLoadout();
-                    _status.Text = $"Viewing Loadout {_selectedLoadout + 1}. Current values are left; recommended values are right.";
+                    _status.Text = "Viewing "
+                        + KindLabel(_analysis.Loadouts[_selectedLoadout].Kind)
+                        + ". Current values are left; selected values are right.";
                 }
                 return;
             }
@@ -340,6 +366,16 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        private static string KindLabel(EquipmentGuruManager.LoadoutKind kind)
+        {
+            switch (kind)
+            {
+                case EquipmentGuruManager.LoadoutKind.Upgrade: return "upgrade";
+                case EquipmentGuruManager.LoadoutKind.MustTradeoff: return "MIN/KEEP tradeoff";
+                default: return "current equipment";
+            }
+        }
+
         private void RefreshBuildAndGoals()
         {
             EquipmentGuruManager.EquipmentGuruBuild detected = EquipmentGuruManager.DetectBuild();
@@ -356,11 +392,14 @@ namespace ClassicUO.Game.UI.Gumps
             _detected.Text = $"Detected: {EquipmentGuruManager.BuildName(detected)}";
         }
 
-        private void RunAnalysis()
+        private void RunAnalysis(bool saveGoals = true)
         {
             EquipmentGuruManager.EquipmentGuruGoals goals = ReadInputs();
-            EquipmentGuruManager.SaveGoals(_goalBuild, goals);
+            if (saveGoals)
+                EquipmentGuruManager.SaveGoals(_goalBuild, goals);
             _analysis = EquipmentGuruManager.Analyze(_selectedBuild, goals);
+            _lastResistanceSignature = EquipmentGuruManager.LiveResistanceSignature();
+            _nextResistanceCheck = (long)Time.Ticks + 1000;
             _selectedLoadout = 0;
 
             _detected.Text = $"Detected: {EquipmentGuruManager.BuildName(_analysis.DetectedBuild)}";
@@ -407,11 +446,24 @@ namespace ClassicUO.Game.UI.Gumps
             UpdateLoadoutButtons();
             int improvedTargets = loadout.Metrics.FindAll(metric =>
                 metric.CountsAsTarget && IsImprovedMetric(metric)).Count;
-            _resultBox.Add(new HeadingRow(
-                loadout.Improvement > 0.0001
-                    ? $"LOADOUT {_selectedLoadout + 1}  •  BETTER FIT FOR {improvedTargets} TARGET(S)  •  {loadout.Changes.Count} REPLACEMENT(S)"
-                    : $"LOADOUT {_selectedLoadout + 1}  •  CURRENT EQUIPMENT FITS BEST  •  {loadout.Changes.Count} REPLACEMENT(S)",
-                _resultBox.Width - 4));
+            string heading;
+            switch (loadout.Kind)
+            {
+                case EquipmentGuruManager.LoadoutKind.Upgrade:
+                    heading = $"UPGRADE  •  +{ScorePercent(loadout):0.0}%  •  {improvedTargets} TARGET(S)  •  {loadout.Changes.Count} REPLACEMENT(S)";
+                    break;
+                case EquipmentGuruManager.LoadoutKind.MustTradeoff:
+                    heading = $"MIN/KEEP TRADEOFF  •  {ScorePercent(loadout):0.0}%  •  {loadout.Changes.Count} REPLACEMENT(S)";
+                    break;
+                default:
+                    heading = loadout.MeetsRequirements
+                        ? "CURRENT SET  •  BASELINE  •  ALL MIN/KEEP REQUIREMENTS MET"
+                        : "CURRENT SET  •  BASELINE  •  MIN/KEEP REQUIREMENT MISSED";
+                    break;
+            }
+            _resultBox.Add(new HeadingRow(heading, _resultBox.Width - 4));
+            _resultBox.Add(new MessageRow(BuildSummary(loadout),
+                _resultBox.Width - 4, 52));
             _resultBox.Add(new MessageRow(
                 "CURRENT  →  SELECTED LOADOUT  /  TARGET",
                 _resultBox.Width - 4, 30));
@@ -430,7 +482,9 @@ namespace ClassicUO.Game.UI.Gumps
             if (loadout.Changes.Count == 0)
             {
                 _resultBox.Add(new MessageRow(
-                    "No catalog combination scores above the equipped set for these targets.",
+                    loadout.Kind == EquipmentGuruManager.LoadoutKind.Current
+                        ? "This is the equipped baseline. No items are replaced."
+                        : "No item replacements are required.",
                     _resultBox.Width - 4));
                 return;
             }
@@ -445,6 +499,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void UpdateLoadoutButtons()
         {
+            int upgradeNumber = 0;
+            int tradeoffNumber = 0;
             for (int i = 0; i < _loadoutButtons.Length; i++)
             {
                 if (_analysis == null || i >= _analysis.Loadouts.Count)
@@ -453,11 +509,82 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else
                 {
+                    EquipmentGuruManager.Loadout loadout = _analysis.Loadouts[i];
+                    string label;
+                    switch (loadout.Kind)
+                    {
+                        case EquipmentGuruManager.LoadoutKind.Upgrade:
+                            label = $"Upgrade {++upgradeNumber}";
+                            break;
+                        case EquipmentGuruManager.LoadoutKind.MustTradeoff:
+                            label = $"Tradeoff {++tradeoffNumber}";
+                            break;
+                        default:
+                            label = "Current";
+                            break;
+                    }
                     _loadoutButtons[i].SetText(i == _selectedLoadout
-                        ? $"● Loadout {i + 1}"
-                        : $"Loadout {i + 1}");
+                        ? $"● {label}"
+                        : label);
                 }
             }
+        }
+
+        private double ScorePercent(EquipmentGuruManager.Loadout loadout)
+        {
+            if (_analysis == null || Math.Abs(_analysis.CurrentScore) < 0.0001)
+            {
+                return 0;
+            }
+
+            return loadout.Improvement / _analysis.CurrentScore * 100.0;
+        }
+
+        private static string BuildSummary(EquipmentGuruManager.Loadout loadout)
+        {
+            var fixedTargets = new List<string>();
+            var losses = new List<string>();
+
+            foreach (EquipmentGuruManager.Metric metric in loadout.Metrics)
+            {
+                int current = EffectiveMetric(metric, metric.Current);
+                int recommended = EffectiveMetric(metric, metric.Recommended);
+                if (metric.CountsAsTarget && !metric.LowerIsBetter
+                    && current < metric.Target && recommended >= metric.Target)
+                {
+                    fixedTargets.Add(metric.Name);
+                }
+                else if (metric.CountsAsTarget && metric.LowerIsBetter
+                    && recommended < current)
+                {
+                    fixedTargets.Add(metric.Name);
+                }
+                if (recommended < current && !metric.LowerIsBetter)
+                {
+                    losses.Add($"{metric.Name} -{current - recommended}");
+                }
+                else if (metric.LowerIsBetter && recommended > current)
+                {
+                    losses.Add($"{metric.Name} +{recommended - current}");
+                }
+            }
+
+            string fixes = fixedTargets.Count == 0
+                ? "Fixes: none"
+                : "Fixes: " + string.Join(", ", fixedTargets.Take(4));
+            string costs = losses.Count == 0
+                ? "Costs: none"
+                : "Costs: " + string.Join(", ", losses.Take(4))
+                    + (losses.Count > 4 ? ", …" : string.Empty);
+            string requirements = loadout.MeetsRequirements
+                ? "MIN/KEEP: met"
+                : "MIN/KEEP: missed";
+            return $"{fixes}  •  {costs}  •  {requirements}";
+        }
+
+        private static int EffectiveMetric(EquipmentGuruManager.Metric metric, int value)
+        {
+            return metric.DisplayCap > 0 ? Math.Min(value, metric.DisplayCap) : value;
         }
 
         private void SaveSelectedLoadout()
@@ -488,20 +615,22 @@ namespace ClassicUO.Game.UI.Gumps
                 "Equipment Guru keeps the equipped weapon or spellbook and talisman fixed. "
                 + "A shield may be replaced when used with a one-handed weapon. Results use equipped items "
                 + "plus wearable items already stored in the Item Finder catalog. Each detected real skill "
-                + "has an editable final target; matching equipment skill bonuses reduce the real points needed.",
+                + "has an editable final target; matching equipment skill bonuses reduce the real points needed. "
+                + "Targets stop adding score once reached. MIN enforces the entered value; KEEP prevents lowering the current value.",
                 _resultBox.Width - 4, 112));
         }
 
         private static bool IsImprovedMetric(EquipmentGuruManager.Metric metric)
         {
+            int current = EffectiveMetric(metric, metric.Current);
+            int recommended = EffectiveMetric(metric, metric.Recommended);
             if (metric.LowerIsBetter)
             {
-                return metric.Recommended < metric.Current;
+                return recommended < current;
             }
 
-            return metric.Target > 0
-                && Math.Abs(metric.Recommended - metric.Target)
-                    < Math.Abs(metric.Current - metric.Target);
+            return recommended > current
+                && (metric.Target <= 0 || current < metric.Target);
         }
 
         private void SaveCurrentGoals()
@@ -514,12 +643,20 @@ namespace ClassicUO.Game.UI.Gumps
             foreach (GoalDefinition definition in _goalDefinitions)
             {
                 _goalInputs[definition.Key].SetText(GetGoal(goals, definition.Key).ToString());
+                _goalMustInputs[definition.Key].IsChecked =
+                    goals.MustTargets.Contains(definition.Key);
+                _goalPreserveInputs[definition.Key].IsChecked =
+                    goals.PreserveTargets.Contains(definition.Key);
             }
 
             foreach (KeyValuePair<string, GoalInput> input in _skillGoalInputs)
             {
                 goals.SkillTargets.TryGetValue(input.Key, out int target);
                 input.Value.SetText(target.ToString());
+                _skillMustInputs[input.Key].IsChecked =
+                    goals.MustTargets.Contains("SkillTarget:" + input.Key);
+                _skillPreserveInputs[input.Key].IsChecked =
+                    goals.PreserveTargets.Contains("SkillTarget:" + input.Key);
             }
         }
 
@@ -528,11 +665,17 @@ namespace ClassicUO.Game.UI.Gumps
             _goalBox.Clear();
             _goalInputs.Clear();
             _skillGoalInputs.Clear();
+            _goalMustInputs.Clear();
+            _skillMustInputs.Clear();
+            _goalPreserveInputs.Clear();
+            _skillPreserveInputs.Clear();
 
             foreach (GoalDefinition definition in _goalDefinitions)
             {
                 var row = new GoalRow(definition.Label, _goalBox.Width - 4);
                 _goalInputs[definition.Key] = row.Input;
+                _goalMustInputs[definition.Key] = row.Minimum;
+                _goalPreserveInputs[definition.Key] = row.Preserve;
                 _goalBox.Add(row);
             }
 
@@ -544,6 +687,8 @@ namespace ClassicUO.Game.UI.Gumps
                 row.Input.SetTooltip(
                     $"Desired final {skill.Name}. Equipment bonuses reduce the real skill points needed; cap {skill.Cap:0.#}.");
                 _skillGoalInputs[skill.Name] = row.Input;
+                _skillMustInputs[skill.Name] = row.Minimum;
+                _skillPreserveInputs[skill.Name] = row.Preserve;
                 _goalBox.Add(row);
             }
         }
@@ -558,6 +703,9 @@ namespace ClassicUO.Game.UI.Gumps
                 int value = 0;
                 int.TryParse(_goalInputs[definition.Key].Text, out value);
                 SetGoal(goals, definition.Key, Math.Max(0, value));
+                SetRequirement(goals, definition.Key,
+                    _goalMustInputs[definition.Key].IsChecked,
+                    _goalPreserveInputs[definition.Key].IsChecked);
             }
 
             foreach (KeyValuePair<string, GoalInput> input in _skillGoalInputs)
@@ -565,9 +713,34 @@ namespace ClassicUO.Game.UI.Gumps
                 int value = 0;
                 int.TryParse(input.Value.Text, out value);
                 goals.SkillTargets[input.Key] = Math.Max(0, value);
+                SetRequirement(goals, "SkillTarget:" + input.Key,
+                    _skillMustInputs[input.Key].IsChecked,
+                    _skillPreserveInputs[input.Key].IsChecked);
             }
 
             return goals;
+        }
+
+        private static void SetRequirement(EquipmentGuruManager.EquipmentGuruGoals goals,
+            string key, bool minimum, bool preserve)
+        {
+            if (minimum)
+            {
+                goals.MustTargets.Add(key);
+            }
+            else
+            {
+                goals.MustTargets.Remove(key);
+            }
+
+            if (preserve)
+            {
+                goals.PreserveTargets.Add(key);
+            }
+            else
+            {
+                goals.PreserveTargets.Remove(key);
+            }
         }
 
         private static int GetGoal(EquipmentGuruManager.EquipmentGuruGoals goals, string key)
@@ -589,8 +762,14 @@ namespace ClassicUO.Game.UI.Gumps
                 case "FasterCasting": return goals.FasterCasting;
                 case "FasterCastRecovery": return goals.FasterCastRecovery;
                 case "SpellDamageIncrease": return goals.SpellDamageIncrease;
+                case "HitPointRegeneration": return goals.HitPointRegeneration;
+                case "StaminaRegeneration": return goals.StaminaRegeneration;
                 case "ManaRegeneration": return goals.ManaRegeneration;
-                case "Resist": return goals.Resist;
+                case "PhysicalResist": return ResistTarget(goals.PhysicalResist, goals.Resist);
+                case "FireResist": return ResistTarget(goals.FireResist, goals.Resist);
+                case "ColdResist": return ResistTarget(goals.ColdResist, goals.Resist);
+                case "PoisonResist": return ResistTarget(goals.PoisonResist, goals.Resist);
+                case "EnergyResist": return ResistTarget(goals.EnergyResist, goals.Resist);
                 case "Luck": return goals.Luck;
                 default: return 0;
             }
@@ -616,10 +795,21 @@ namespace ClassicUO.Game.UI.Gumps
                 case "FasterCasting": goals.FasterCasting = value; break;
                 case "FasterCastRecovery": goals.FasterCastRecovery = value; break;
                 case "SpellDamageIncrease": goals.SpellDamageIncrease = value; break;
+                case "HitPointRegeneration": goals.HitPointRegeneration = value; break;
+                case "StaminaRegeneration": goals.StaminaRegeneration = value; break;
                 case "ManaRegeneration": goals.ManaRegeneration = value; break;
-                case "Resist": goals.Resist = value; break;
+                case "PhysicalResist": goals.PhysicalResist = value; break;
+                case "FireResist": goals.FireResist = value; break;
+                case "ColdResist": goals.ColdResist = value; break;
+                case "PoisonResist": goals.PoisonResist = value; break;
+                case "EnergyResist": goals.EnergyResist = value; break;
                 case "Luck": goals.Luck = value; break;
             }
+        }
+
+        private static int ResistTarget(int individualTarget, int sharedTarget)
+        {
+            return individualTarget >= 0 ? individualTarget : sharedTarget;
         }
 
         private void AddSurface(int x, int y, int width, int height, float alpha)
@@ -667,11 +857,36 @@ namespace ClassicUO.Game.UI.Gumps
                 Height = 31;
                 Add(new Label(label, true,
                     FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru),
-                    width - 72, font: 1)
+                    width - 190, font: 1,
+                    style: FontStyle.BlackBorder | FontStyle.Cropped)
                 {
                     X = 6,
                     Y = 7
                 });
+                Add(Minimum = new Checkbox(0x00D2, 0x00D3, "MIN", 1,
+                    FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+                {
+                    X = width - 184,
+                    Y = 7
+                });
+                Minimum.SetTooltip("Minimum: reject a loadout below the entered target.");
+                Add(Preserve = new Checkbox(0x00D2, 0x00D3, "KEEP", 1,
+                    FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+                {
+                    X = width - 128,
+                    Y = 7
+                });
+                Preserve.SetTooltip("Keep: reject a loadout below your current value.");
+                Minimum.ValueChanged += (sender, e) =>
+                {
+                    if (Minimum.IsChecked)
+                        Preserve.IsChecked = false;
+                };
+                Preserve.ValueChanged += (sender, e) =>
+                {
+                    if (Preserve.IsChecked)
+                        Minimum.IsChecked = false;
+                };
                 Add(FeatureGumpArtwork.CreateSurface(width - 66, 3, 58, 25,
                     FeatureGumpArtworkKind.EquipmentGuru, 0.68f, true));
                 Add(Input = new GoalInput
@@ -684,6 +899,8 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             internal GoalInput Input { get; }
+            internal Checkbox Minimum { get; }
+            internal Checkbox Preserve { get; }
         }
 
         private sealed class GoalInput : StbTextBox
@@ -755,20 +972,39 @@ namespace ClassicUO.Game.UI.Gumps
 
             private void AddMetric(EquipmentGuruManager.Metric metric, int x, int width)
             {
-                bool improved = metric.LowerIsBetter
-                    ? metric.Recommended < metric.Current
-                    : metric.Recommended > metric.Current;
+                int current = EffectiveMetric(metric, metric.Current);
+                int recommended = EffectiveMetric(metric, metric.Recommended);
+                bool improved = IsImprovedMetric(metric);
+                bool worsened = metric.LowerIsBetter
+                    ? recommended > current
+                    : recommended < current;
                 ushort hue = improved
                     ? FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru)
-                    : FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru);
-                string target = metric.Target > 0 ? $" / {metric.Target}" : string.Empty;
-                Add(new Label($"{metric.Name}  {metric.Current} → {metric.Recommended}{target}",
+                    : worsened
+                        ? (ushort)0x0021
+                        : FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru);
+                string target = metric.Target > 0 && !metric.LowerIsBetter
+                    ? $" / {metric.Target}"
+                    : string.Empty;
+                string requirement = metric.IsPreserve
+                    ? "  [KEEP]"
+                    : metric.IsMust ? "  [MIN]" : string.Empty;
+                Add(new Label(
+                    $"{metric.Name}  {FormatMetric(metric.Current, metric.DisplayCap)} → "
+                    + $"{FormatMetric(metric.Recommended, metric.DisplayCap)}{target}{requirement}",
                     true, hue, width, font: 1,
                     style: FontStyle.BlackBorder | FontStyle.Cropped)
                 {
                     X = x,
                     Y = 5
                 });
+            }
+
+            private static string FormatMetric(int value, int cap)
+            {
+                return cap > 0 && value > cap
+                    ? $"{cap} ({value} raw)"
+                    : value.ToString();
             }
         }
 
