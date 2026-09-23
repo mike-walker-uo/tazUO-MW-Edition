@@ -2,13 +2,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -77,8 +80,6 @@ namespace ClassicUO.Game.UI.Gumps
         private int _selectedLoadout;
         private bool _analysisQueued;
         private long _analyzeAt;
-        private long _nextResistanceCheck;
-        private int _lastResistanceSignature;
 
         internal EquipmentGuruGump() : base(0, 0)
         {
@@ -252,13 +253,6 @@ namespace ClassicUO.Game.UI.Gumps
                 _analyzeButton.SetText("Analyze gear");
                 RunAnalysis();
             }
-
-            if (_analysis != null && !_analysisQueued && Time.Ticks >= _nextResistanceCheck)
-            {
-                _nextResistanceCheck = (long)Time.Ticks + 1000;
-                if (EquipmentGuruManager.LiveResistanceSignature() != _lastResistanceSignature)
-                    RunAnalysis(false);
-            }
         }
 
         public override void OnButtonClick(int buttonID)
@@ -350,8 +344,7 @@ namespace ClassicUO.Game.UI.Gumps
                 if (index >= 0 && index < _visibleChanges.Count)
                 {
                     EquipmentGuruManager.ToggleExcluded(_visibleChanges[index].Item.Serial);
-                    _status.Text = $"Excluded {_visibleChanges[index].Item.Name}; analyzing again.";
-                    RunAnalysis();
+                    _status.Text = $"Excluded {_visibleChanges[index].Item.Name}; click Analyze gear to update recommendations.";
                 }
             }
             else if (buttonID >= 1000)
@@ -392,14 +385,11 @@ namespace ClassicUO.Game.UI.Gumps
             _detected.Text = $"Detected: {EquipmentGuruManager.BuildName(detected)}";
         }
 
-        private void RunAnalysis(bool saveGoals = true)
+        private void RunAnalysis()
         {
             EquipmentGuruManager.EquipmentGuruGoals goals = ReadInputs();
-            if (saveGoals)
-                EquipmentGuruManager.SaveGoals(_goalBuild, goals);
+            EquipmentGuruManager.SaveGoals(_goalBuild, goals);
             _analysis = EquipmentGuruManager.Analyze(_selectedBuild, goals);
-            _lastResistanceSignature = EquipmentGuruManager.LiveResistanceSignature();
-            _nextResistanceCheck = (long)Time.Ticks + 1000;
             _selectedLoadout = 0;
 
             _detected.Text = $"Detected: {EquipmentGuruManager.BuildName(_analysis.DetectedBuild)}";
@@ -410,6 +400,7 @@ namespace ClassicUO.Game.UI.Gumps
             _fixedItems.Text = _analysis.FixedItems ?? "None detected";
             _fixedItems.SetTooltip(_analysis.FixedItems ?? string.Empty);
             _status.Text = _analysis.Status ?? "Analysis complete.";
+            _status.SetTooltip(_status.Text);
 
             for (int i = 0; i < _loadoutButtons.Length; i++)
             {
@@ -467,15 +458,17 @@ namespace ClassicUO.Game.UI.Gumps
             _resultBox.Add(new MessageRow(
                 "CURRENT  →  SELECTED LOADOUT  /  TARGET",
                 _resultBox.Width - 4, 30));
-
-            for (int i = 0; i < loadout.Metrics.Count; i += 2)
-            {
-                EquipmentGuruManager.Metric left = loadout.Metrics[i];
-                EquipmentGuruManager.Metric right = i + 1 < loadout.Metrics.Count
-                    ? loadout.Metrics[i + 1]
-                    : null;
-                _resultBox.Add(new MetricRow(left, right, _resultBox.Width - 4));
-            }
+            var remainingMetrics = new List<EquipmentGuruManager.Metric>(loadout.Metrics);
+            AddMetricGroup("ATTRIBUTES & VITALS", remainingMetrics,
+                "STR", "DEX", "INT", "HP", "Stam", "Mana");
+            AddMetricGroup("COMBAT", remainingMetrics, "HCI", "DCI", "DI", "SSI");
+            AddMetricGroup("CASTING", remainingMetrics,
+                "LMC", "LRC", "FC", "FCR", "SDI");
+            AddMetricGroup("REGENERATION", remainingMetrics,
+                "HP regen", "Stam regen", "MR");
+            AddMetricGroup("RESISTANCES", remainingMetrics,
+                "Phys", "Fire", "Cold", "Poison", "Energy");
+            AddMetricGroup("SKILLS & LUCK", remainingMetrics);
 
             _resultBox.Add(new HeadingRow("ITEM REPLACEMENTS", _resultBox.Width - 4));
 
@@ -494,6 +487,24 @@ namespace ClassicUO.Game.UI.Gumps
                 int index = _visibleChanges.Count;
                 _visibleChanges.Add(change);
                 _resultBox.Add(new ChangeRow(change, index, _resultBox.Width - 4));
+            }
+        }
+
+        private void AddMetricGroup(string title,
+            List<EquipmentGuruManager.Metric> remaining, params string[] names)
+        {
+            List<EquipmentGuruManager.Metric> metrics = names.Length == 0
+                ? new List<EquipmentGuruManager.Metric>(remaining)
+                : remaining.Where(metric => names.Contains(metric.Name)).ToList();
+            if (metrics.Count == 0) return;
+            foreach (EquipmentGuruManager.Metric metric in metrics) remaining.Remove(metric);
+            _resultBox.Add(new HeadingRow(title, _resultBox.Width - 4));
+            bool skills = names.Length == 0;
+            for (int i = 0; i < metrics.Count; i += skills ? 1 : 2)
+            {
+                _resultBox.Add(new MetricRow(metrics[i],
+                    !skills && i + 1 < metrics.Count ? metrics[i + 1] : null,
+                    _resultBox.Width - 4));
             }
         }
 
@@ -547,8 +558,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             foreach (EquipmentGuruManager.Metric metric in loadout.Metrics)
             {
-                int current = EffectiveMetric(metric, metric.Current);
-                int recommended = EffectiveMetric(metric, metric.Recommended);
+                int current = EffectiveMetric(metric, metric.Current, false);
+                int recommended = EffectiveMetric(metric, metric.Recommended, true);
                 if (metric.CountsAsTarget && !metric.LowerIsBetter
                     && current < metric.Target && recommended >= metric.Target)
                 {
@@ -582,9 +593,11 @@ namespace ClassicUO.Game.UI.Gumps
             return $"{fixes}  •  {costs}  •  {requirements}";
         }
 
-        private static int EffectiveMetric(EquipmentGuruManager.Metric metric, int value)
+        private static int EffectiveMetric(EquipmentGuruManager.Metric metric, int value,
+            bool recommended)
         {
-            return metric.DisplayCap > 0 ? Math.Min(value, metric.DisplayCap) : value;
+            int cap = recommended ? metric.RecommendedDisplayCap : metric.DisplayCap;
+            return cap > 0 ? Math.Min(value, cap) : value;
         }
 
         private void SaveSelectedLoadout()
@@ -622,8 +635,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static bool IsImprovedMetric(EquipmentGuruManager.Metric metric)
         {
-            int current = EffectiveMetric(metric, metric.Current);
-            int recommended = EffectiveMetric(metric, metric.Recommended);
+            int current = EffectiveMetric(metric, metric.Current, false);
+            int recommended = EffectiveMetric(metric, metric.Recommended, true);
             if (metric.LowerIsBetter)
             {
                 return recommended < current;
@@ -960,20 +973,20 @@ namespace ClassicUO.Game.UI.Gumps
                 EquipmentGuruManager.Metric right, int width)
             {
                 Width = width;
-                Height = 28;
+                Height = 38;
                 AcceptMouseInput = false;
-                AddMetric(left, 6, width / 2 - 10);
+                AddMetric(left, 4, right == null ? width - 8 : width / 2 - 6);
 
                 if (right != null)
                 {
-                    AddMetric(right, width / 2 + 4, width / 2 - 10);
+                    AddMetric(right, width / 2 + 2, width / 2 - 6);
                 }
             }
 
             private void AddMetric(EquipmentGuruManager.Metric metric, int x, int width)
             {
-                int current = EffectiveMetric(metric, metric.Current);
-                int recommended = EffectiveMetric(metric, metric.Recommended);
+                int current = EffectiveMetric(metric, metric.Current, false);
+                int recommended = EffectiveMetric(metric, metric.Recommended, true);
                 bool improved = IsImprovedMetric(metric);
                 bool worsened = metric.LowerIsBetter
                     ? recommended > current
@@ -983,21 +996,109 @@ namespace ClassicUO.Game.UI.Gumps
                     : worsened
                         ? (ushort)0x0021
                         : FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru);
-                string target = metric.Target > 0 && !metric.LowerIsBetter
-                    ? $" / {metric.Target}"
-                    : string.Empty;
+                Add(new AlphaBlendControl(0.22f)
+                {
+                    X = x, Y = 1, Width = width, Height = 35,
+                    BaseColor = Color.Black
+                });
+                Add(new StatIcon(metric.Name, x + 3, 6));
+                int valueX = width > 400 ? 240 : 133;
+                Add(new Label(metric.Name, true,
+                    FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.EquipmentGuru),
+                    valueX - 32, font: 1,
+                    style: FontStyle.BlackBorder | FontStyle.Cropped)
+                { X = x + 31, Y = 2 });
+                Add(new Label(
+                    $"{FormatMetric(metric.Current, metric.DisplayCap)} → "
+                    + FormatMetric(metric.Recommended, metric.RecommendedDisplayCap),
+                    true, hue, width - valueX - 2, font: 1,
+                    style: FontStyle.BlackBorder | FontStyle.Cropped)
+                {
+                    X = x + valueX,
+                    Y = 2
+                });
+                string target = metric.LowerIsBetter
+                    ? metric.Target > 0 ? $"Real skill needed for {metric.Target}" : "Real skill needed"
+                    : metric.Target > 0 ? $"Target {metric.Target}" : string.Empty;
                 string requirement = metric.IsPreserve
                     ? "  [KEEP]"
                     : metric.IsMust ? "  [MIN]" : string.Empty;
-                Add(new Label(
-                    $"{metric.Name}  {FormatMetric(metric.Current, metric.DisplayCap)} → "
-                    + $"{FormatMetric(metric.Recommended, metric.DisplayCap)}{target}{requirement}",
-                    true, hue, width, font: 1,
+                Add(new Label(target + requirement, true,
+                    FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.EquipmentGuru),
+                    width - 32, font: 1,
                     style: FontStyle.BlackBorder | FontStyle.Cropped)
+                { X = x + 31, Y = 19 });
+            }
+
+            private sealed class StatIcon : Control
+            {
+                private static Texture2D _sheet;
+                private readonly int _index;
+
+                internal StatIcon(string name, int x, int y)
                 {
-                    X = x,
-                    Y = 5
-                });
+                    X = x;
+                    Y = y;
+                    Width = 24;
+                    Height = 24;
+                    AcceptMouseInput = false;
+                    _index = IndexFor(name);
+                }
+
+                public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+                {
+                    if (_sheet == null)
+                    {
+                        using (Stream stream = typeof(EquipmentGuruGump).Assembly
+                            .GetManifestResourceStream("ClassicUO.Resources.EquipmentGuru.stat-icons.png"))
+                        {
+                            if (stream != null)
+                                _sheet = Texture2D.FromStream(Client.Game.GraphicsDevice, stream);
+                        }
+                    }
+
+                    if (_sheet != null)
+                    {
+                        batcher.Draw(_sheet,
+                            new Rectangle(x, y, Width, Height),
+                            new Rectangle(_index % 5 * 24, _index / 5 * 24, 24, 24),
+                            ShaderHueTranslator.GetHueVector(0, false, Alpha, true));
+                    }
+
+                    return base.Draw(batcher, x, y);
+                }
+
+                private static int IndexFor(string name)
+                {
+                    switch (name)
+                    {
+                        case "STR": return 0;
+                        case "DEX": return 1;
+                        case "INT": return 2;
+                        case "HP": return 3;
+                        case "Stam": return 4;
+                        case "Mana": return 5;
+                        case "HCI": return 6;
+                        case "DCI": return 7;
+                        case "DI": return 8;
+                        case "SSI": return 9;
+                        case "LMC": return 10;
+                        case "LRC": return 11;
+                        case "FC": return 12;
+                        case "FCR": return 13;
+                        case "SDI": return 14;
+                        case "HP regen": return 15;
+                        case "Stam regen": return 16;
+                        case "MR": return 17;
+                        case "Phys": return 18;
+                        case "Fire": return 19;
+                        case "Cold": return 20;
+                        case "Poison": return 21;
+                        case "Energy": return 22;
+                        case "Luck": return 23;
+                        default: return 24;
+                    }
+                }
             }
 
             private static string FormatMetric(int value, int cap)
@@ -1064,8 +1165,10 @@ namespace ClassicUO.Game.UI.Gumps
 
         private sealed class EquipmentComparisonGump : Gump
         {
-            private const int COMPARISON_WIDTH = 760;
+            private const int COMPARISON_WIDTH = 1170;
             private const int COLUMN_WIDTH = 360;
+            private const int SUMMARY_X = 770;
+            private const int SUMMARY_WIDTH = COMPARISON_WIDTH - SUMMARY_X - 18;
             private const int ROW_HEIGHT = 18;
             private readonly Control _hoverReference;
 
@@ -1084,9 +1187,14 @@ namespace ClassicUO.Game.UI.Gumps
                 List<ComparisonLine> current = ParseProperties(change.CurrentItem);
                 List<ComparisonLine> replacement = ParseProperties(change.Item);
                 Compare(current, replacement);
+                List<ComparisonLine> benefits = current.Concat(replacement)
+                    .Where(line => line.Tone == ComparisonTone.Good).ToList();
+                List<ComparisonLine> tradeoffs = current.Concat(replacement)
+                    .Where(line => line.Tone == ComparisonTone.Bad).ToList();
                 int rowCount = Math.Max(current.Count, replacement.Count);
-                Height = Math.Max(120,
-                    92 + rowCount * ROW_HEIGHT);
+                int summaryRows = Math.Max(1, benefits.Count) + Math.Max(1, tradeoffs.Count);
+                Height = Math.Max(92 + rowCount * ROW_HEIGHT,
+                    110 + summaryRows * ROW_HEIGHT);
 
                 Add(FeatureGumpArtwork.CreateSurface(0, 0, Width, Height,
                     FeatureGumpArtworkKind.EquipmentGuru, 0.98f, true));
@@ -1129,8 +1237,18 @@ namespace ClassicUO.Game.UI.Gumps
                     BaseColor = FeatureGumpArtwork.BorderColor(
                         FeatureGumpArtworkKind.EquipmentGuru)
                 });
+                Add(new AlphaBlendControl(0.7f)
+                {
+                    X = 758,
+                    Y = 10,
+                    Width = 1,
+                    Height = Height - 20,
+                    BaseColor = FeatureGumpArtwork.BorderColor(
+                        FeatureGumpArtworkKind.EquipmentGuru)
+                });
                 AddPropertyRows(current, 18);
                 AddPropertyRows(replacement, 390);
+                AddSummaryRows(benefits, tradeoffs);
                 Add(new Label("GREEN  better, added, or removed penalty", true,
                     FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru),
                     COLUMN_WIDTH - 20, font: 1)
@@ -1166,14 +1284,86 @@ namespace ClassicUO.Game.UI.Gumps
                 for (int i = 0; i < lines.Count; i++)
                 {
                     ComparisonLine line = lines[i];
-                    Add(new Label(line.Text, true, HueFor(line.Tone),
-                        COLUMN_WIDTH - 20, font: 1,
-                        style: FontStyle.BlackBorder | FontStyle.Cropped)
-                    {
-                        X = x,
-                        Y = 58 + i * ROW_HEIGHT
-                    });
+                    AddColoredLine(line.StyledText + ColoredDifference(line),
+                        x, 58 + i * ROW_HEIGHT, COLUMN_WIDTH - 20);
                 }
+            }
+
+            private void AddSummaryRows(List<ComparisonLine> benefits,
+                List<ComparisonLine> tradeoffs)
+            {
+                Add(new Label("SUMMARY", true,
+                    FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.EquipmentGuru),
+                    SUMMARY_WIDTH, font: 1) { X = SUMMARY_X, Y = 10 });
+                Add(new Label("BENEFITS", true,
+                    HueFor(ComparisonTone.Good), SUMMARY_WIDTH, font: 1)
+                { X = SUMMARY_X, Y = 32 });
+                AddSummarySection(benefits, 58, ComparisonTone.Good);
+
+                int tradeoffsY = 58 + Math.Max(1, benefits.Count) * ROW_HEIGHT + 12;
+                Add(new Label("TRADEOFFS", true,
+                    HueFor(ComparisonTone.Bad), SUMMARY_WIDTH, font: 1)
+                { X = SUMMARY_X, Y = tradeoffsY });
+                AddSummarySection(tradeoffs, tradeoffsY + 26, ComparisonTone.Bad);
+            }
+
+            private void AddSummarySection(List<ComparisonLine> lines, int y,
+                ComparisonTone tone)
+            {
+                if (lines.Count == 0)
+                {
+                    Add(new Label("None", true,
+                        FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.EquipmentGuru),
+                        SUMMARY_WIDTH, font: 1) { X = SUMMARY_X, Y = y });
+                    return;
+                }
+
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    ComparisonLine line = lines[i];
+                    AddColoredLine(SummaryDifference(line),
+                        SUMMARY_X, y + i * ROW_HEIGHT, SUMMARY_WIDTH);
+                }
+            }
+
+            private void AddColoredLine(string text, int x, int y, int width)
+            {
+                var profile = ProfileManager.CurrentProfile;
+                TextBox line = TextBox.GetOne(
+                    TextBox.ConvertHtmlToFontStashSharpCommand(text),
+                    profile.SelectedToolTipFont,
+                    Math.Min(profile.SelectedToolTipFontSize, 15),
+                    profile.TooltipTextHue,
+                    TextBox.RTLOptions.Default(width));
+                line.X = x;
+                line.Y = y;
+                Add(line);
+            }
+
+            private static string ColoredDifference(ComparisonLine line)
+            {
+                if (line.Tone == ComparisonTone.Neutral) return string.Empty;
+                string color = line.Tone == ComparisonTone.Good ? "green" : "red";
+                return $"/cd/c[{color}]  {line.Detail}{line.Suffix}/cd";
+            }
+
+            private static string SummaryDifference(ComparisonLine line)
+            {
+                if (string.IsNullOrEmpty(line.SummaryDetail))
+                    return line.StyledText + ColoredDifference(line);
+
+                string name = System.Text.RegularExpressions.Regex.Replace(line.StyledText,
+                    @"(?:\s*/c\[[^\]]+\])?\s*[-+]?\d+(?:[.,]\d+)?%?(?=(?:\s*/cd)*\s*$)",
+                    string.Empty).TrimEnd();
+                string color = line.Tone == ComparisonTone.Good ? "green" : "red";
+                return $"{name}/cd/c[{color}] {line.SummaryDetail}/cd";
+            }
+
+            private static string FormatDelta(double delta, string property)
+            {
+                string sign = delta > 0 ? "+" : string.Empty;
+                string unit = property.Contains("%") ? "%" : string.Empty;
+                return $"{sign}{delta:0.##}{unit}";
             }
 
             private static List<ComparisonLine> ParseProperties(
@@ -1188,6 +1378,7 @@ namespace ClassicUO.Game.UI.Gumps
                     result.Add(new ComparisonLine
                     {
                         Text = "No item properties loaded.",
+                        StyledText = "No item properties loaded.",
                         Key = "noproperties"
                     });
                     return result;
@@ -1195,6 +1386,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 var properties = new ItemPropertiesData(
                     (item.Name ?? "Item") + "\n" + item.AllProperties);
+                byte itemLayer = TileDataLoader.Instance.StaticData[item.Graphic].Layer;
 
                 foreach (ItemPropertiesData.SinglePropertyData property in
                     properties.singlePropertyData)
@@ -1204,15 +1396,23 @@ namespace ClassicUO.Game.UI.Gumps
                     result.Add(new ComparisonLine
                     {
                         Text = text,
+                        StyledText = StyleProperty(item.Name, property.OriginalString, itemLayer),
                         Key = NormalizeProperty(property.Name),
                         First = property.FirstValue,
-                        Second = property.SecondValue,
-                        HasFirst = property.FirstValue != double.MinValue,
-                        HasSecond = property.SecondValue != double.MinValue
+                        HasFirst = property.FirstValue != double.MinValue
                     });
                 }
 
                 return result;
+            }
+
+            private static string StyleProperty(string itemName, string property, byte layer)
+            {
+                string formatted = ToolTipOverrideData.ProcessTooltipText(
+                    (itemName ?? "Item") + "\n" + property, layer);
+                if (string.IsNullOrEmpty(formatted)) return property;
+                int firstLine = formatted.IndexOf('\n');
+                return firstLine < 0 ? property : formatted.Substring(firstLine + 1).TrimEnd();
             }
 
             private static void Compare(List<ComparisonLine> current,
@@ -1222,6 +1422,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 foreach (ComparisonLine oldLine in current)
                 {
+                    if (IgnoreDifference(oldLine.Key)) continue;
                     int match = -1;
                     for (int i = 0; i < replacement.Count; i++)
                     {
@@ -1238,22 +1439,32 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         bool removedPenalty = IsPenalty(oldLine.Key);
                         oldLine.Tone = removedPenalty ? ComparisonTone.Good : ComparisonTone.Bad;
-                        oldLine.Text += removedPenalty ? "  [REMOVED]" : "  [LOST]";
+                        oldLine.Suffix = removedPenalty ? "[REMOVED]" : "[LOST]";
+                        if (oldLine.HasFirst)
+                            oldLine.SummaryDetail = FormatDelta(-oldLine.First, oldLine.Text);
                         continue;
                     }
 
                     usedReplacement[match] = true;
                     ComparisonLine newLine = replacement[match];
                     int comparison = CompareValue(oldLine, newLine);
+                    if (comparison != 0)
+                    {
+                        double previous = oldLine.First;
+                        string unit = oldLine.Text.Contains("%") ? "%" : string.Empty;
+                        newLine.Detail = $"(was {previous:0.##}{unit})  ";
+                        newLine.SummaryDetail = FormatDelta(
+                            newLine.First - oldLine.First, newLine.Text);
+                    }
                     if (comparison > 0)
                     {
                         newLine.Tone = ComparisonTone.Good;
-                        newLine.Text += "  [BETTER]";
+                        newLine.Suffix = "[BETTER]";
                     }
                     else if (comparison < 0)
                     {
                         newLine.Tone = ComparisonTone.Bad;
-                        newLine.Text += "  [WORSE]";
+                        newLine.Suffix = "[WORSE]";
                     }
                 }
 
@@ -1261,11 +1472,25 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (usedReplacement[i]) continue;
                     ComparisonLine line = replacement[i];
-                    if (line.Text.EndsWith(":", StringComparison.Ordinal)) continue;
+                    if (line.Text.EndsWith(":", StringComparison.Ordinal)
+                        || IgnoreDifference(line.Key)) continue;
                     bool penalty = IsPenalty(line.Key);
                     line.Tone = penalty ? ComparisonTone.Bad : ComparisonTone.Good;
-                    line.Text += penalty ? "  [NEW PENALTY]" : "  [NEW]";
+                    line.Suffix = penalty ? "[NEW PENALTY]" : "[NEW]";
+                    if (line.HasFirst)
+                        line.SummaryDetail = FormatDelta(line.First, line.Text);
                 }
+            }
+
+            private static bool IgnoreDifference(string key)
+            {
+                return key.Contains("weight") || key.Contains("durability")
+                    || key.Contains("insured") || key.Contains("transmogrified")
+                    || key.Contains("maxdefensechanceincrease")
+                    || key.Contains("lowerrequirements")
+                    || key.Contains("lowerstatrequirements")
+                    || key.Contains("nightsight") || key.Contains("artifact")
+                    || key.Contains("rarity");
             }
 
             private static int CompareValue(ComparisonLine current,
@@ -1276,11 +1501,7 @@ namespace ClassicUO.Game.UI.Gumps
                     return 0;
                 }
 
-                double oldValue = current.Key.Contains("durability") && current.HasSecond
-                    ? current.Second : current.First;
-                double newValue = replacement.Key.Contains("durability") && replacement.HasSecond
-                    ? replacement.Second : replacement.First;
-                double difference = newValue - oldValue;
+                double difference = replacement.First - current.First;
 
                 if (IsLowerBetter(current.Key)) difference = -difference;
                 return difference > 0.001 ? 1 : difference < -0.001 ? -1 : 0;
@@ -1288,7 +1509,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             private static bool IsLowerBetter(string key)
             {
-                return key.Contains("weight") || key.Contains("strengthrequirement")
+                return key.Contains("strengthrequirement")
                     || key.Contains("skillrequirement");
             }
 
@@ -1352,11 +1573,13 @@ namespace ClassicUO.Game.UI.Gumps
             private sealed class ComparisonLine
             {
                 internal string Text;
+                internal string StyledText;
+                internal string Detail;
+                internal string SummaryDetail;
+                internal string Suffix;
                 internal string Key;
                 internal double First;
-                internal double Second;
                 internal bool HasFirst;
-                internal bool HasSecond;
                 internal ComparisonTone Tone;
             }
         }

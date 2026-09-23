@@ -19,7 +19,7 @@ namespace ClassicUO.Game.Managers
     internal static class ItemFinderManager
     {
         private const int MAX_PROPERTY_REQUESTS = 40;
-        private const int SCAN_RANGE = 2;
+        internal const int SCAN_RANGE = 2;
         private const int LOCATE_SECONDS = 12;
         private const uint ITEM_FINDER_ARROW_SERIAL = 0xFFFF_FFFD;
         private const string CATALOG_FILE = "item_finder_catalog.tsv";
@@ -454,15 +454,7 @@ namespace ClassicUO.Game.Managers
 
                 if (pruneOpenedContainers && container.Opened)
                 {
-                    var completeScan = new Dictionary<uint, HashSet<uint>>();
-
-                    if (TryCollectFullyOpenedContainerContents(container, completeScan))
-                    {
-                        foreach (KeyValuePair<uint, HashSet<uint>> scanned in completeScan)
-                        {
-                            scannedContainers[scanned.Key] = scanned.Value;
-                        }
-                    }
+                    CollectOpenedContainerContents(container, scannedContainers);
                 }
             }
 
@@ -503,7 +495,7 @@ namespace ClassicUO.Game.Managers
                     _catalog.Remove(serial);
                 }
 
-                report.RemovedItems = stale.Count;
+                report.RemovedItems += stale.Count;
             }
 
             SaveCatalog();
@@ -538,10 +530,24 @@ namespace ClassicUO.Game.Managers
                 ScanReachable(requestedSerials);
             }
 
+            var temporaryItems = new List<uint>();
+
             foreach (IndexedItem indexed in _catalog.Values)
             {
                 RefreshIndexedItem(indexed);
+                if (IsTemporaryArcaneFocus(indexed.Name))
+                {
+                    temporaryItems.Add(indexed.Serial);
+                    continue;
+                }
                 Evaluate(indexed, query, report, requestedSerials);
+            }
+
+            if (temporaryItems.Count > 0)
+            {
+                foreach (uint serial in temporaryItems)
+                    _catalog.Remove(serial);
+                SaveCatalog();
             }
 
             report.Results.Sort((left, right) =>
@@ -573,6 +579,16 @@ namespace ClassicUO.Game.Managers
             Item container = World.Items.Get(result.ContainerSerial);
             Item root = World.Items.Get(result.RootContainerSerial);
 
+            if (item != null && !item.IsDestroyed
+                && item.Container != result.ContainerSerial)
+            {
+                ClearHighlights();
+                GameActions.Print(
+                    $"{result.Name} moved since it was indexed. Scan its current container to update the catalog.",
+                    0x21);
+                return;
+            }
+
             if (item != null && !item.IsDestroyed)
             {
                 Highlight(item);
@@ -583,7 +599,13 @@ namespace ClassicUO.Game.Managers
                 Highlight(root);
             }
 
-            if (World.Player != null && result.ContainerSerial == World.Player.Serial)
+            bool onPaperdoll = World.Player != null && item != null && !item.IsDestroyed
+                && item.Container == World.Player.Serial
+                && result.ContainerSerial == World.Player.Serial
+                && !result.HasWorldPosition
+                && string.Equals(result.Location, "Equipped", StringComparison.Ordinal);
+
+            if (onPaperdoll)
             {
                 ClearTrackingArrow();
                 GameActions.DoubleClick(World.Player.Serial);
@@ -608,11 +630,13 @@ namespace ClassicUO.Game.Managers
             }
 
             Highlight(open);
+            _locatedContainerSerial = open.Serial;
             ClearTrackingArrow();
             GameActions.DoubleClick(open.Serial);
-            GameActions.Print(
-                $"Located {result.Name}; the item pulses pink for {LOCATE_SECONDS} seconds.",
-                0x0035);
+            GameActions.Print(item == null || item.IsDestroyed
+                ? $"{result.Name} was last indexed here, but is not currently loaded. Scan this container to verify it."
+                : $"Located {result.Name}; the item pulses pink for {LOCATE_SECONDS} seconds.",
+                item == null || item.IsDestroyed ? (ushort)0x21 : (ushort)0x0035);
         }
 
         private static void PointToStoredContainer(SearchResult result)
@@ -742,6 +766,8 @@ namespace ClassicUO.Game.Managers
             _catalogOwner = World.Player.Serial;
             _catalogProfilePath = profilePath;
 
+            bool removedTemporaryItems = false;
+
             foreach (string line in ProfileDataStore.ReadAllLines(CATALOG_FILE))
             {
                 string[] fields = line.Split('\t');
@@ -804,12 +830,21 @@ namespace ClassicUO.Game.Managers
                             CultureInfo.InvariantCulture, out indexed.LastSeenUtcTicks);
                     }
 
+                    if (IsTemporaryArcaneFocus(indexed.Name))
+                    {
+                        removedTemporaryItems = true;
+                        continue;
+                    }
+
                     _catalog[serial] = indexed;
                 }
                 catch (FormatException)
                 {
                 }
             }
+
+            if (removedTemporaryItems)
+                SaveCatalog();
         }
 
         private static void EnsureSavedSearchOwner()
@@ -1110,6 +1145,11 @@ namespace ClassicUO.Game.Managers
                 : string.Join("  •  ", parts);
         }
 
+        private static bool IsTemporaryArcaneFocus(string name)
+        {
+            return string.Equals(name?.Trim(), "Arcane Focus", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static void IndexWalk(
             Item item, string path, uint rootSerial, bool root, ScanReport report,
             HashSet<uint> seen, ISet<uint> requestedSerials, bool hasWorldPosition,
@@ -1123,6 +1163,17 @@ namespace ClassicUO.Game.Managers
             string fallbackName = GetDisplayName(item, false);
             string fallbackText = $"{fallbackName} {item.ItemData.Name} {item.Layer} {(Layer)item.ItemData.Layer}";
             bool hasProperties = World.OPL.TryGetNameAndData(item.Serial, out string oplName, out string oplData);
+            string itemName = hasProperties && !string.IsNullOrWhiteSpace(oplName)
+                ? oplName.Trim()
+                : fallbackName;
+
+            if (IsTemporaryArcaneFocus(itemName))
+            {
+                if (_catalog.Remove(item.Serial))
+                    report.RemovedItems++;
+                return;
+            }
+
             bool isNew = !_catalog.TryGetValue(item.Serial, out IndexedItem indexed);
 
             if (isNew)
@@ -1137,10 +1188,6 @@ namespace ClassicUO.Game.Managers
             indexed.Graphic = item.Graphic;
             indexed.Hue = item.Hue;
             indexed.Amount = item.Amount;
-            string itemName = hasProperties && !string.IsNullOrWhiteSpace(oplName)
-                ? oplName.Trim()
-                : fallbackName;
-
             if (!string.Equals(indexed.Name, itemName, StringComparison.Ordinal))
             {
                 indexed.Name = itemName;
@@ -1182,18 +1229,14 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static bool TryCollectFullyOpenedContainerContents(
+        private static void CollectOpenedContainerContents(
             Item container, Dictionary<uint, HashSet<uint>> scannedContainers)
         {
             if (container == null || container.IsDestroyed || !container.Opened
-                || !container.ItemData.IsContainer)
+                || !container.ItemData.IsContainer
+                || scannedContainers.ContainsKey(container.Serial))
             {
-                return false;
-            }
-
-            if (scannedContainers.ContainsKey(container.Serial))
-            {
-                return true;
+                return;
             }
 
             var directItems = new HashSet<uint>();
@@ -1208,14 +1251,9 @@ namespace ClassicUO.Game.Managers
 
                 directItems.Add(child.Serial);
 
-                if (child.ItemData.IsContainer
-                    && !TryCollectFullyOpenedContainerContents(child, scannedContainers))
-                {
-                    return false;
-                }
+                if (child.ItemData.IsContainer)
+                    CollectOpenedContainerContents(child, scannedContainers);
             }
-
-            return true;
         }
 
         private static void RefreshIndexedItem(IndexedItem indexed)
@@ -1227,7 +1265,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            indexed.ContainerSerial = item.Container;
+            // Keep the saved container paired with its scanned root and location.
             indexed.Graphic = item.Graphic;
             indexed.Hue = item.Hue;
             indexed.Amount = item.Amount;

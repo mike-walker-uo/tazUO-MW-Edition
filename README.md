@@ -35,6 +35,9 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 ## Version 0.6 Beta highlights
 
+- Latest fix update: Item Finder scans nested containers within nearby chests, keeps catalog entries between scans, excludes temporary Arcane Focus items, and warns when a located item has moved since indexing.
+- Equipment Guru now scores every eligible item as an individual swap, improves its candidate shortlist and jewelry pair search, and reports items it could not compare because properties are missing. Its results refresh when **Analyze gear** is clicked.
+- Equipment Guru projects stamina from Dexterity, hit points from Strength, and armor's inherent Lower Mana Cost. The grouped stat overview uses illustrated icons; item comparisons show a benefits and tradeoffs summary with numeric differences.
 - Updated **Equipment Guru** recommendations with required minimums, keep-current targets, stat caps, individual resist and regeneration goals, and a current-equipment comparison. Live resist penalties such as Vampiric Embrace are included when evaluating replacements.
 - Improved the **Item Finder** property tooltip colors and made **Restock Agent** scan selected source containers when opened so stock counts are available immediately.
 - Reworked paperdoll tool access into a native-art **TOOLS** button and a movable, position-saving panel. Its button stays opaque with the paperdoll background faded, and the panel buttons keep their artwork visible on hover.

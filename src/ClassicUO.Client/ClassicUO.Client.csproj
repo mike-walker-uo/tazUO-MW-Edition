@@ -124,6 +124,7 @@
     <EmbeddedResource Include="Resources\RestockAgent\panel.png" />
     <EmbeddedResource Include="Resources\AlertCenter\panel.png" />
     <EmbeddedResource Include="Resources\EquipmentGuru\panel.png" />
+    <EmbeddedResource Include="Resources\EquipmentGuru\stat-icons.png" />
     <EmbeddedResource Include="Resources\OrnateTheme\panel.png" />
     <EmbeddedResource Include="Resources\BritannianChronicle\panel.png" />
     <EmbeddedResource Include="Resources\BritannianChronicle\button.png" />
