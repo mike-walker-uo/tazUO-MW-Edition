@@ -354,6 +354,11 @@ namespace ClassicUO.Game.Managers
 
         public static string ProcessTooltipText(string text)
         {
+            return ProcessTooltipText(text, (byte)TooltipLayers.Any);
+        }
+
+        public static string ProcessTooltipText(string text, byte itemLayer)
+        {
             string tooltip = "";
 
             ItemPropertiesData itemPropertiesData = new ItemPropertiesData(text);
@@ -362,31 +367,65 @@ namespace ClassicUO.Game.Managers
 
             if (itemPropertiesData.HasData && result != null && result.Length > 0)
             {
-                tooltip += ProfileManager.CurrentProfile == null ? $"/c[yellow]{itemPropertiesData.Name}\n" : string.Format(ProfileManager.CurrentProfile.TooltipHeaderFormat + "\n", itemPropertiesData.Name);
+                bool headerHandled = false;
+
+                foreach (ToolTipOverrideData overrideData in FilteredOverrides(result, itemLayer))
+                {
+                    if (!MatchItemName(itemPropertiesData.Name, overrideData.SearchText))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        tooltip += string.Format(overrideData.FormattedText,
+                            itemPropertiesData.Name, "", "", "", "", "") + "\n";
+                        headerHandled = true;
+                        break;
+                    }
+                    catch (FormatException)
+                    {
+                        GameActions.Print($"Invalid format string in tooltip override: {overrideData.FormattedText}", 32);
+                    }
+                }
+
+                if (!headerHandled)
+                {
+                    tooltip += ProfileManager.CurrentProfile == null
+                        ? $"/c[yellow]{itemPropertiesData.Name}\n"
+                        : string.Format(ProfileManager.CurrentProfile.TooltipHeaderFormat + "\n",
+                            itemPropertiesData.Name);
+                }
 
                 //Loop through each property
                 foreach (ItemPropertiesData.SinglePropertyData property in itemPropertiesData.singlePropertyData)
                 {
                     bool handled = false;
                     //Loop though each override setting player created
-                    foreach (ToolTipOverrideData overrideData in result)
+                    foreach (ToolTipOverrideData overrideData in FilteredOverrides(result, itemLayer))
                     {
-                        if (overrideData != null)
-                            if (overrideData.ItemLayer == TooltipLayers.Any)
+                        if (MatchPropertyName(property.OriginalString, overrideData.SearchText)
+                            && (property.FirstValue == double.MinValue
+                                || property.FirstValue >= overrideData.Min1
+                                && property.FirstValue <= overrideData.Max1)
+                            && (property.SecondValue == double.MinValue
+                                || property.SecondValue >= overrideData.Min2
+                                && property.SecondValue <= overrideData.Max2))
+                        {
+                            try
                             {
-                                if (property.OriginalString.ToLower().Contains(overrideData.SearchText.ToLower()))
-                                    if (property.FirstValue == double.MinValue || (property.FirstValue >= overrideData.Min1 && property.FirstValue <= overrideData.Max1))
-                                        if (property.SecondValue == double.MinValue || (property.SecondValue >= overrideData.Min2 && property.SecondValue <= overrideData.Max2))
-                                        {
-                                            try
-                                            {
-                                                tooltip += string.Format(overrideData.FormattedText, property.Name, property.FirstValue.ToString(), property.SecondValue.ToString()) + "\n";
-                                                handled = true;
-                                                break;
-                                            }
-                                            catch { }
-                                        }
+                                tooltip += string.Format(overrideData.FormattedText,
+                                    property.Name, property.FirstValue.ToString(),
+                                    property.SecondValue.ToString(), property.OriginalString,
+                                    "", "") + "\n";
+                                handled = true;
+                                break;
                             }
+                            catch (FormatException)
+                            {
+                                GameActions.Print($"Invalid format string in tooltip override: {overrideData.FormattedText}", 32);
+                            }
+                        }
                     }
                     if (!handled) //Did not find a matching override, need to add the plain tooltip line still
                         tooltip += $"{property.OriginalString}\n";

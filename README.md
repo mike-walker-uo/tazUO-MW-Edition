@@ -35,6 +35,9 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 ## Version 0.6 Beta highlights
 
+- Updated **Equipment Guru** recommendations with required minimums, keep-current targets, stat caps, individual resist and regeneration goals, and a current-equipment comparison. Live resist penalties such as Vampiric Embrace are included when evaluating replacements.
+- Improved the **Item Finder** property tooltip colors and made **Restock Agent** scan selected source containers when opened so stock counts are available immediately.
+- Reworked paperdoll tool access into a native-art **TOOLS** button and a movable, position-saving panel. Its button stays opaque with the paperdoll background faded, and the panel buttons keep their artwork visible on hover.
 - Added **Universal Item Finder**. Scan reachable containers into a persistent, character-specific catalog; combine text and numeric properties with ALL, NOT, and count logic; save searches; inspect full properties; and locate items or their last known house position. Area scans close containers they opened and preserve catalog entries from containers that were unreachable during a later scan.
 - Added **Restock Agent** with ordered source containers, supply presets, exact target amounts, custom destination containers, source and destination stock counts, reusable loadouts, and integrated supply, equipment, durability, weight, and backpack readiness checks.
 - Added **Equipment Guru**. It reads real and effective skills, current equipment, and Item Finder candidates to recommend three target-driven fighter, archer, tamer, or mage loadouts. Goals and active skill targets are editable per character; comparisons highlight gains and losses; weapons, spellbooks, and talismans remain fixed; race equipment restrictions are respected.

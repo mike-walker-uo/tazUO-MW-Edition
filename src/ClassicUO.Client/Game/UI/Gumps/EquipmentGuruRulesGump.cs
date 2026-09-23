@@ -146,12 +146,16 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private readonly EquipmentGuruManager.EquipmentGuruBuild _build;
         private readonly Dictionary<string, StbTextBox> _inputs = new Dictionary<string, StbTextBox>();
+        private readonly Dictionary<string, Checkbox> _mustInputs = new Dictionary<string, Checkbox>();
+        private readonly Dictionary<string, Checkbox> _preserveInputs = new Dictionary<string, Checkbox>();
+        private readonly Checkbox _preferInsured;
+        private readonly Checkbox _preferDurability;
 
         internal EquipmentGuruAdvancedGoalsGump(EquipmentGuruManager.EquipmentGuruBuild build) : base(0, 0)
         {
             _build = build == EquipmentGuruManager.EquipmentGuruBuild.Auto
                 ? EquipmentGuruManager.DetectBuild() : build;
-            X = 260; Y = 170; Width = 430; Height = 290;
+            X = 260; Y = 170; Width = 430; Height = 350;
             CanMove = true; CanCloseWithRightClick = true; AcceptMouseInput = true; WantUpdateSize = false;
             Add(FeatureGumpArtwork.CreateBackground(Width, Height,
                 FeatureGumpArtworkKind.EquipmentGuru, 0.97f));
@@ -160,13 +164,21 @@ namespace ClassicUO.Game.UI.Gumps
             { X = 24, Y = 18 });
             Add(Button(378, 16, 28, 28, "X", 99));
             EquipmentGuruManager.EquipmentGuruGoals goals = EquipmentGuruManager.GetGoals(_build);
-            AddRow("Faster Casting", "FC", goals.FasterCasting, 76);
-            AddRow("Faster Cast Recovery", "FCR", goals.FasterCastRecovery, 116);
-            AddRow("Luck", "Luck", goals.Luck, 156);
-            Add(new Label("Luck 0 disables the target. Other zero values disable their goal.", true,
+            AddRow("Faster Casting", "FC", "FasterCasting", goals.FasterCasting, goals, 76);
+            AddRow("Faster Cast Recovery", "FCR", "FasterCastRecovery", goals.FasterCastRecovery, goals, 116);
+            AddRow("Luck", "Luck", "Luck", goals.Luck, goals, 156);
+            Add(_preferInsured = new Checkbox(0x00D2, 0x00D3,
+                "Prefer insured items when scores are equal", 1,
+                FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+            { X = 24, Y = 202, IsChecked = goals.PreferInsured });
+            Add(_preferDurability = new Checkbox(0x00D2, 0x00D3,
+                "Prefer higher durability when scores are equal", 1,
+                FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+            { X = 24, Y = 230, IsChecked = goals.PreferDurability });
+            Add(new Label("MIN enforces the target. KEEP preserves the current value. Zero disables a goal.", true,
                 FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.EquipmentGuru), 380, font: 1)
-            { X = 24, Y = 202 });
-            Add(Button(264, 236, 142, 30, "Save goals", 1));
+            { X = 24, Y = 264 });
+            Add(Button(264, 300, 142, 30, "Save goals", 1));
             SetInScreen();
         }
 
@@ -177,21 +189,64 @@ namespace ClassicUO.Game.UI.Gumps
             if (buttonID != 1) return;
             EquipmentGuruManager.EquipmentGuruGoals goals = EquipmentGuruManager.GetGoals(_build);
             goals.FasterCasting = Value("FC"); goals.FasterCastRecovery = Value("FCR"); goals.Luck = Value("Luck");
+            SetRequirement(goals, "FasterCasting", _mustInputs["FasterCasting"].IsChecked,
+                _preserveInputs["FasterCasting"].IsChecked);
+            SetRequirement(goals, "FasterCastRecovery", _mustInputs["FasterCastRecovery"].IsChecked,
+                _preserveInputs["FasterCastRecovery"].IsChecked);
+            SetRequirement(goals, "Luck", _mustInputs["Luck"].IsChecked,
+                _preserveInputs["Luck"].IsChecked);
+            goals.PreferInsured = _preferInsured.IsChecked;
+            goals.PreferDurability = _preferDurability.IsChecked;
             EquipmentGuruManager.SaveGoals(_build, goals);
             Dispose();
         }
 
         private int Value(string key) => int.TryParse(_inputs[key].Text, out int value) ? Math.Max(0, value) : 0;
-        private void AddRow(string label, string key, int value, int y)
+        private void AddRow(string label, string key, string mustKey, int value,
+            EquipmentGuruManager.EquipmentGuruGoals goals, int y)
         {
-            Add(new Label(label, true, FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru), 240, font: 1)
+            Add(new Label(label, true, FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru), 140, font: 1)
             { X = 24, Y = y + 6 });
-            Add(FeatureGumpArtwork.CreateSurface(276, y, 130, 30,
+            var must = new Checkbox(0x00D2, 0x00D3, "MIN", 1,
+                FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+            {
+                X = 166,
+                Y = y + 6,
+                IsChecked = goals.MustTargets.Contains(mustKey)
+                    && !goals.PreserveTargets.Contains(mustKey)
+            };
+            must.SetTooltip("Minimum: reject a loadout below the entered target.");
+            _mustInputs[mustKey] = must;
+            Add(must);
+            var preserve = new Checkbox(0x00D2, 0x00D3, "KEEP", 1,
+                FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.EquipmentGuru))
+            { X = 220, Y = y + 6, IsChecked = goals.PreserveTargets.Contains(mustKey) };
+            preserve.SetTooltip("Keep: reject a loadout below your current value.");
+            _preserveInputs[mustKey] = preserve;
+            Add(preserve);
+            must.ValueChanged += (sender, e) =>
+            {
+                if (must.IsChecked) preserve.IsChecked = false;
+            };
+            preserve.ValueChanged += (sender, e) =>
+            {
+                if (preserve.IsChecked) must.IsChecked = false;
+            };
+            Add(FeatureGumpArtwork.CreateSurface(286, y, 120, 30,
                 FeatureGumpArtworkKind.EquipmentGuru, 0.68f, true));
             var input = new StbTextBox(1, 9999, 112, true,
                 hue: FeatureGumpArtwork.TextHue(FeatureGumpArtworkKind.EquipmentGuru))
-            { X = 284, Y = y + 5, Width = 112, Height = 20, NumbersOnly = true };
+            { X = 294, Y = y + 5, Width = 102, Height = 20, NumbersOnly = true };
             input.SetText(value.ToString()); _inputs[key] = input; Add(input);
+        }
+
+        private static void SetRequirement(EquipmentGuruManager.EquipmentGuruGoals goals,
+            string key, bool minimum, bool preserve)
+        {
+            if (minimum) goals.MustTargets.Add(key);
+            else goals.MustTargets.Remove(key);
+            if (preserve) goals.PreserveTargets.Add(key);
+            else goals.PreserveTargets.Remove(key);
         }
 
         private static NiceButton Button(int x, int y, int width, int height, string text, int id) =>

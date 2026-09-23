@@ -22,6 +22,7 @@ namespace ClassicUO.Game.UI.Gumps
     {
         #region CONST
         private const int WIDTH = 250, HEIGHT = 380;
+        private const int TOOLS_BUTTON_ID = 1001;
         private const int CELL_SPACING = 2, TOP_SPACING = 40;
         private Texture2D MordernPaperdollGump;
         
@@ -39,7 +40,6 @@ namespace ClassicUO.Game.UI.Gumps
         private Label titleLabel;
         private static int lastX = 100, lastY = 100;
         private GumpPicBase backgroundImage;
-        private PaperDollFeatureToolsGump featureTools;
         #endregion
 
         public override GumpType GumpType => GumpType.PaperDoll;
@@ -69,6 +69,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             InitializeTexture();
             Add(backgroundImage = new EmbeddedGumpPic(0, 0, MordernPaperdollGump, ProfileManager.CurrentProfile.ModernPaperDollHue));
+
+            if (World.Player != null && localSerial == World.Player.Serial)
+            {
+                Add(new PaperDollToolsLauncherButton(174, 18, 68, 20, TOOLS_BUTTON_ID));
+            }
 
             HitBox _menuHit = new HitBox(Width - 26, 1, 25, 16, alpha: 0f);
             Add(_menuHit);
@@ -269,13 +274,6 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.Update();
 
-            if (World.Player != null && LocalSerial == World.Player.Serial
-                && (featureTools == null || featureTools.IsDisposed))
-            {
-                featureTools = new PaperDollFeatureToolsGump(this);
-                UIManager.Add(featureTools);
-            }
-
             if (X != lastX || Y != lastY)
             {
                 lastX = X;
@@ -287,9 +285,6 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
-            featureTools?.Dispose();
-            featureTools = null;
-
             if (ProfileManager.CurrentProfile != null)
                 ProfileManager.CurrentProfile.ModernPaperdollPosition = new Point(X, Y);
             lastX = X;
@@ -350,6 +345,24 @@ namespace ClassicUO.Game.UI.Gumps
                 if (SelectedObject.Object is Item item)
                     TargetManager.Target(item.Serial);
             }
+        }
+
+        public override void OnButtonClick(int buttonID)
+        {
+            if (buttonID != TOOLS_BUTTON_ID)
+            {
+                base.OnButtonClick(buttonID);
+                return;
+            }
+
+            PaperDollFeatureToolsGump tools = UIManager.GetGump<PaperDollFeatureToolsGump>();
+            if (tools != null && !tools.IsDisposed)
+            {
+                tools.Dispose();
+                return;
+            }
+
+            UIManager.Add(new PaperDollFeatureToolsGump(this));
         }
 
         private class ItemSlot : Control

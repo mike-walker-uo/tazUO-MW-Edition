@@ -13,6 +13,9 @@ namespace ClassicUO.Game.UI.Gumps
         {
             "[0.6 Beta]\n" +
             """
+            - Updated Equipment Guru with MIN/KEEP targets, stat caps, individual resist and regeneration goals, current-equipment comparison, and live transformation penalties
+            - Color-coded Item Finder property tooltips and refreshed Restock Agent source stock when its window opens
+            - Added a native-art TOOLS button and a movable, position-saving tools panel to the paperdoll; kept the launcher opaque and themed button borders visible on hover
             - Added Universal Item Finder with persistent area scans, multi-property ALL/NOT/count queries, saved searches, full property help, and item or house-position location tracking
             - Preserved catalog items from unreachable containers during later scans and closed container gumps opened by scanning
             - Added Restock Agent with multiple ordered sources, supply presets, custom destination containers, live stock counts, reusable loadouts, and integrated readiness checks

@@ -226,6 +226,7 @@ namespace ClassicUO.Game.UI.Gumps
                     if (_areaScanActive)
                     {
                         CancelAreaScan();
+                        CancelScanTarget();
                         _status.Text = "Area scan cancelled; containers opened by the scan were closed.";
                     }
                     else ScanArea();
@@ -355,6 +356,10 @@ namespace ClassicUO.Game.UI.Gumps
         private void ScanArea()
         {
             CancelAreaScan();
+            CancelScanTarget();
+            UIManager.Add(new MessageBoxGump(470, 180,
+                "Please wait. Containers will automatically close when the scan is finished.\n"
+                + "Some special containers might stay open; just close them.", null));
             var previouslyOpen = new HashSet<uint>();
 
             foreach (Gump gump in UIManager.Gumps)
@@ -394,6 +399,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void UpdateAreaScan()
         {
+            CancelScanTarget();
             long now = (long)Time.Ticks;
 
             if (_currentContainerSerial != 0)
@@ -464,6 +470,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void FinishAreaScan()
         {
+            CancelScanTarget();
             _areaScanActive = false;
             _nextContainerOpenAt = 0;
             _currentContainerDeadline = 0;
@@ -490,6 +497,14 @@ namespace ClassicUO.Game.UI.Gumps
             _scanContainerCount = 0;
             _scanContainersOpened = 0;
             CloseScannedContainers();
+        }
+
+        private static void CancelScanTarget()
+        {
+            if (TargetManager.IsTargeting)
+            {
+                TargetManager.CancelTarget();
+            }
         }
 
         private static bool IsContainerOpen(uint serial)
@@ -751,7 +766,18 @@ namespace ClassicUO.Game.UI.Gumps
                     Y = 27
                 });
 
-                SetTooltip($"Locate item\n{result.Name}\n{result.Location}\n\n{result.AllProperties}");
+                if (World.Items.Get(result.Serial) != null)
+                {
+                    SetTooltip(result.Serial);
+                }
+                else
+                {
+                    string rawTooltip = result.Name + "\n" + result.AllProperties;
+                    byte itemLayer = TileDataLoader.Instance.StaticData[result.Graphic].Layer;
+                    string tooltip = ToolTipOverrideData.ProcessTooltipText(rawTooltip, itemLayer)
+                        ?? rawTooltip;
+                    SetTooltip(tooltip + $"\n/c[gray]{result.Location}/cd\nClick to locate");
+                }
             }
 
             protected override void OnMouseEnter(int x, int y)

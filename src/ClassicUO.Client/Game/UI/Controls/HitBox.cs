@@ -62,6 +62,8 @@ namespace ClassicUO.Game.UI.Controls
 
         public ushort Hue { get; set; } = 0;
         public Color BackgroundColor { get; set; } = Color.White;
+        public Color? HoverOverlayColor { get; set; }
+        public float? HoverOverlayAlpha { get; set; }
         public override ClickPriority Priority { get; set; } = ClickPriority.High;
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -75,15 +77,15 @@ namespace ClassicUO.Game.UI.Controls
             {
                 Vector3 hueVector = ShaderHueTranslator.GetHueVector
                                     (
-                                        Hue,
+                                        HoverOverlayColor.HasValue ? (ushort)0 : Hue,
                                         false,
-                                        Alpha,
+                                        HoverOverlayAlpha ?? Alpha,
                                         true
                                     );
 
                 batcher.Draw
                 (
-                    SolidColorTextureCache.GetTexture(BackgroundColor),
+                    SolidColorTextureCache.GetTexture(HoverOverlayColor ?? BackgroundColor),
                     new Vector2(x, y),
                     new Rectangle(0, 0, Width, Height),
                     hueVector

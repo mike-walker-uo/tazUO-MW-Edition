@@ -22,6 +22,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const int LEFT_WIDTH = 208;
         private const int LIST_X = 250;
         private const int LIST_WIDTH = 626;
+        private const int SOURCE_SCAN_TIMEOUT_MS = 5000;
 
         private readonly Label _sourceName;
         private readonly Label _status;
@@ -33,7 +34,15 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Label _packCheck;
         private readonly VBoxContainer _itemsBox;
         private readonly List<RestockRow> _rows = new List<RestockRow>();
+        private readonly Queue<uint> _sourceScanQueue = new Queue<uint>();
+        private readonly HashSet<uint> _sourceGumpsToClose = new HashSet<uint>();
         private long _nextRefresh;
+        private long _nextSourceOpenAt;
+        private long _sourceOpenDeadline;
+        private uint _currentSourceSerial;
+        private int _sourceScanCount;
+        private int _sourcesScanned;
+        private bool _sourceScanActive;
 
         internal RestockAgentGump(bool announceReadiness = false) : base(0, 0)
         {
@@ -219,6 +228,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             RebuildItems();
             RefreshReadiness(announceReadiness);
+            BeginSourceScan();
             SetInScreen();
             UIManager.GetGump<RestockLoadoutGump>()?.Attach(this);
         }
@@ -230,6 +240,12 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (buttonID == 1)
             {
+                if (_sourceScanActive)
+                {
+                    _status.Text = "Wait for the source stock scan to finish.";
+                    return;
+                }
+
                 bool queued = RestockAgentManager.Run();
                 _status.Text = queued
                     ? "Restock queued. Readiness updates as item moves complete."
@@ -268,6 +284,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
             else if (buttonID == 8)
             {
+                CancelSourceScan();
                 RestockAgentManager.ClearSources();
                 _sourceName.Text = RestockAgentManager.SourceDescription();
                 _status.Text = "All source containers cleared.";
@@ -318,6 +335,11 @@ namespace ClassicUO.Game.UI.Gumps
                 UpdateListTitle();
                 RefreshReadiness(false);
             }
+
+            if (_sourceScanActive)
+            {
+                UpdateSourceScan();
+            }
         }
 
         internal void CheckReadiness(bool announce)
@@ -329,6 +351,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             RebuildItems();
             RefreshReadiness(false);
+            BeginSourceScan();
 
             if (!string.IsNullOrWhiteSpace(message))
             {
@@ -338,6 +361,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            CancelSourceScan();
             RestockAgentManager.Save();
             base.Dispose();
         }
@@ -366,7 +390,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
             _sourceName.Text = RestockAgentManager.SourceDescription();
-            _status.Text = "Source added. Keep it loaded while restocking.";
+            BeginSourceScan();
         }
 
         private async void PickCustomItem()
@@ -406,8 +430,175 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
+            CancelSourceScan();
             RestockAgentManager.OpenSources();
             _status.Text = "Opening all loaded source containers.";
+        }
+
+        private void BeginSourceScan()
+        {
+            CancelSourceScan();
+            int loadedSources = 0;
+
+            foreach (uint serial in RestockAgentManager.Settings.SourceSerials)
+            {
+                Item source = World.Items.Get(serial);
+
+                if (source == null || source.IsDestroyed || !source.ItemData.IsContainer)
+                {
+                    continue;
+                }
+
+                loadedSources++;
+
+                if (IsSourceGumpOpen(serial))
+                {
+                    continue;
+                }
+
+                _sourceScanQueue.Enqueue(serial);
+                _sourceGumpsToClose.Add(serial);
+            }
+
+            _sourceScanCount = _sourceScanQueue.Count;
+            _sourcesScanned = 0;
+
+            if (_sourceScanCount == 0)
+            {
+                RefreshSourceCounts();
+
+                if (RestockAgentManager.Settings.SourceSerials.Count > 0)
+                {
+                    _status.Text = loadedSources > 0
+                        ? "Source stock is ready."
+                        : "Selected source containers are not currently in range.";
+                }
+
+                return;
+            }
+
+            _sourceScanActive = true;
+            _nextSourceOpenAt = (long)Time.Ticks;
+            _status.Text = $"Reading stock from {_sourceScanCount} source container(s)…";
+        }
+
+        private void UpdateSourceScan()
+        {
+            long now = (long)Time.Ticks;
+
+            if (_currentSourceSerial != 0)
+            {
+                bool opened = IsSourceGumpOpen(_currentSourceSerial);
+
+                if (!opened && now < _sourceOpenDeadline)
+                {
+                    return;
+                }
+
+                if (opened)
+                {
+                    CloseSourceGump(_currentSourceSerial);
+                    _sourceGumpsToClose.Remove(_currentSourceSerial);
+                }
+
+                _currentSourceSerial = 0;
+                _sourceOpenDeadline = 0;
+                _sourcesScanned++;
+                _nextSourceOpenAt = now + Math.Max(500,
+                    GlobalActionCooldown.CooldownDuration);
+                RefreshSourceCounts();
+            }
+
+            if (_sourceScanQueue.Count > 0)
+            {
+                if (now < _nextSourceOpenAt || GlobalActionCooldown.IsOnCooldown)
+                {
+                    return;
+                }
+
+                _currentSourceSerial = _sourceScanQueue.Dequeue();
+                _sourceOpenDeadline = now + SOURCE_SCAN_TIMEOUT_MS;
+                GameActions.DoubleClick(_currentSourceSerial);
+                GlobalActionCooldown.BeginCooldown();
+                _status.Text = $"Reading source {_sourcesScanned + 1} of {_sourceScanCount}…";
+                return;
+            }
+
+            if (_currentSourceSerial == 0)
+            {
+                _sourceScanActive = false;
+
+                foreach (uint serial in _sourceGumpsToClose)
+                {
+                    CloseSourceGump(serial);
+                }
+
+                _sourceGumpsToClose.Clear();
+                RefreshSourceCounts();
+                _status.Text = $"Source scan finished: {_sourcesScanned} container(s) checked.";
+            }
+        }
+
+        private void CancelSourceScan()
+        {
+            _sourceScanActive = false;
+            _sourceScanQueue.Clear();
+            _nextSourceOpenAt = 0;
+            _sourceOpenDeadline = 0;
+            _currentSourceSerial = 0;
+            _sourceScanCount = 0;
+            _sourcesScanned = 0;
+
+            foreach (uint serial in _sourceGumpsToClose)
+            {
+                CloseSourceGump(serial);
+            }
+
+            _sourceGumpsToClose.Clear();
+        }
+
+        private void RefreshSourceCounts()
+        {
+            RestockCountSnapshot counts = RestockAgentManager.CreateCountSnapshot(
+                RestockAgentManager.Settings.Items);
+
+            foreach (RestockRow row in _rows)
+            {
+                row.RefreshCount(counts);
+            }
+
+            _sourceName.Text = RestockAgentManager.SourceDescription();
+            RefreshReadiness(false);
+        }
+
+        private static bool IsSourceGumpOpen(uint serial)
+        {
+            ContainerGump container = UIManager.GetGump<ContainerGump>(serial);
+
+            if (container != null && !container.IsDisposed)
+            {
+                return true;
+            }
+
+            GridContainer grid = UIManager.GetGump<GridContainer>(serial);
+            return grid != null && !grid.IsDisposed;
+        }
+
+        private static void CloseSourceGump(uint serial)
+        {
+            ContainerGump container = UIManager.GetGump<ContainerGump>(serial);
+
+            if (container != null && !container.IsDisposed)
+            {
+                container.Dispose();
+            }
+
+            GridContainer grid = UIManager.GetGump<GridContainer>(serial);
+
+            if (grid != null && !grid.IsDisposed)
+            {
+                grid.Dispose();
+            }
         }
 
         private void OpenLoadouts()
