@@ -13,6 +13,9 @@ namespace ClassicUO.Game.UI.Gumps
         {
             "[0.6 Beta]\n" +
             """
+            - Fix update: Item Finder scans nested containers, preserves its catalog between scans, skips temporary Arcane Focus items, and warns when a located item has moved
+            - Equipment Guru scores all eligible items as swaps, improves its shortlist and jewelry search, and reports missing item properties; results update when Analyze gear is clicked
+            - Equipment Guru projects stamina from DEX, hit points from STR, and inherent armor LMC; grouped stats use illustrated icons and comparisons show numeric benefits and tradeoffs
             - Updated Equipment Guru with MIN/KEEP targets, stat caps, individual resist and regeneration goals, current-equipment comparison, and live transformation penalties
             - Color-coded Item Finder property tooltips and refreshed Restock Agent source stock when its window opens
             - Added a native-art TOOLS button and a movable, position-saving tools panel to the paperdoll; kept the launcher opaque and themed button borders visible on hover

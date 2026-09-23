@@ -15,7 +15,8 @@ namespace ClassicUO.Game.Managers
     {
         private const string SETTINGS_FILE = "equipment_guru_goals.tsv";
         private const string RULES_FILE = "equipment_guru_rules.tsv";
-        private const int MAX_CANDIDATES_PER_LAYER = 14;
+        private const int MAX_CANDIDATES_PER_LAYER = 48;
+        private const int CORE_CANDIDATES_PER_LAYER = 16;
         private const int MAX_BEAM_STATES = 140;
         private const double CHANGE_PENALTY = 0.015;
         private const double OVERFLOW_PENALTY = 0.0001;
@@ -27,6 +28,22 @@ namespace ClassicUO.Game.Managers
             Layer.Ring, Layer.Necklace, Layer.Waist, Layer.Torso, Layer.Bracelet,
             Layer.Tunic, Layer.Earrings, Layer.Arms, Layer.Cloak, Layer.Robe,
             Layer.Skirt, Layer.Legs
+        };
+
+        private static readonly string[] _candidateStatKeys =
+        {
+            "Strength", "Dexterity", "Intelligence", "HitPoints", "Stamina", "Mana",
+            "HitChanceIncrease", "DefenseChanceIncrease", "DamageIncrease",
+            "SwingSpeedIncrease", "LowerManaCost", "LowerReagentCost",
+            "FasterCasting", "FasterCastRecovery", "SpellDamageIncrease",
+            "HitPointRegeneration", "StaminaRegeneration", "ManaRegeneration",
+            "PhysicalResist", "FireResist", "ColdResist", "PoisonResist",
+            "EnergyResist", "Luck"
+        };
+
+        private static readonly string[] _resistKeys =
+        {
+            "PhysicalResist", "FireResist", "ColdResist", "PoisonResist", "EnergyResist"
         };
 
         private static readonly string[] _combatSkillNames =
@@ -174,6 +191,7 @@ namespace ClassicUO.Game.Managers
             internal bool IsMust;
             internal bool IsPreserve;
             internal int DisplayCap;
+            internal int RecommendedDisplayCap;
         }
 
         internal sealed class RecommendedItem
@@ -203,10 +221,15 @@ namespace ClassicUO.Game.Managers
             internal string FixedItems;
             internal int CatalogItems;
             internal int ItemsWithoutProperties;
+            internal readonly HashSet<uint> GearItemsWithoutProperties = new HashSet<uint>();
             internal double CurrentScore;
             internal readonly List<Loadout> Loadouts = new List<Loadout>();
             internal int UpgradeCount;
             internal int TradeoffCount;
+            internal int RingCandidates;
+            internal int RingsConsidered;
+            internal int BraceletCandidates;
+            internal int BraceletsConsidered;
             internal string Status;
         }
 
@@ -223,6 +246,7 @@ namespace ClassicUO.Game.Managers
             internal Layer Layer;
             internal Candidate Current;
             internal readonly List<Candidate> Candidates = new List<Candidate>();
+            internal readonly List<Candidate> AllCandidates = new List<Candidate>();
         }
 
         private sealed class BeamState
@@ -245,6 +269,7 @@ namespace ClassicUO.Game.Managers
             internal int Dexterity;
             internal int Intelligence;
             internal int HitPoints;
+            internal int RawHitPointIncrease;
             internal int Stamina;
             internal int Mana;
             internal int Hci;
@@ -252,6 +277,7 @@ namespace ClassicUO.Game.Managers
             internal int Di;
             internal int Ssi;
             internal int Lmc;
+            internal int InherentLmc;
             internal int Lrc;
             internal int Fc;
             internal int Fcr;
@@ -264,6 +290,11 @@ namespace ClassicUO.Game.Managers
             internal int ColdResist;
             internal int PoisonResist;
             internal int EnergyResist;
+            internal int PhysicalResistCap;
+            internal int FireResistCap;
+            internal int ColdResistCap;
+            internal int PoisonResistCap;
+            internal int EnergyResistCap;
             internal int Luck;
             internal int InsuredItems;
             internal double DurabilityQuality;
@@ -280,17 +311,25 @@ namespace ClassicUO.Game.Managers
 
             internal void Add(StatBlock value, int multiplier = 1)
             {
+                int previousStrength = Strength;
+                int previousHitPointBonus = RawHitPointIncrease;
                 Strength += value.Strength * multiplier;
                 Dexterity += value.Dexterity * multiplier;
                 Intelligence += value.Intelligence * multiplier;
-                HitPoints += value.HitPoints * multiplier;
-                Stamina += value.Stamina * multiplier;
+                RawHitPointIncrease += value.HitPoints * multiplier;
+                // ServUO uses 50 + STR / 2 + up to 25 item hit points.
+                HitPoints += Math.Min(25, RawHitPointIncrease)
+                    - Math.Min(25, previousHitPointBonus)
+                    + Strength / 2 - previousStrength / 2;
+                // On this shard, each DEX point also changes maximum stamina by one.
+                Stamina += (value.Stamina + value.Dexterity) * multiplier;
                 Mana += value.Mana * multiplier;
                 Hci += value.Hci * multiplier;
                 Dci += value.Dci * multiplier;
                 Di += value.Di * multiplier;
                 Ssi += value.Ssi * multiplier;
                 Lmc += value.Lmc * multiplier;
+                InherentLmc += value.InherentLmc * multiplier;
                 Lrc += value.Lrc * multiplier;
                 Fc += value.Fc * multiplier;
                 Fcr += value.Fcr * multiplier;
@@ -303,6 +342,11 @@ namespace ClassicUO.Game.Managers
                 ColdResist += value.ColdResist * multiplier;
                 PoisonResist += value.PoisonResist * multiplier;
                 EnergyResist += value.EnergyResist * multiplier;
+                PhysicalResistCap += value.PhysicalResistCap * multiplier;
+                FireResistCap += value.FireResistCap * multiplier;
+                ColdResistCap += value.ColdResistCap * multiplier;
+                PoisonResistCap += value.PoisonResistCap * multiplier;
+                EnergyResistCap += value.EnergyResistCap * multiplier;
                 Luck += value.Luck * multiplier;
                 InsuredItems += value.InsuredItems * multiplier;
                 DurabilityQuality += value.DurabilityQuality * multiplier;
@@ -438,13 +482,17 @@ namespace ClassicUO.Game.Managers
             Dictionary<Layer, Item> equipped = GetEquipped();
             analysis.FixedItems = DescribeFixedItems(equipped);
             StatBlock baseline = GetPlayerTotals(skillAliases, equipped.Values, search.Results);
-            List<Slot> slots = BuildSlots(search.Results, equipped, skillAliases, goals, build);
+            List<Slot> slots = BuildSlots(search.Results, equipped, skillAliases, goals,
+                build, baseline, analysis);
             analysis.CurrentScore = Score(baseline, goals, build);
 
             var states = new List<BeamState>
             {
                 new BeamState { Totals = baseline.Clone(), Score = analysis.CurrentScore }
             };
+            Dictionary<string, int>[] remainingPotential =
+                BuildRemainingPotential(slots, goals);
+            int processedSlots = 0;
 
             foreach (Slot slot in slots)
             {
@@ -467,9 +515,14 @@ namespace ClassicUO.Game.Managers
                 int beamLimit = requirementCount == 0
                     ? MAX_BEAM_STATES
                     : MAX_BEAM_STATES * 4;
-                states = next.OrderByDescending(state => StateRank(state, goals, baseline))
+                processedSlots++;
+                states = next.OrderByDescending(state => PartialStateRank(state, goals,
+                        baseline, remainingPotential[processedSlots]))
                     .Take(beamLimit).ToList();
             }
+
+            states = RefineStates(states, slots, baseline, goals, build);
+            states = RefineJewelryPairs(states, slots, baseline, goals, build);
 
             var displayedTotals = new HashSet<string>(StringComparer.Ordinal);
             var viable = new List<Loadout>();
@@ -541,18 +594,31 @@ namespace ClassicUO.Game.Managers
             }
             else if (currentMeets)
             {
-                analysis.Status = "Current equipment already scores best against these targets.";
+                analysis.Status = "No better set found by this analysis for these targets.";
             }
             else
             {
                 analysis.Status =
-                    "No catalog combination meets every MIN/KEEP requirement. Lower a required value or clear the requirement.";
+                    "No set found that meets every MIN/KEEP requirement. Lower a required value or clear the requirement.";
             }
 
-            if (analysis.ItemsWithoutProperties > 0)
+            if (analysis.ItemsWithoutProperties > 0
+                || analysis.GearItemsWithoutProperties.Count > 0)
             {
-                analysis.Status += $" {analysis.ItemsWithoutProperties} item(s) were skipped because their properties are not loaded; scan, wait, then analyze again.";
+                analysis.Status += $" {analysis.ItemsWithoutProperties} catalog item(s) lack loaded properties; {analysis.GearItemsWithoutProperties.Count} potential equipment item(s) could not be compared.";
+                if (analysis.GearItemsWithoutProperties.Count > 0)
+                    analysis.Status += " Open or scan those items while nearby, wait for properties, then analyze again.";
             }
+
+            string rings = IsLayerLocked(Layer.Ring)
+                ? "rings locked"
+                : $"{analysis.RingsConsidered}/{analysis.RingCandidates} rings";
+            string bracelets = IsLayerLocked(Layer.Bracelet)
+                ? "bracelets locked"
+                : $"{analysis.BraceletsConsidered}/{analysis.BraceletCandidates} bracelets";
+            int eligible = slots.Sum(slot => slot.AllCandidates.Count - 1);
+            int shortlisted = slots.Sum(slot => slot.Candidates.Count - 1);
+            analysis.Status += $" Catalog: {analysis.CatalogItems}; eligible slot alternatives: {eligible}; beam shortlist: {shortlisted}. All eligible items scored as swaps; combinations are approximate. {rings}, {bracelets}.";
 
             return analysis;
         }
@@ -562,7 +628,9 @@ namespace ClassicUO.Game.Managers
             Dictionary<Layer, Item> equipped,
             Dictionary<string, string> skillAliases,
             EquipmentGuruGoals goals,
-            EquipmentGuruBuild build)
+            EquipmentGuruBuild build,
+            StatBlock baseline,
+            Analysis analysis)
         {
             var slots = new List<Slot>();
             var wearableByLayer = new Dictionary<Layer, List<ItemFinderManager.SearchResult>>();
@@ -571,9 +639,16 @@ namespace ClassicUO.Game.Managers
             {
                 ref StaticTiles data = ref TileDataLoader.Instance.StaticData[result.Graphic];
                 Layer itemLayer = (Layer)data.Layer;
-                if (!data.IsWearable || !HasLoadedProperties(result) || IsExcluded(result.Serial)
-                    || !IsRaceCompatible(result, itemLayer))
+                if (!data.IsWearable || IsExcluded(result.Serial))
                     continue;
+                if (!HasLoadedProperties(result))
+                {
+                    if (Array.IndexOf(_replaceableLayers, itemLayer) >= 0
+                        && !IsLayerLocked(itemLayer))
+                        analysis.GearItemsWithoutProperties.Add(result.Serial);
+                    continue;
+                }
+                if (!IsRaceCompatible(result, itemLayer)) continue;
                 if (!wearableByLayer.TryGetValue(itemLayer, out List<ItemFinderManager.SearchResult> list))
                     wearableByLayer[itemLayer] = list = new List<ItemFinderManager.SearchResult>();
                 list.Add(result);
@@ -590,8 +665,16 @@ namespace ClassicUO.Game.Managers
                 ItemFinderManager.SearchResult indexedCurrent = current == null
                     ? null
                     : results.FirstOrDefault(result => result.Serial == current.Serial);
+                ItemFinderManager.SearchResult currentResult = current == null
+                    ? null : indexedCurrent ?? CreateResult(current);
+                if (current != null && !HasLoadedProperties(currentResult))
+                {
+                    analysis.GearItemsWithoutProperties.Add(current.Serial);
+                    World.OPL.Contains(current.Serial);
+                    continue;
+                }
                 Candidate currentCandidate = current != null
-                    ? CreateCandidate(indexedCurrent ?? CreateResult(current), layer, skillAliases, true)
+                    ? CreateCandidate(currentResult, layer, skillAliases, true)
                     : new Candidate
                     {
                         Layer = layer,
@@ -621,48 +704,29 @@ namespace ClassicUO.Game.Managers
                     slot.Candidates.Add(CreateCandidate(result, layer, skillAliases, false));
                 }
 
-                slot.Candidates.Sort((left, right) =>
-                    CandidateRank(right.Stats, goals, build)
-                        .CompareTo(CandidateRank(left.Stats, goals, build)));
+                if (layer == Layer.Ring) analysis.RingCandidates = slot.Candidates.Count - 1;
+                if (layer == Layer.Bracelet) analysis.BraceletCandidates = slot.Candidates.Count - 1;
 
                 if (slot.Candidates.Count == 1 && current == null)
                 {
                     continue;
                 }
 
-                if (!slot.Candidates.Contains(currentCandidate))
-                {
-                    slot.Candidates.Insert(0, currentCandidate);
-                }
-
-                var unique = new List<Candidate> { currentCandidate };
-                var serials = new HashSet<uint> { current?.Serial ?? 0 };
-
-                foreach (Candidate candidate in slot.Candidates)
-                {
-                    if (serials.Add(candidate.Result.Serial))
-                    {
-                        unique.Add(candidate);
-                    }
-
-                    if (unique.Count >= MAX_CANDIDATES_PER_LAYER)
-                    {
-                        break;
-                    }
-                }
-
-                slot.Candidates.Clear();
-                slot.Candidates.AddRange(unique);
+                ShortlistCandidates(slot, baseline, goals, build);
+                if (layer == Layer.Ring) analysis.RingsConsidered = slot.Candidates.Count - 1;
+                if (layer == Layer.Bracelet) analysis.BraceletsConsidered = slot.Candidates.Count - 1;
                 slots.Add(slot);
             }
 
-            AddShieldSlot(results, equipped, skillAliases, goals, build, slots);
+            AddShieldSlot(results, equipped, skillAliases, goals, build, baseline,
+                slots, analysis);
             return slots;
         }
 
         private static void AddShieldSlot(List<ItemFinderManager.SearchResult> results,
             Dictionary<Layer, Item> equipped, Dictionary<string, string> skillAliases,
-            EquipmentGuruGoals goals, EquipmentGuruBuild build, List<Slot> slots)
+            EquipmentGuruGoals goals, EquipmentGuruBuild build, StatBlock baseline,
+            List<Slot> slots, Analysis analysis)
         {
             if (!equipped.TryGetValue(Layer.OneHanded, out Item weapon)
                 || !weapon.ItemData.IsWeapon
@@ -677,44 +741,332 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            Candidate current = CreateCandidate(CreateResult(shield), Layer.TwoHanded,
-                skillAliases, true);
             ItemFinderManager.SearchResult indexedShield = results.FirstOrDefault(result =>
                 result.Serial == shield.Serial);
-
-            if (indexedShield != null)
+            ItemFinderManager.SearchResult currentResult = indexedShield ?? CreateResult(shield);
+            if (!HasLoadedProperties(currentResult))
             {
-                current = CreateCandidate(indexedShield, Layer.TwoHanded, skillAliases, true);
+                analysis.GearItemsWithoutProperties.Add(shield.Serial);
+                World.OPL.Contains(shield.Serial);
+                return;
             }
+            Candidate current = CreateCandidate(currentResult, Layer.TwoHanded,
+                skillAliases, true);
             var slot = new Slot { Layer = Layer.TwoHanded, Current = current };
             slot.Candidates.Add(current);
 
             foreach (ItemFinderManager.SearchResult result in results)
             {
                 if (result.Serial == shield.Serial || !IsShield(result.Graphic)
-                    || IsExcluded(result.Serial)
-                    || !HasLoadedProperties(result)
-                    || !IsRaceCompatible(result, Layer.TwoHanded))
+                    || IsExcluded(result.Serial))
                 {
                     continue;
                 }
 
+                if (!HasLoadedProperties(result))
+                {
+                    analysis.GearItemsWithoutProperties.Add(result.Serial);
+                    continue;
+                }
+                if (!IsRaceCompatible(result, Layer.TwoHanded)) continue;
+
                 slot.Candidates.Add(CreateCandidate(result, Layer.TwoHanded, skillAliases, false));
             }
 
-            slot.Candidates.Sort((left, right) =>
-                CandidateRank(right.Stats, goals, build)
-                    .CompareTo(CandidateRank(left.Stats, goals, build)));
-            List<Candidate> best = slot.Candidates.Take(MAX_CANDIDATES_PER_LAYER).ToList();
-            slot.Candidates.Clear();
-            slot.Candidates.AddRange(best);
-
-            if (!slot.Candidates.Any(candidate => candidate.IsCurrent))
-            {
-                slot.Candidates.Insert(0, current);
-            }
+            ShortlistCandidates(slot, baseline, goals, build);
 
             slots.Add(slot);
+        }
+
+        private static void ShortlistCandidates(Slot slot, StatBlock baseline,
+            EquipmentGuruGoals goals, EquipmentGuruBuild build)
+        {
+            slot.AllCandidates.AddRange(slot.Candidates
+                .Select(candidate => new
+                {
+                    Candidate = candidate,
+                    Rank = CandidatePotential(candidate, slot.Current, baseline, goals, build)
+                })
+                .OrderByDescending(value => value.Rank)
+                .ThenBy(value => value.Candidate.Result.Serial)
+                .Select(value => value.Candidate));
+
+            var selected = new List<Candidate> { slot.Current };
+            var serials = new HashSet<uint> { slot.Current.Result.Serial };
+
+            foreach (Candidate candidate in slot.AllCandidates)
+            {
+                AddShortlistCandidate(selected, serials, candidate);
+                if (selected.Count >= CORE_CANDIDATES_PER_LAYER) break;
+            }
+
+            foreach (string key in _candidateStatKeys)
+            {
+                if (IsRequiredStat(goals, key))
+                    AddBestStatCandidates(slot, selected, serials, key, 2);
+            }
+
+            foreach (KeyValuePair<string, int> skill in goals.SkillTargets)
+            {
+                string key = "SkillTarget:" + skill.Key;
+                if (skill.Value > 0 && (goals.MustTargets.Contains(key)
+                    || goals.PreserveTargets.Contains(key)))
+                    AddBestSkillCandidates(slot, selected, serials, skill.Key, 2);
+            }
+
+            foreach (string key in _candidateStatKeys)
+            {
+                if (GoalTarget(goals, key) > 0 && !IsRequiredStat(goals, key))
+                    AddBestStatCandidates(slot, selected, serials, key, 1);
+            }
+
+            foreach (KeyValuePair<string, int> skill in goals.SkillTargets)
+            {
+                string key = "SkillTarget:" + skill.Key;
+                if (skill.Value > 0 && !goals.MustTargets.Contains(key)
+                    && !goals.PreserveTargets.Contains(key))
+                    AddBestSkillCandidates(slot, selected, serials, skill.Key, 1);
+            }
+
+            foreach (Candidate candidate in slot.AllCandidates)
+            {
+                AddShortlistCandidate(selected, serials, candidate);
+                if (selected.Count >= MAX_CANDIDATES_PER_LAYER) break;
+            }
+
+            slot.Candidates.Clear();
+            slot.Candidates.AddRange(selected);
+        }
+
+        private static void AddShortlistCandidate(List<Candidate> selected,
+            HashSet<uint> serials, Candidate candidate)
+        {
+            if (candidate != null && selected.Count < MAX_CANDIDATES_PER_LAYER
+                && serials.Add(candidate.Result.Serial))
+                selected.Add(candidate);
+        }
+
+        private static bool IsRequiredStat(EquipmentGuruGoals goals, string key)
+        {
+            return goals.MustTargets.Contains(key) || goals.PreserveTargets.Contains(key)
+                || (key.EndsWith("Resist", StringComparison.Ordinal)
+                    && (goals.MustTargets.Contains("Resist")
+                        || goals.PreserveTargets.Contains("Resist")));
+        }
+
+        private static void AddBestStatCandidates(Slot slot, List<Candidate> selected,
+            HashSet<uint> serials, string key, int count)
+        {
+            for (int i = 0; i < count && selected.Count < MAX_CANDIDATES_PER_LAYER; i++)
+            {
+                Candidate best = null;
+                int bestValue = 0;
+                foreach (Candidate candidate in slot.AllCandidates)
+                {
+                    if (serials.Contains(candidate.Result.Serial)) continue;
+                    int value = RequirementItemGain(slot.Current.Stats, candidate.Stats, key);
+                    if (value <= bestValue) continue;
+                    best = candidate;
+                    bestValue = value;
+                }
+                AddShortlistCandidate(selected, serials, best);
+                if (best == null) break;
+            }
+        }
+
+        private static void AddBestSkillCandidates(Slot slot, List<Candidate> selected,
+            HashSet<uint> serials, string skill, int count)
+        {
+            int currentValue = slot.Current.Stats.SkillBonus(skill);
+            for (int i = 0; i < count && selected.Count < MAX_CANDIDATES_PER_LAYER; i++)
+            {
+                Candidate best = null;
+                int bestValue = currentValue;
+                foreach (Candidate candidate in slot.AllCandidates)
+                {
+                    if (serials.Contains(candidate.Result.Serial)) continue;
+                    int value = candidate.Stats.SkillBonus(skill);
+                    if (value <= bestValue) continue;
+                    best = candidate;
+                    bestValue = value;
+                }
+                AddShortlistCandidate(selected, serials, best);
+                if (best == null) break;
+            }
+        }
+
+        private static double CandidatePotential(Candidate candidate, Candidate current,
+            StatBlock baseline, EquipmentGuruGoals goals, EquipmentGuruBuild build)
+        {
+            StatBlock totals = baseline.Clone();
+            totals.Add(current.Stats, -1);
+            totals.Add(candidate.Stats);
+            return Score(totals, goals, build)
+                - RequirementDeficit(totals, goals, baseline) * 100.0
+                - TargetOverflow(totals, goals) * OVERFLOW_PENALTY
+                + QualityRank(totals, goals);
+        }
+
+        private static List<BeamState> RefineStates(List<BeamState> states,
+            List<Slot> slots, StatBlock baseline, EquipmentGuruGoals goals,
+            EquipmentGuruBuild build)
+        {
+            var refined = new List<BeamState>(states);
+            if (slots.Count == 0) return refined;
+
+            var current = new BeamState
+            {
+                Totals = baseline.Clone(),
+                Score = Score(baseline, goals, build)
+            };
+            current.Choices.AddRange(slots.Select(slot => slot.Current));
+
+            var seeds = states.OrderByDescending(state => StateRank(state, goals, baseline))
+                .Take(3).ToList();
+            seeds.Add(current);
+
+            foreach (BeamState seed in seeds)
+            {
+                BeamState best = seed;
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    BeamState bestNext = null;
+                    double bestRank = StateRank(best, goals, baseline);
+                    int changes = best.Choices.Count(candidate => !candidate.IsCurrent);
+
+                    for (int index = 0; index < slots.Count; index++)
+                    {
+                        Candidate previous = best.Choices[index];
+                        StatBlock trial = best.Totals.Clone();
+                        trial.Add(previous.Stats, -1);
+                        Candidate slotBest = null;
+                        Candidate feasibleBest = null;
+                        StatBlock slotTotals = null;
+                        StatBlock feasibleTotals = null;
+                        double slotScore = 0;
+                        double feasibleScore = 0;
+                        double slotRank = double.NegativeInfinity;
+                        double feasibleRank = double.NegativeInfinity;
+                        int unchanged = changes - (previous.IsCurrent ? 0 : 1);
+
+                        foreach (Candidate candidate in slots[index].AllCandidates)
+                        {
+                            if (ReferenceEquals(candidate, previous)) continue;
+                            trial.Add(candidate.Stats);
+                            double score = Score(trial, goals, build);
+                            double rank = RankTotals(trial, score,
+                                unchanged + (candidate.IsCurrent ? 0 : 1), goals, baseline);
+                            if (rank > slotRank)
+                            {
+                                slotBest = candidate;
+                                slotTotals = trial.Clone();
+                                slotScore = score;
+                                slotRank = rank;
+                            }
+                            if (rank > feasibleRank && MeetsRequirements(trial, goals, baseline))
+                            {
+                                feasibleBest = candidate;
+                                feasibleTotals = trial.Clone();
+                                feasibleScore = score;
+                                feasibleRank = rank;
+                            }
+                            trial.Add(candidate.Stats, -1);
+                        }
+
+                        if (slotBest != null)
+                        {
+                            BeamState option = SwapChoice(best, index, slotBest,
+                                slotTotals, slotScore);
+                            refined.Add(option);
+                            if (slotRank > bestRank + SCORE_EPSILON)
+                            {
+                                bestNext = option;
+                                bestRank = slotRank;
+                            }
+                        }
+                        if (feasibleBest != null && !ReferenceEquals(feasibleBest, slotBest))
+                            refined.Add(SwapChoice(best, index, feasibleBest,
+                                feasibleTotals, feasibleScore));
+                    }
+
+                    if (bestNext == null) break;
+                    best = bestNext;
+                }
+            }
+
+            return refined;
+        }
+
+        private static List<BeamState> RefineJewelryPairs(List<BeamState> states,
+            List<Slot> slots, StatBlock baseline, EquipmentGuruGoals goals,
+            EquipmentGuruBuild build)
+        {
+            int ringIndex = slots.FindIndex(slot => slot.Layer == Layer.Ring);
+            int braceletIndex = slots.FindIndex(slot => slot.Layer == Layer.Bracelet);
+            if (ringIndex < 0 || braceletIndex < 0
+                || slots[ringIndex].Candidates.Count < 2
+                || slots[braceletIndex].Candidates.Count < 2)
+                return states;
+
+            var refined = new List<BeamState>(states);
+            var seeds = states.OrderByDescending(state => StateRank(state, goals, baseline))
+                .Take(3).ToList();
+            var current = new BeamState
+            {
+                Totals = baseline.Clone(),
+                Score = Score(baseline, goals, build)
+            };
+            current.Choices.AddRange(slots.Select(slot => slot.Current));
+            seeds.Add(current);
+
+            foreach (BeamState seed in seeds)
+            {
+                StatBlock withoutJewelry = seed.Totals.Clone();
+                withoutJewelry.Add(seed.Choices[ringIndex].Stats, -1);
+                withoutJewelry.Add(seed.Choices[braceletIndex].Stats, -1);
+                var pairs = new List<BeamState>();
+
+                foreach (Candidate ring in slots[ringIndex].Candidates)
+                {
+                    StatBlock withRing = withoutJewelry.Clone();
+                    withRing.Add(ring.Stats);
+                    foreach (Candidate bracelet in slots[braceletIndex].Candidates)
+                    {
+                        StatBlock totals = withRing.Clone();
+                        totals.Add(bracelet.Stats);
+                        var pair = new BeamState
+                        {
+                            Totals = totals,
+                            Score = Score(totals, goals, build)
+                        };
+                        pair.Choices.AddRange(seed.Choices);
+                        pair.Choices[ringIndex] = ring;
+                        pair.Choices[braceletIndex] = bracelet;
+                        pairs.Add(pair);
+                    }
+                }
+
+                var ranked = pairs.Select(pair => new
+                {
+                    State = pair,
+                    Rank = StateRank(pair, goals, baseline),
+                    Feasible = MeetsRequirements(pair.Totals, goals, baseline)
+                }).OrderByDescending(value => value.Rank).ToList();
+                refined.AddRange(ranked.Take(12).Select(value => value.State));
+                refined.AddRange(ranked.Where(value => value.Feasible).Take(12)
+                    .Select(value => value.State));
+            }
+
+            return refined;
+        }
+
+        private static BeamState SwapChoice(BeamState source, int index,
+            Candidate candidate, StatBlock totals, double score)
+        {
+            var swapped = new BeamState { Totals = totals, Score = score };
+            swapped.Choices.AddRange(source.Choices);
+            swapped.Choices[index] = candidate;
+            return swapped;
         }
 
         private static Candidate CreateCandidate(ItemFinderManager.SearchResult result,
@@ -724,7 +1076,7 @@ namespace ClassicUO.Game.Managers
             {
                 Layer = layer,
                 Result = result,
-                Stats = ParseStats(result.AllProperties, skillAliases),
+                Stats = ParseStats(result, layer, skillAliases),
                 IsCurrent = current
             };
         }
@@ -744,21 +1096,30 @@ namespace ClassicUO.Game.Managers
                 return false;
             }
 
-            string properties = result.AllProperties ?? string.Empty;
-            bool gargoyleOnly = ContainsRaceRestriction(properties, "Gargoyle Only")
-                || ContainsRaceRestriction(properties, "Gargoyles Only");
+            string description = (result.Name ?? string.Empty) + "\n"
+                + (result.AllProperties ?? string.Empty) + "\n"
+                + TileDataLoader.Instance.StaticData[result.Graphic].Name;
+            bool gargoyleOnly = ContainsRaceRestriction(description, "Gargish")
+                || ContainsRaceRestriction(description, "Gargoyle Only")
+                || ContainsRaceRestriction(description, "Gargoyles Only");
+            bool elfOnly = ContainsRaceRestriction(description, "Elf Only")
+                || ContainsRaceRestriction(description, "Elves Only");
+
+            if (gargoyleOnly && elfOnly) return false;
 
             if (World.Player.Race == RaceType.GARGOYLE)
             {
-                return gargoyleOnly || layer == Layer.Ring || layer == Layer.Bracelet;
+                return gargoyleOnly || (!elfOnly
+                    && (layer == Layer.Ring || layer == Layer.Bracelet));
             }
 
-            return !gargoyleOnly;
+            return !gargoyleOnly
+                && (World.Player.Race == RaceType.ELF || !elfOnly);
         }
 
-        private static bool ContainsRaceRestriction(string properties, string restriction)
+        private static bool ContainsRaceRestriction(string text, string restriction)
         {
-            return properties.IndexOf(restriction, StringComparison.OrdinalIgnoreCase) >= 0;
+            return text.IndexOf(restriction, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static ItemFinderManager.SearchResult CreateResult(Item item)
@@ -797,13 +1158,14 @@ namespace ClassicUO.Game.Managers
             IEnumerable<Item> equipped, List<ItemFinderManager.SearchResult> catalog)
         {
             PlayerMobile player = World.Player;
-            // Live server values include transformation penalties such as Vampiric Embrace.
+            // Live values include transformation penalties but hide resist above the cap.
             var totals = new StatBlock
             {
                 Strength = player.Strength,
                 Dexterity = player.Dexterity,
                 Intelligence = player.Intelligence,
                 HitPoints = player.HitsMax,
+                RawHitPointIncrease = player.HitPointsIncrease,
                 Stamina = player.StaminaMax,
                 Mana = player.ManaMax,
                 Hci = player.HitChanceIncrease,
@@ -820,14 +1182,27 @@ namespace ClassicUO.Game.Managers
                 ColdResist = player.ColdResistance,
                 PoisonResist = player.PoisonResistance,
                 EnergyResist = player.EnergyResistance,
+                PhysicalResistCap = player.MaxPhysicResistence,
+                FireResistCap = player.MaxFireResistence,
+                ColdResistCap = player.MaxColdResistence,
+                PoisonResistCap = player.MaxPoisonResistence,
+                EnergyResistCap = player.MaxEnergyResistence,
                 Luck = player.Luck
             };
+
+            int equippedFireResist = 0;
+            int equippedLmc = 0;
+            int equippedHitPointIncrease = 0;
 
             foreach (Item item in equipped)
             {
                 ItemFinderManager.SearchResult result = catalog.FirstOrDefault(candidate =>
                     candidate.Serial == item.Serial) ?? CreateResult(item);
-                StatBlock equipmentStats = ParseStats(result.AllProperties, skillAliases);
+                StatBlock equipmentStats = ParseStats(result, item.Layer, skillAliases);
+                equippedFireResist += equipmentStats.FireResist;
+                equippedLmc += equipmentStats.Lmc;
+                equippedHitPointIncrease += equipmentStats.HitPoints;
+                totals.InherentLmc += equipmentStats.InherentLmc;
                 foreach (KeyValuePair<string, int> skill in equipmentStats.SkillBonuses)
                 {
                     totals.SkillBonuses.TryGetValue(skill.Key, out int current);
@@ -840,45 +1215,38 @@ namespace ClassicUO.Game.Managers
                 totals.DurabilityQuality += equipmentStats.DurabilityQuality;
             }
 
+            // Vampiric Embrace removes 25 fire resist from the equipped total.
+            if (player.IsBuffIconExists(BuffIconType.VampiricEmbrace))
+                totals.FireResist = Math.Max(totals.FireResist, equippedFireResist - 25);
+
+            // The status value caps explicit LMC at 40 before adding armor LMC.
+            totals.Lmc = Math.Max(equippedLmc,
+                player.LowerManaCost - Math.Min(15, totals.InherentLmc));
+            totals.RawHitPointIncrease = Math.Max(
+                totals.RawHitPointIncrease, equippedHitPointIncrease);
+
             return totals;
         }
 
-        internal static int LiveResistanceSignature()
-        {
-            PlayerMobile player = World.Player;
-            if (player == null) return 0;
-
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 31 + player.PhysicalResistance;
-                hash = hash * 31 + player.FireResistance;
-                hash = hash * 31 + player.ColdResistance;
-                hash = hash * 31 + player.PoisonResistance;
-                hash = hash * 31 + player.EnergyResistance;
-                hash = hash * 31 + player.MaxPhysicResistence;
-                hash = hash * 31 + player.MaxFireResistence;
-                hash = hash * 31 + player.MaxColdResistence;
-                hash = hash * 31 + player.MaxPoisonResistence;
-                return hash * 31 + player.MaxEnergyResistence;
-            }
-        }
-
-        private static StatBlock ParseStats(string tooltip,
+        private static StatBlock ParseStats(ItemFinderManager.SearchResult result, Layer layer,
             Dictionary<string, string> skillAliases)
         {
             var stats = new StatBlock();
+            string tooltip = result?.AllProperties;
 
             if (string.IsNullOrWhiteSpace(tooltip))
             {
+                stats.InherentLmc = InherentArmorLmc(result, layer);
                 return stats;
             }
 
             var properties = new ItemPropertiesData("Item\n" + tooltip);
+            bool mageArmor = false;
 
             foreach (ItemPropertiesData.SinglePropertyData property in properties.singlePropertyData)
             {
                 string key = Normalize(property.Name);
+                if (key == "magearmor") mageArmor = true;
                 if (key == "insured")
                 {
                     stats.InsuredItems++;
@@ -918,10 +1286,35 @@ namespace ClassicUO.Game.Managers
                     case "staminaregeneration": stats.StaminaRegen += value; break;
                     case "manaregeneration": stats.ManaRegen += value; break;
                     case "physicalresist": stats.PhysicalResist += value; break;
+                    case "physicalresistmax":
+                        stats.PhysicalResist += value;
+                        if (property.SecondValue != double.MinValue)
+                            stats.PhysicalResistCap += (int)Math.Round(property.SecondValue);
+                        break;
                     case "fireresist": stats.FireResist += value; break;
+                    case "fireresistmax":
+                        stats.FireResist += value;
+                        if (property.SecondValue != double.MinValue)
+                            stats.FireResistCap += (int)Math.Round(property.SecondValue);
+                        break;
                     case "coldresist": stats.ColdResist += value; break;
+                    case "coldresistmax":
+                        stats.ColdResist += value;
+                        if (property.SecondValue != double.MinValue)
+                            stats.ColdResistCap += (int)Math.Round(property.SecondValue);
+                        break;
                     case "poisonresist": stats.PoisonResist += value; break;
+                    case "poisonresistmax":
+                        stats.PoisonResist += value;
+                        if (property.SecondValue != double.MinValue)
+                            stats.PoisonResistCap += (int)Math.Round(property.SecondValue);
+                        break;
                     case "energyresist": stats.EnergyResist += value; break;
+                    case "energyresistmax":
+                        stats.EnergyResist += value;
+                        if (property.SecondValue != double.MinValue)
+                            stats.EnergyResistCap += (int)Math.Round(property.SecondValue);
+                        break;
                     case "luck": stats.Luck += value; break;
                     default:
                         if (skillAliases.TryGetValue(key, out string skillName))
@@ -933,17 +1326,203 @@ namespace ClassicUO.Game.Managers
                 }
             }
 
+            if (!mageArmor)
+                stats.InherentLmc = InherentArmorLmc(result, layer);
+
             return stats;
+        }
+
+        private static int InherentArmorLmc(ItemFinderManager.SearchResult item, Layer layer)
+        {
+            // The client has no server ArmorMaterialType; infer it from wearable art/name.
+            switch (layer)
+            {
+                case Layer.Pants:
+                case Layer.Helmet:
+                case Layer.Gloves:
+                case Layer.Necklace:
+                case Layer.Torso:
+                case Layer.Tunic:
+                case Layer.Arms:
+                case Layer.Skirt:
+                case Layer.Legs:
+                    break;
+                default:
+                    return 0;
+            }
+
+            string tileName = TileDataLoader.Instance.StaticData[item.Graphic].Name;
+            int bonus = ArmorMaterialLmc(tileName);
+            return bonus != 0 ? bonus : ArmorMaterialLmc(item.Name);
+        }
+
+        private static int ArmorMaterialLmc(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return 0;
+            string material = name.ToLowerInvariant();
+            if (!(material.Contains("armor") || material.Contains("chest")
+                || material.Contains("arms") || material.Contains("sleeves")
+                || material.Contains("gloves") || material.Contains("helm")
+                || material.Contains("hatsuburi") || material.Contains("kabuto")
+                || material.Contains("legs") || material.Contains("kilt")
+                || material.Contains("gorget") || material.Contains("tunic")
+                || material.Contains("bustier") || material.Contains("mask"))) return 0;
+            if (material.Contains("studded") || material.Contains("bone")
+                || material.Contains("stone")) return 3;
+            if (material.Contains("ringmail") || material.Contains("ring mail")
+                || material.Contains("chainmail") || material.Contains("chain mail")
+                || material.Contains("plate")
+                || (material.Contains("dragon") && !material.Contains("turtle"))) return 1;
+            return 0;
         }
 
         private static double StateRank(BeamState state, EquipmentGuruGoals goals,
             StatBlock current)
         {
             int changes = state.Choices.Count(candidate => !candidate.IsCurrent);
-            return state.Score - RequirementDeficit(state.Totals, goals, current) * 100.0
+            return RankTotals(state.Totals, state.Score, changes, goals, current);
+        }
+
+        private static Dictionary<string, int>[] BuildRemainingPotential(List<Slot> slots,
+            EquipmentGuruGoals goals)
+        {
+            var keys = new HashSet<string>(goals.MustTargets,
+                StringComparer.OrdinalIgnoreCase);
+            keys.UnionWith(goals.PreserveTargets);
+            if (keys.Remove("Resist"))
+            {
+                keys.Add("PhysicalResist");
+                keys.Add("FireResist");
+                keys.Add("ColdResist");
+                keys.Add("PoisonResist");
+                keys.Add("EnergyResist");
+            }
+
+            var remaining = new Dictionary<string, int>[slots.Count + 1];
+            remaining[slots.Count] = new Dictionary<string, int>(
+                StringComparer.OrdinalIgnoreCase);
+            for (int index = slots.Count - 1; index >= 0; index--)
+            {
+                Slot slot = slots[index];
+                var gains = new Dictionary<string, int>(
+                    remaining[index + 1], StringComparer.OrdinalIgnoreCase);
+                foreach (string key in keys)
+                {
+                    int bestGain = 0;
+                    foreach (Candidate candidate in slot.Candidates)
+                        bestGain = Math.Max(bestGain,
+                            RequirementItemGain(slot.Current.Stats, candidate.Stats, key));
+                    gains.TryGetValue(key, out int laterGain);
+                    gains[key] = laterGain + bestGain;
+                }
+                remaining[index] = gains;
+            }
+            return remaining;
+        }
+
+        private static int RequirementItemValue(StatBlock stats, string key)
+        {
+            const string skillPrefix = "SkillTarget:";
+            if (key.StartsWith(skillPrefix, StringComparison.OrdinalIgnoreCase))
+                return stats.SkillBonus(key.Substring(skillPrefix.Length));
+            if (key.Equals("Stamina", StringComparison.OrdinalIgnoreCase))
+                return stats.Stamina + stats.Dexterity;
+            if (key.Equals("LowerManaCost", StringComparison.OrdinalIgnoreCase))
+                return stats.Lmc + stats.InherentLmc;
+            return StatValue(stats, key);
+        }
+
+        private static int RequirementItemGain(StatBlock current, StatBlock candidate,
+            string key)
+        {
+            if (key.Equals("HitPoints", StringComparison.OrdinalIgnoreCase))
+                return Math.Max(0, candidate.HitPoints - current.HitPoints)
+                    + (int)Math.Ceiling((candidate.Strength - current.Strength) / 2.0);
+            return RequirementItemValue(candidate, key) - RequirementItemValue(current, key);
+        }
+
+        private static double PartialStateRank(BeamState state,
+            EquipmentGuruGoals goals, StatBlock current,
+            Dictionary<string, int> remainingPotential)
+        {
+            int changes = state.Choices.Count(candidate => !candidate.IsCurrent);
+            return state.Score - OptimisticRequirementDeficit(state.Totals, goals,
+                    current, remainingPotential) * 100.0
                 - changes * CHANGE_PENALTY
                 - TargetOverflow(state.Totals, goals) * OVERFLOW_PENALTY
                 + QualityRank(state.Totals, goals);
+        }
+
+        private static double OptimisticRequirementDeficit(StatBlock stats,
+            EquipmentGuruGoals goals, StatBlock current,
+            Dictionary<string, int> remainingPotential)
+        {
+            double deficit = 0;
+            foreach (string key in goals.MustTargets)
+            {
+                int target = GoalTarget(goals, key);
+                if (target <= 0) continue;
+                if (key.Equals("Resist", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string resist in _resistKeys)
+                        deficit += NormalizedDeficit(
+                            OptimisticValue(stats, resist, remainingPotential), target);
+                }
+                else
+                    deficit += NormalizedDeficit(
+                        OptimisticValue(stats, key, remainingPotential), target);
+            }
+
+            foreach (string key in goals.PreserveTargets)
+            {
+                if (key.Equals("Resist", StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string resist in _resistKeys)
+                    {
+                        int target = EffectiveStatValue(current, resist);
+                        if (target > 0)
+                            deficit += NormalizedDeficit(
+                                OptimisticValue(stats, resist, remainingPotential), target);
+                    }
+                }
+                else if (key.StartsWith("SkillTarget:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string skill = key.Substring("SkillTarget:".Length);
+                    double target = EffectiveSkillValue(skill, current);
+                    if (target > 0)
+                        deficit += NormalizedDeficit(
+                            OptimisticValue(stats, key, remainingPotential), target);
+                }
+                else
+                {
+                    int target = EffectiveStatValue(current, key);
+                    if (target > 0)
+                        deficit += NormalizedDeficit(
+                            OptimisticValue(stats, key, remainingPotential), target);
+                }
+            }
+
+            return deficit;
+        }
+
+        private static double OptimisticValue(StatBlock stats, string key,
+            Dictionary<string, int> remainingPotential)
+        {
+            remainingPotential.TryGetValue(key, out int gain);
+            return key.StartsWith("SkillTarget:", StringComparison.OrdinalIgnoreCase)
+                ? SkillBase(key.Substring("SkillTarget:".Length))
+                    + RequirementItemValue(stats, key) + gain
+                : (key.Equals("LowerManaCost", StringComparison.OrdinalIgnoreCase)
+                    ? EffectiveStatValue(stats, key) : StatValue(stats, key)) + gain;
+        }
+
+        private static double RankTotals(StatBlock totals, double score, int changes,
+            EquipmentGuruGoals goals, StatBlock current)
+        {
+            return score - RequirementDeficit(totals, goals, current) * 100.0
+                - changes * CHANGE_PENALTY
+                - TargetOverflow(totals, goals) * OVERFLOW_PENALTY
+                + QualityRank(totals, goals);
         }
 
         private static double TargetOverflow(StatBlock stats, EquipmentGuruGoals goals)
@@ -959,7 +1538,8 @@ namespace ClassicUO.Game.Managers
             overflow += NormalizedOverflow(stats.Dci, goals.DefenseChanceIncrease);
             overflow += NormalizedOverflow(stats.Di, goals.DamageIncrease);
             overflow += NormalizedOverflow(stats.Ssi, goals.SwingSpeedIncrease);
-            overflow += NormalizedOverflow(stats.Lmc, goals.LowerManaCost);
+            overflow += NormalizedOverflow(
+                EffectiveStatValue(stats, "LowerManaCost"), goals.LowerManaCost);
             overflow += NormalizedOverflow(stats.Lrc, goals.LowerReagentCost);
             overflow += NormalizedOverflow(stats.Fc, goals.FasterCasting);
             overflow += NormalizedOverflow(stats.Fcr, goals.FasterCastRecovery);
@@ -1020,15 +1600,15 @@ namespace ClassicUO.Game.Managers
                 if (key.Equals("Resist", StringComparison.OrdinalIgnoreCase))
                 {
                     deficit += NormalizedDeficit(
-                        EffectiveStatValue(stats, "PhysicalResist", goals), target);
+                        EffectiveStatValue(stats, "PhysicalResist"), target);
                     deficit += NormalizedDeficit(
-                        EffectiveStatValue(stats, "FireResist", goals), target);
+                        EffectiveStatValue(stats, "FireResist"), target);
                     deficit += NormalizedDeficit(
-                        EffectiveStatValue(stats, "ColdResist", goals), target);
+                        EffectiveStatValue(stats, "ColdResist"), target);
                     deficit += NormalizedDeficit(
-                        EffectiveStatValue(stats, "PoisonResist", goals), target);
+                        EffectiveStatValue(stats, "PoisonResist"), target);
                     deficit += NormalizedDeficit(
-                        EffectiveStatValue(stats, "EnergyResist", goals), target);
+                        EffectiveStatValue(stats, "EnergyResist"), target);
                     continue;
                 }
 
@@ -1042,7 +1622,7 @@ namespace ClassicUO.Game.Managers
                 }
 
                 deficit += NormalizedDeficit(
-                    EffectiveStatValue(stats, key, goals), target);
+                    EffectiveStatValue(stats, key), target);
             }
 
             foreach (string key in goals.PreserveTargets)
@@ -1059,27 +1639,27 @@ namespace ClassicUO.Game.Managers
 
                 if (key.Equals("Resist", StringComparison.OrdinalIgnoreCase))
                 {
-                    deficit += PreserveDeficit(stats, current, goals, "PhysicalResist");
-                    deficit += PreserveDeficit(stats, current, goals, "FireResist");
-                    deficit += PreserveDeficit(stats, current, goals, "ColdResist");
-                    deficit += PreserveDeficit(stats, current, goals, "PoisonResist");
-                    deficit += PreserveDeficit(stats, current, goals, "EnergyResist");
+                    deficit += PreserveDeficit(stats, current, "PhysicalResist");
+                    deficit += PreserveDeficit(stats, current, "FireResist");
+                    deficit += PreserveDeficit(stats, current, "ColdResist");
+                    deficit += PreserveDeficit(stats, current, "PoisonResist");
+                    deficit += PreserveDeficit(stats, current, "EnergyResist");
                     continue;
                 }
 
-                deficit += PreserveDeficit(stats, current, goals, key);
+                deficit += PreserveDeficit(stats, current, key);
             }
 
             return deficit;
         }
 
         private static double PreserveDeficit(StatBlock stats, StatBlock current,
-            EquipmentGuruGoals goals, string key)
+            string key)
         {
-            double currentValue = EffectiveStatValue(current, key, goals);
+            double currentValue = EffectiveStatValue(current, key);
             return currentValue <= 0
                 ? 0
-                : NormalizedDeficit(EffectiveStatValue(stats, key, goals), currentValue);
+                : NormalizedDeficit(EffectiveStatValue(stats, key), currentValue);
         }
 
         private static double NormalizedDeficit(double value, double target)
@@ -1119,15 +1699,16 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static int EffectiveStatValue(StatBlock stats, string key,
-            EquipmentGuruGoals goals)
+        private static int EffectiveStatValue(StatBlock stats, string key)
         {
+            if (key == "LowerManaCost")
+                return Math.Min(40, stats.Lmc) + Math.Min(15, stats.InherentLmc);
             int value = StatValue(stats, key);
-            int cap = StatCap(key, goals);
+            int cap = StatCap(stats, key);
             return cap > 0 ? Math.Min(value, cap) : value;
         }
 
-        private static int StatCap(string key, EquipmentGuruGoals goals)
+        private static int StatCap(StatBlock stats, string key)
         {
             switch (key)
             {
@@ -1135,16 +1716,14 @@ namespace ClassicUO.Game.Managers
                 case "DefenseChanceIncrease": return 45;
                 case "DamageIncrease": return 100;
                 case "SwingSpeedIncrease": return 60;
-                case "LowerManaCost": return 40;
                 case "LowerReagentCost": return 100;
                 case "FasterCasting": return 4;
                 case "FasterCastRecovery": return 6;
-                case "PhysicalResist":
-                case "FireResist":
-                case "ColdResist":
-                case "PoisonResist":
-                case "EnergyResist":
-                    return GoalTarget(goals, key);
+                case "PhysicalResist": return stats.PhysicalResistCap;
+                case "FireResist": return stats.FireResistCap;
+                case "ColdResist": return stats.ColdResistCap;
+                case "PoisonResist": return stats.PoisonResistCap;
+                case "EnergyResist": return stats.EnergyResistCap;
                 default:
                     return 0;
             }
@@ -1210,22 +1789,22 @@ namespace ClassicUO.Game.Managers
             score += Goal(stats.HitPoints, goals.HitPoints, 1.4);
             score += Goal(stats.Stamina, goals.Stamina, 1.4);
             score += Goal(stats.Mana, goals.Mana, 1.2);
-            score += Goal(EffectiveStatValue(stats, "HitChanceIncrease", goals),
+            score += Goal(EffectiveStatValue(stats, "HitChanceIncrease"),
                 goals.HitChanceIncrease, 1.4);
-            score += Goal(EffectiveStatValue(stats, "DefenseChanceIncrease", goals),
+            score += Goal(EffectiveStatValue(stats, "DefenseChanceIncrease"),
                 goals.DefenseChanceIncrease, 1.0);
-            score += Goal(EffectiveStatValue(stats, "DamageIncrease", goals),
+            score += Goal(EffectiveStatValue(stats, "DamageIncrease"),
                 goals.DamageIncrease, 1.2);
-            score += Goal(EffectiveStatValue(stats, "SwingSpeedIncrease", goals),
+            score += Goal(EffectiveStatValue(stats, "SwingSpeedIncrease"),
                 goals.SwingSpeedIncrease, 1.4);
-            score += Goal(EffectiveStatValue(stats, "LowerManaCost", goals),
+            score += Goal(EffectiveStatValue(stats, "LowerManaCost"),
                 goals.LowerManaCost, 1.2);
-            score += Goal(EffectiveStatValue(stats, "LowerReagentCost", goals),
+            score += Goal(EffectiveStatValue(stats, "LowerReagentCost"),
                 goals.LowerReagentCost, 1.2);
             double castingWeight = build == EquipmentGuruBuild.Mage ? 1.5 : 0.45;
-            score += Goal(EffectiveStatValue(stats, "FasterCasting", goals),
+            score += Goal(EffectiveStatValue(stats, "FasterCasting"),
                 goals.FasterCasting, castingWeight);
-            score += Goal(EffectiveStatValue(stats, "FasterCastRecovery", goals),
+            score += Goal(EffectiveStatValue(stats, "FasterCastRecovery"),
                 goals.FasterCastRecovery, castingWeight);
             score += Goal(stats.Sdi, goals.SpellDamageIncrease,
                 build == EquipmentGuruBuild.Mage ? 1.8 : 0.15);
@@ -1235,15 +1814,15 @@ namespace ClassicUO.Game.Managers
                 build == EquipmentGuruBuild.Mage ? 0.25 : 0.55);
             score += Goal(stats.ManaRegen, goals.ManaRegeneration,
                 build == EquipmentGuruBuild.Mage ? 1.4 : 0.25);
-            score += Goal(EffectiveStatValue(stats, "PhysicalResist", goals),
+            score += Goal(EffectiveStatValue(stats, "PhysicalResist"),
                 ResistTarget(goals.PhysicalResist, goals.Resist), 1.1);
-            score += Goal(EffectiveStatValue(stats, "FireResist", goals),
+            score += Goal(EffectiveStatValue(stats, "FireResist"),
                 ResistTarget(goals.FireResist, goals.Resist), 1.1);
-            score += Goal(EffectiveStatValue(stats, "ColdResist", goals),
+            score += Goal(EffectiveStatValue(stats, "ColdResist"),
                 ResistTarget(goals.ColdResist, goals.Resist), 1.1);
-            score += Goal(EffectiveStatValue(stats, "PoisonResist", goals),
+            score += Goal(EffectiveStatValue(stats, "PoisonResist"),
                 ResistTarget(goals.PoisonResist, goals.Resist), 1.1);
-            score += Goal(EffectiveStatValue(stats, "EnergyResist", goals),
+            score += Goal(EffectiveStatValue(stats, "EnergyResist"),
                 ResistTarget(goals.EnergyResist, goals.Resist), 1.1);
             foreach (KeyValuePair<string, int> skill in goals.SkillTargets)
             {
@@ -1279,12 +1858,6 @@ namespace ClassicUO.Game.Managers
         private static int ResistTarget(int individualTarget, int sharedTarget)
         {
             return individualTarget >= 0 ? individualTarget : sharedTarget;
-        }
-
-        private static double CandidateRank(StatBlock stats, EquipmentGuruGoals goals,
-            EquipmentGuruBuild build)
-        {
-            return Score(stats, goals, build) + QualityRank(stats, goals);
         }
 
         private static double QualityRank(StatBlock stats, EquipmentGuruGoals goals)
@@ -1360,7 +1933,8 @@ namespace ClassicUO.Game.Managers
                 goals.DamageIncrease, IsMustTarget(goals, "DamageIncrease"));
             AddMetric(loadout, "SSI", current.Ssi, state.Totals.Ssi,
                 goals.SwingSpeedIncrease, IsMustTarget(goals, "SwingSpeedIncrease"));
-            AddMetric(loadout, "LMC", current.Lmc, state.Totals.Lmc,
+            AddMetric(loadout, "LMC", EffectiveStatValue(current, "LowerManaCost"),
+                EffectiveStatValue(state.Totals, "LowerManaCost"),
                 goals.LowerManaCost, IsMustTarget(goals, "LowerManaCost"));
             AddMetric(loadout, "LRC", current.Lrc, state.Totals.Lrc,
                 goals.LowerReagentCost, IsMustTarget(goals, "LowerReagentCost"));
@@ -1405,7 +1979,7 @@ namespace ClassicUO.Game.Managers
             AddSkillPointMetric(loadout, goals, current, state.Totals);
             AddMetric(loadout, "Luck", current.Luck, state.Totals.Luck, goals.Luck,
                 IsMustTarget(goals, "Luck"));
-            ApplyRequirementMetadata(loadout, goals);
+            ApplyRequirementMetadata(loadout, goals, current, state.Totals);
             return loadout;
         }
 
@@ -1489,13 +2063,13 @@ namespace ClassicUO.Game.Managers
 
         private static int EffectiveMetricValue(Metric metric)
         {
-            return metric.DisplayCap > 0
-                ? Math.Min(metric.Recommended, metric.DisplayCap)
+            return metric.RecommendedDisplayCap > 0
+                ? Math.Min(metric.Recommended, metric.RecommendedDisplayCap)
                 : metric.Recommended;
         }
 
         private static void ApplyRequirementMetadata(Loadout loadout,
-            EquipmentGuruGoals goals)
+            EquipmentGuruGoals goals, StatBlock current, StatBlock recommended)
         {
             foreach (Metric metric in loadout.Metrics)
             {
@@ -1503,7 +2077,8 @@ namespace ClassicUO.Game.Managers
                 if (key == null) continue;
                 metric.IsPreserve = metric.IsPreserve
                     || goals.PreserveTargets.Contains(key);
-                metric.DisplayCap = MetricDisplayCap(metric.Name, metric.Target);
+                metric.DisplayCap = MetricDisplayCap(metric.Name, current);
+                metric.RecommendedDisplayCap = MetricDisplayCap(metric.Name, recommended);
             }
         }
 
@@ -1542,29 +2117,22 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static int MetricDisplayCap(string name, int target)
+        private static int MetricDisplayCap(string name, StatBlock stats)
         {
-            PlayerMobile player = World.Player;
             switch (name)
             {
                 case "HCI": return 45;
                 case "DCI": return 45;
                 case "DI": return 100;
                 case "SSI": return 60;
-                case "LMC": return 40;
                 case "LRC": return 100;
                 case "FC": return 4;
                 case "FCR": return 6;
-                case "Phys": return player?.MaxPhysicResistence > 0
-                    ? player.MaxPhysicResistence : target;
-                case "Fire": return player?.MaxFireResistence > 0
-                    ? player.MaxFireResistence : target;
-                case "Cold": return player?.MaxColdResistence > 0
-                    ? player.MaxColdResistence : target;
-                case "Poison": return player?.MaxPoisonResistence > 0
-                    ? player.MaxPoisonResistence : target;
-                case "Energy": return player?.MaxEnergyResistence > 0
-                    ? player.MaxEnergyResistence : target;
+                case "Phys": return stats.PhysicalResistCap;
+                case "Fire": return stats.FireResistCap;
+                case "Cold": return stats.ColdResistCap;
+                case "Poison": return stats.PoisonResistCap;
+                case "Energy": return stats.EnergyResistCap;
                 default: return 0;
             }
         }

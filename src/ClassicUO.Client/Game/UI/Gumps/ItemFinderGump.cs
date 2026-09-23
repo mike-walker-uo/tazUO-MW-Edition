@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
+using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
@@ -37,6 +38,8 @@ namespace ClassicUO.Game.UI.Gumps
             new List<ItemFinderManager.SearchResult>();
         private readonly HashSet<uint> _requestedProperties = new HashSet<uint>();
         private readonly HashSet<uint> _containersToClose = new HashSet<uint>();
+        private readonly HashSet<uint> _queuedContainers = new HashSet<uint>();
+        private readonly HashSet<uint> _openedContainers = new HashSet<uint>();
         private readonly Queue<uint> _containersToScan = new Queue<uint>();
 
         private int _pendingProperties;
@@ -100,7 +103,7 @@ namespace ClassicUO.Game.UI.Gumps
             });
             Add(CreateButton(522, 72, 78, 32, "Search", 1));
             NiceButton scanArea = CreateButton(606, 72, 84, 32, "Scan area", 3);
-            scanArea.SetTooltip("Scan loaded and reachable containers. Click again to cancel and close scan-opened containers.");
+            scanArea.SetTooltip($"Scan reachable containers within {ItemFinderManager.SCAN_RANGE} tiles and their inner containers. Move and scan again. Click again to cancel.");
             Add(scanArea);
             Add(CreateButton(696, 72, 60, 32, "Clear", 2));
 
@@ -177,7 +180,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(CreateButton(708, 508, 48, 28, ">", 21));
 
             AddAccent(24, 564, WIDTH - 48);
-            Add(_status = new Label("Scan this area to add reachable containers to the catalog.", true,
+            Add(_status = new Label($"Scan reachable containers within {ItemFinderManager.SCAN_RANGE} tiles to add them to the catalog.", true,
                 FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.ItemFinder), WIDTH - 48, font: 1)
             {
                 X = 24,
@@ -357,33 +360,22 @@ namespace ClassicUO.Game.UI.Gumps
         {
             CancelAreaScan();
             CancelScanTarget();
-            UIManager.Add(new MessageBoxGump(470, 180,
-                "Please wait. Containers will automatically close when the scan is finished.\n"
-                + "Some special containers might stay open; just close them.", null));
-            var previouslyOpen = new HashSet<uint>();
-
-            foreach (Gump gump in UIManager.Gumps)
-            {
-                if (!gump.IsDisposed && (gump is ContainerGump || gump is GridContainer))
-                {
-                    previouslyOpen.Add(gump.LocalSerial);
-                }
-            }
-
+            UIManager.Add(new MessageBoxGump(550, 225,
+                $"Nearby containers within {ItemFinderManager.SCAN_RANGE} tiles and their inner containers are scanned.\n"
+                + "Scanned items are saved permanently in your catalog.\n"
+                + "You do not need to scan every time.\n"
+                + "Move and scan again to cover more of the house.\n"
+                + "Please wait. Scan-opened containers close when done.\n"
+                + "Special containers may stay open; close them manually.", null));
             List<uint> containers = ItemFinderManager.GetReachableContainerSerials();
 
             foreach (uint serial in containers)
             {
-                if (!previouslyOpen.Contains(serial))
-                {
-                    _containersToScan.Enqueue(serial);
-                    _containersToClose.Add(serial);
-                }
+                QueueContainer(serial);
             }
 
             ItemFinderManager.ScanReachable(_requestedProperties);
             RunSearch();
-            _scanContainerCount = _containersToScan.Count;
             _scanContainersOpened = 0;
 
             if (_scanContainerCount == 0)
@@ -394,21 +386,26 @@ namespace ClassicUO.Game.UI.Gumps
 
             _areaScanActive = true;
             _nextContainerOpenAt = (long)Time.Ticks;
-            _status.Text = $"Scanning {_scanContainerCount} reachable container(s) one at a time…";
+            _status.Text = $"Scanning {_scanContainerCount} nearby container(s) within {ItemFinderManager.SCAN_RANGE} tiles…";
         }
 
         private void UpdateAreaScan()
         {
             CancelScanTarget();
             long now = (long)Time.Ticks;
+            DiscoverInnerContainers();
 
             if (_currentContainerSerial != 0)
             {
-                if (!IsContainerOpen(_currentContainerSerial)
-                    && now < _currentContainerDeadline)
+                bool opened = IsContainerOpen(_currentContainerSerial);
+
+                if (!opened && now < _currentContainerDeadline)
                 {
                     return;
                 }
+
+                if (opened)
+                    _openedContainers.Add(_currentContainerSerial);
 
                 _currentContainerSerial = 0;
                 _currentContainerDeadline = 0;
@@ -436,6 +433,7 @@ namespace ClassicUO.Game.UI.Gumps
                 if (IsContainerOpen(serial))
                 {
                     _containersToClose.Remove(serial);
+                    _openedContainers.Add(serial);
                 }
                 else
                 {
@@ -468,6 +466,36 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        private void QueueContainer(uint serial)
+        {
+            if (!_queuedContainers.Add(serial))
+                return;
+
+            _containersToScan.Enqueue(serial);
+            _scanContainerCount++;
+            _finishScanAt = 0;
+
+            if (!IsContainerOpen(serial))
+                _containersToClose.Add(serial);
+        }
+
+        private void DiscoverInnerContainers()
+        {
+            foreach (uint serial in _openedContainers)
+            {
+                Item container = World.Items.Get(serial);
+
+                if (container == null || container.IsDestroyed || !IsContainerOpen(serial))
+                    continue;
+
+                for (var node = container.Items; node != null; node = node.Next)
+                {
+                    if (node is Item child && !child.IsDestroyed && child.ItemData.IsContainer)
+                        QueueContainer(child.Serial);
+                }
+            }
+        }
+
         private void FinishAreaScan()
         {
             CancelScanTarget();
@@ -481,6 +509,8 @@ namespace ClassicUO.Game.UI.Gumps
                 _requestedProperties, false, true);
             RunSearch();
             int closed = CloseScannedContainers();
+            _queuedContainers.Clear();
+            _openedContainers.Clear();
             _status.Text = $"Container scan complete: {scan.NewItems} new item(s). "
                 + $"Removed {scan.RemovedItems} missing item(s). Closed {closed} container(s). "
                 + $"Catalog: {scan.TotalItems}.";
@@ -490,6 +520,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _areaScanActive = false;
             _containersToScan.Clear();
+            _queuedContainers.Clear();
+            _openedContainers.Clear();
             _nextContainerOpenAt = 0;
             _currentContainerDeadline = 0;
             _currentContainerSerial = 0;
