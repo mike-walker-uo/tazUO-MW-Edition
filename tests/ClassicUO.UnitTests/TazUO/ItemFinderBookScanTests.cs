@@ -23,6 +23,7 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData("Runebook", true)]
         [InlineData("Book of Lore", true)]
         [InlineData("Runic Atlas", true)]
+        [InlineData("Runic Atlases", true)]
         [InlineData("Wooden Bookcase", false)]
         [InlineData("Treasure Chest", false)]
         public void Only_book_item_names_are_excluded(string name, bool expected)
