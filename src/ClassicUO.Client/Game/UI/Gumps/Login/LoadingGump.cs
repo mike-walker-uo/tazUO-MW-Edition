@@ -51,11 +51,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
         private readonly Action<int> _buttonClick;
         private readonly Label _label;
 
-        public LoadingGump(string labelText, LoginButtons showButtons, Action<int> buttonClick = null) : base(0, 0)
+        public LoadingGump(string labelText, LoginButtons showButtons, Action<int> buttonClick = null,
+            bool enteringBritannia = false) : base(0, 0)
         {
             _buttonClick = buttonClick;
             CanCloseWithRightClick = false;
             CanCloseWithEsc = false;
+            bool hd = LoginArt.Stone != null;
+            bool showEntranceArt = hd && enteringBritannia && LoginArt.DragonLogo != null;
 
             bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0 || 
                 string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0 ||
@@ -75,59 +78,39 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 align: TEXT_ALIGN_TYPE.TS_CENTER
             )
             {
-                X = 162,
-                Y = 178
+                X = showEntranceArt ? 157 : 162,
+                Y = showEntranceArt ? 374 : 178
             };
 
-            Add
-            (
-                new ResizePic(0x0A28)
-                {
-                    X = 142, Y = 134, Width = 366, Height = 212
-                }
-            );
+            Add(showEntranceArt ? (Control)new LoginStonePanel(105, 30, 430, 420)
+                : hd ? (Control)new LoginStonePanel(142, 134, 366, 212)
+                : new ResizePic(0x0A28) { X = 142, Y = 134, Width = 366, Height = 212 });
+
+            if (showEntranceArt)
+                Add(new LoginArtImage(LoginArt.DragonLogo, 228, 70, 184, 282));
 
             Add(_label);
 
             if (showButtons == LoginButtons.OK)
             {
-                Add
-                (
-                    new Button((int) LoginButtons.OK, 0x0481, 0x0483, 0x0482)
-                    {
-                        X = 306, Y = 304, ButtonAction = ButtonAction.Activate
-                    }
-                );
+                Add(hd ? (Control)new LoginArtButton((int)LoginButtons.OK, "OK", 294, 301, 64, 29)
+                    : new Button((int)LoginButtons.OK, 0x0481, 0x0483, 0x0482)
+                    { X = 306, Y = 304, ButtonAction = ButtonAction.Activate });
             }
             else if (showButtons == LoginButtons.Cancel)
             {
-                Add
-                (
-                    new Button((int) LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
-                    {
-                        X = 306,
-                        Y = 304,
-                        ButtonAction = ButtonAction.Activate
-                    }
-                );
+                Add(hd ? (Control)new LoginArtButton((int)LoginButtons.Cancel, "Cancel", 288, 301, 76, 29)
+                    : new Button((int)LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
+                    { X = 306, Y = 304, ButtonAction = ButtonAction.Activate });
             }
             else if (showButtons == (LoginButtons.OK | LoginButtons.Cancel))
             {
-                Add
-                (
-                    new Button((int) LoginButtons.OK, 0x0481, 0x0483, 0x0482)
-                    {
-                        X = 264, Y = 304, ButtonAction = ButtonAction.Activate
-                    }
-                );
-
-                Add
-                (
-                    new Button((int) LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
-                    {
-                        X = 348, Y = 304, ButtonAction = ButtonAction.Activate
-                    }
-                );
+                Add(hd ? (Control)new LoginArtButton((int)LoginButtons.OK, "OK", 260, 301, 64, 29)
+                    : new Button((int)LoginButtons.OK, 0x0481, 0x0483, 0x0482)
+                    { X = 264, Y = 304, ButtonAction = ButtonAction.Activate });
+                Add(hd ? (Control)new LoginArtButton((int)LoginButtons.Cancel, "Cancel", 336, 301, 76, 29)
+                    : new Button((int)LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
+                    { X = 348, Y = 304, ButtonAction = ButtonAction.Activate });
             }
         }
 

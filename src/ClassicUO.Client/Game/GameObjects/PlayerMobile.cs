@@ -1395,12 +1395,22 @@ namespace ClassicUO.Game.GameObjects
                     return;
                 }
 
-                foreach (Item item in World.Items.Values)
+                if (World.Map == null)
+                    return;
+
+                int range = ProfileManager.CurrentProfile.AutoOpenCorpseRange;
+                int centerX = World.RangeSize.X;
+                int centerY = World.RangeSize.Y;
+                for (int y = centerY - range; y <= centerY + range; y++)
                 {
-                    if (!item.IsDestroyed && item.IsCorpse && item.Distance <= ProfileManager.CurrentProfile.AutoOpenCorpseRange && !AutoOpenedCorpses.Contains(item.Serial))
+                    for (int x = centerX - range; x <= centerX + range; x++)
                     {
-                        AutoOpenedCorpses.Add(item.Serial);
-                        GameActions.DoubleClickQueued(item.Serial);
+                        for (GameObject obj = World.Map.GetTile(x, y, false); obj != null; obj = obj.TNext)
+                        {
+                            if (obj is Item item && !item.IsDestroyed && item.IsCorpse
+                                && item.Distance <= range && AutoOpenedCorpses.Add(item.Serial))
+                                GameActions.DoubleClickQueued(item.Serial);
+                        }
                     }
                 }
             }
@@ -1414,14 +1424,19 @@ namespace ClassicUO.Game.GameObjects
 
         private void TryOpenDoors()
         {
-            if (!World.Player.IsDead && ProfileManager.CurrentProfile.AutoOpenDoors)
+            if (!World.Player.IsDead && ProfileManager.CurrentProfile.AutoOpenDoors && World.Map != null)
             {
                 int x = X, y = Y, z = Z;
                 Pathfinder.GetNewXY((byte)Direction, ref x, ref y);
 
-                if (World.Items.Values.Any(s => s.ItemData.IsDoor && s.X == x && s.Y == y && s.Z - 15 <= z && s.Z + 15 >= z))
+                for (GameObject obj = World.Map.GetTile(x, y, false); obj != null; obj = obj.TNext)
                 {
-                    GameActions.OpenDoor();
+                    if (obj is Item item && item.ItemData.IsDoor && item.X == x && item.Y == y
+                        && item.Z - 15 <= z && item.Z + 15 >= z)
+                    {
+                        GameActions.OpenDoor();
+                        break;
+                    }
                 }
             }
         }

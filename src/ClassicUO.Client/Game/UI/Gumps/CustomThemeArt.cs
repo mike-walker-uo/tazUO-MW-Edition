@@ -38,6 +38,12 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.Exodus: row = 783; break;
                 case CustomGumpTheme.BloodOath: row = 782; break;
                 case CustomGumpTheme.Necropolis: row = 800; break;
+                case CustomGumpTheme.HdStone: row = 796; break;
+                case CustomGumpTheme.HdMarble: row = 796; break;
+                case CustomGumpTheme.HdGlass:
+                case CustomGumpTheme.HdStainedGlass: row = 796; break;
+                case CustomGumpTheme.HdWood:
+                case CustomGumpTheme.HdMetal: row = 768; break;
                 default: row = 796; break;
             }
             return height * row / 1024;
@@ -55,6 +61,12 @@ namespace ClassicUO.Game.UI.Gumps
                 case CustomGumpTheme.Exodus: return "Exodus";
                 case CustomGumpTheme.BloodOath: return "BloodOath";
                 case CustomGumpTheme.Hildebrandt: return "Hildebrandt";
+                case CustomGumpTheme.HdStone: return "HdStone";
+                case CustomGumpTheme.HdWood: return "HdWood";
+                case CustomGumpTheme.HdMetal: return "HdMetal";
+                case CustomGumpTheme.HdMarble: return "HdMarble";
+                case CustomGumpTheme.HdGlass: return "HdGlass";
+                case CustomGumpTheme.HdStainedGlass: return "HdStainedGlass";
                 case CustomGumpTheme.BritannianChronicle: return "BritannianChronicle";
                 case CustomGumpTheme.MoonglowArcane: return "MoonglowArcane";
                 case CustomGumpTheme.TerMurRelic: return "TerMurRelic";
@@ -107,6 +119,27 @@ namespace ClassicUO.Game.UI.Gumps
 
         internal static void DrawPanel(UltimaBatcher2D batcher, int x, int y, int width, int height, float alpha = 1f) =>
             DrawPanel(batcher, x, y, width, height, CustomGumpThemeManager.Current, alpha);
+
+        internal static bool DrawNameplateFill(UltimaBatcher2D batcher, int x, int y, int width, int height,
+            CustomGumpTheme theme, float alpha)
+        {
+            Texture2D texture = GetPanel(theme);
+            if (texture == null || width < 1 || height < 1)
+                return false;
+
+            int panelHeight = UsesSheet(theme) ? SheetSplit(theme, texture.Height) : texture.Height;
+            int edge = UsesLargeBorder(theme) ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
+            int sourceWidth = Math.Min(width * 2, texture.Width - edge * 2);
+            int sourceHeight = Math.Min(height * 2, panelHeight - edge * 2);
+            if (sourceWidth < 1 || sourceHeight < 1)
+                return false;
+
+            Rectangle source = new Rectangle((texture.Width - sourceWidth) / 2,
+                (panelHeight - sourceHeight) / 2, sourceWidth, sourceHeight);
+            batcher.Draw(texture, new Rectangle(x, y, width, height), source,
+                ShaderHueTranslator.GetHueVector(0, false, alpha));
+            return true;
+        }
 
         internal static void DrawFrame(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha = 1f, int maxEdge = 56)

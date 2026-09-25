@@ -332,7 +332,8 @@ namespace ClassicUO.Game.Scenes
                 }
             }
 
-            return new LoadingGump(labelText, showButtons, OnLoadingGumpButtonClick);
+            return new LoadingGump(labelText, showButtons, OnLoadingGumpButtonClick,
+                CurrentLoginStep == LoginSteps.EnteringBritania && showButtons == LoginButtons.None);
         }
 
         private void OnLoadingGumpButtonClick(int buttonId)

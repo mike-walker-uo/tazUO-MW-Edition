@@ -49,6 +49,11 @@ namespace ClassicUO.Game.Managers
             RegexOptions.Compiled | RegexOptions.IgnoreCase
         );
 
+        private static readonly Regex _bookNamePattern = new Regex(
+            @"\b(?:[a-z]*books?|tomes?|atlas(?:es)?)\b",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase
+        );
+
         private static readonly Dictionary<string, string> _propertyAliases =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -297,8 +302,8 @@ namespace ClassicUO.Game.Managers
 
             foreach (Item item in World.Items.Values)
             {
-                if (item != null && !item.IsDestroyed && item.OnGround
-                    && item.ItemData.IsContainer && item.Distance <= SCAN_RANGE)
+                if (item != null && item.OnGround && item.Distance <= SCAN_RANGE
+                    && CanScanContainer(item))
                 {
                     containers.Add(item);
                 }
@@ -312,6 +317,26 @@ namespace ClassicUO.Game.Managers
 
             return containers.Select(item => item.Serial).ToList();
         }
+
+        internal static bool CanScanContainer(Item item)
+        {
+            if (item == null || item.IsDestroyed || !item.ItemData.IsContainer
+                || SpellbookOpenerManager.IsSpellbook(item)
+                || IsBookGraphic(item.Graphic) || IsBookGraphic(item.OriginalGraphic)
+                || IsBookName(item.ItemData.Name) || IsBookName(item.Name))
+                return false;
+
+            return !World.OPL.TryGetNameAndData(item.Serial, out string name, out _)
+                || !IsBookName(name);
+        }
+
+        internal static bool IsBookGraphic(ushort graphic) =>
+            graphic == 0x2259 // bulk-order book
+            || graphic == 0x22C5 || graphic == 0x22C6 // runebooks
+            || graphic == 0x9C16 || graphic == 0x9C17; // runic atlases
+
+        internal static bool IsBookName(string name) =>
+            !string.IsNullOrWhiteSpace(name) && _bookNamePattern.IsMatch(name);
 
         internal static IReadOnlyList<SavedSearch> SavedSearches
         {
@@ -436,9 +461,11 @@ namespace ClassicUO.Game.Managers
                     continue;
                 }
 
-                report.Containers++;
+                bool scanContainer = CanScanContainer(container);
+                if (scanContainer)
+                    report.Containers++;
 
-                if (openContainers)
+                if (openContainers && scanContainer)
                 {
                     GameActions.DoubleClick(container.Serial);
                     report.OpenedContainerSerials.Add(container.Serial);
@@ -446,13 +473,13 @@ namespace ClassicUO.Game.Managers
                 }
 
                 string name = GetDisplayName(container, true);
-                string location = $"Container: {name} • {GetFacetName(World.MapIndex)} "
+                string location = $"{(scanContainer ? "Container" : "Book")}: {name} • {GetFacetName(World.MapIndex)} "
                     + $"{container.X}, {container.Y}";
                 IndexWalk(container, location, container.Serial, true, report, seen,
                     requestedSerials, true, container.X, container.Y, container.Z,
                     World.MapIndex);
 
-                if (pruneOpenedContainers && container.Opened)
+                if (scanContainer && pruneOpenedContainers && container.Opened)
                 {
                     CollectOpenedContainerContents(container, scannedContainers);
                 }
@@ -1217,6 +1244,9 @@ namespace ClassicUO.Game.Managers
                 report.RequestedProperties++;
             }
 
+            if (!CanScanContainer(item))
+                return;
+
             string childPath = root ? path : $"{path} > {indexed.Name}";
 
             for (var node = item.Items; node != null; node = node.Next)
@@ -1232,8 +1262,7 @@ namespace ClassicUO.Game.Managers
         private static void CollectOpenedContainerContents(
             Item container, Dictionary<uint, HashSet<uint>> scannedContainers)
         {
-            if (container == null || container.IsDestroyed || !container.Opened
-                || !container.ItemData.IsContainer
+            if (container == null || !container.Opened || !CanScanContainer(container)
                 || scannedContainers.ContainsKey(container.Serial))
             {
                 return;
@@ -1251,7 +1280,7 @@ namespace ClassicUO.Game.Managers
 
                 directItems.Add(child.Serial);
 
-                if (child.ItemData.IsContainer)
+                if (CanScanContainer(child))
                     CollectOpenedContainerContents(child, scannedContainers);
             }
         }

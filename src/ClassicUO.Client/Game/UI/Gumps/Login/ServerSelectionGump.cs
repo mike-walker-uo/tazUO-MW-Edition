@@ -52,23 +52,20 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
         public ServerSelectionGump() : base(0, 0)
         {
-            //AddChildren(new LoginBackground(true));
+            bool hd = LoginArt.Wood != null && LoginArt.Stone != null;
 
-            Add
-            (
-                new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
-                {
-                    X = 586, Y = 445, ButtonAction = ButtonAction.Activate
-                }
-            );
-
-            Add
-            (
-                new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
-                {
-                    X = 610, Y = 445, ButtonAction = ButtonAction.Activate
-                }
-            );
+            if (hd)
+            {
+                Add(new LoginArtButton((int)Buttons.Prev, "Back", 525, 436, 52, 29));
+                Add(new LoginArtButton((int)Buttons.Next, "Next", 580, 436, 52, 29));
+            }
+            else
+            {
+                Add(new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
+                    { X = 586, Y = 445, ButtonAction = ButtonAction.Activate });
+                Add(new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
+                    { X = 610, Y = 445, ButtonAction = ButtonAction.Activate });
+            }
 
             if (Client.Version >= ClientVersion.CV_500A)
             {
@@ -146,50 +143,35 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 );
             }
 
-            Add
-            (
-                new Button((int) Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D)
+            if (hd)
+            {
+                Add(new LoginStonePanel(150, 90, 393 - 14, 271));
+                if (LoginArt.Globe != null)
                 {
-                    X = 230, Y = 366
+                    Add(new LoginArtImage(LoginArt.Globe, 155, 390, 78, 78));
+                    HitBox globeHit = new HitBox(155, 390, 78, 78, alpha: 0f);
+                    globeHit.MouseUp += (s, e) =>
+                    {
+                        if (e.Button == MouseButtonType.Left)
+                            OnButtonClick((int)Buttons.Earth);
+                    };
+                    Add(globeHit);
                 }
-            );
-
-            Add
-            (
-                new Button((int) Buttons.SortFull, 0x093E, 0x093F, 0x0940)
-                {
-                    X = 338, Y = 366
-                }
-            );
-
-            Add
-            (
-                new Button((int) Buttons.SortConnection, 0x0941, 0x0942, 0x0943)
-                {
-                    X = 446, Y = 366
-                }
-            );
-
-            // World Pic Bg
-            Add(new GumpPic(150, 390, 0x0589, 0));
-
-            // Earth
-            Add
-            (
-                new Button((int) Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
-                {
-                    X = 160, Y = 400, ButtonAction = ButtonAction.Activate
-                }
-            );
-
-            // Sever Scroll Area Bg
-            Add
-            (
-                new ResizePic(0x0DAC)
-                {
-                    X = 150, Y = 90, Width = 393 - 14, Height = 271
-                }
-            );
+                Add(new LoginArtButton((int)Buttons.SortTimeZone, "Time Zone", 230, 363, 103, 29));
+                Add(new LoginArtButton((int)Buttons.SortFull, "% Full", 338, 363, 103, 29));
+                Add(new LoginArtButton((int)Buttons.SortConnection, "Connection", 446, 363, 103, 29));
+                Add(new LoginArtButton((int)Buttons.Earth, "Select Shard", 240, 404, 132, 31));
+            }
+            else
+            {
+                Add(new Button((int)Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D) { X = 230, Y = 366 });
+                Add(new Button((int)Buttons.SortFull, 0x093E, 0x093F, 0x0940) { X = 338, Y = 366 });
+                Add(new Button((int)Buttons.SortConnection, 0x0941, 0x0942, 0x0943) { X = 446, Y = 366 });
+                Add(new GumpPic(150, 390, 0x0589, 0));
+                Add(new Button((int)Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
+                    { X = 160, Y = 400, ButtonAction = ButtonAction.Activate });
+                Add(new ResizePic(0x0DAC) { X = 150, Y = 90, Width = 393 - 14, Height = 271 });
+            }
 
             // Sever Scroll Area
             ScrollArea scrollArea = new ScrollArea
@@ -205,8 +187,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             databox.WantUpdateSize = true;
             LoginScene loginScene = Client.Game.GetScene<LoginScene>();
 
-            scrollArea.ScissorRectangle.Y = 16;
-            scrollArea.ScissorRectangle.Height = -32;
+            scrollArea.ScissorRectangle.Y = hd ? 30 : 16;
+            scrollArea.ScissorRectangle.Height = hd ? -46 : -32;
 
             foreach (ServerListEntry server in loginScene.Servers)
             {
@@ -224,10 +206,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(loginScene.Servers[index].Name, false, 0x0481, font: 9)
+                    new Label(loginScene.Servers[index].Name, false, hd ? (ushort)0xFFFF : (ushort)0x0481, font: 9)
                     {
-                        X = 243,
-                        Y = 420
+                        X = hd ? 382 : 243,
+                        Y = hd ? 410 : 420
                     }
                 );
             }

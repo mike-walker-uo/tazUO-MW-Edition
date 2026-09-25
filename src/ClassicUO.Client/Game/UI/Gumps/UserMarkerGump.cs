@@ -265,6 +265,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
 
             _markers[_markerIdx] = editedMarker;
+            WorldMapGump.NotifyMarkersChanged();
 
             EditEnd.Raise(editedMarker);
 
@@ -289,6 +290,7 @@ namespace ClassicUO.Game.UI.Gumps
             File.AppendAllText(_userMarkersFilePath, newLine);
 
             _markers.Add(newMarker);
+            WorldMapGump.NotifyMarkersChanged();
 
             Dispose();
         }

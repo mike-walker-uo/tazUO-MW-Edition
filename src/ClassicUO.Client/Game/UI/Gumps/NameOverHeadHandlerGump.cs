@@ -134,6 +134,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(new AlphaBlendControl() { Y = stayActive.Height + stayActive.Y, Width = 150, Height = 20, Hue = 0x0481 });
             Add(searchBox = new StbTextBox(0, -1, 150, hue: 0xFFFF) { Y = stayActive.Height + stayActive.Y, Width = 150, Height = 20 });
+            searchBox.PlaceHolderText = "Search / unlocked";
+            searchBox.SetTooltip("Filter active nameplates by name or item property. Type 'unlocked' for ground items not identified as locked down or secured; unverified items are included.");
             searchBox.Text = NameOverHeadManager.Search;
             searchBox.TextChanged += (s, e) => { NameOverHeadManager.Search = searchBox.Text; };
 

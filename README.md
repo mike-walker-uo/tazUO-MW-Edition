@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6 Beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6-beta)
+[Download version 0.6](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -32,6 +32,15 @@ It has many features, some of them are:
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6 highlights
+
+- Added an in-game chess board for local two-player games or play against Stockfish, with piece-name tooltips and visible computer moves. Chess requires a separate Stockfish executable; place `stockfish.exe` beside the client or use `-chess path <file>`.
+- Recreated the login, shard, character-selection, and loading screens with high-resolution art and revised layouts.
+- Added high-resolution gump themes and paperdoll skins, including wood, metal, marble, glass, and stained glass. New profiles default to HD Wood gumps and a marble paperdoll; existing profile choices are retained.
+- Reworked paperdoll tool access: the circular launcher opens the tools panel, which includes durability tracking and links to other client tools.
+- Added an insurance check to Restock Agent readiness and prevented Item Finder from opening spellbooks, bulk-order books, runebooks, atlases, and other books as containers. Books remain searchable as items.
+- Improved nameplate-window reopening, chat and nearby-loot UI behavior, and several client hot paths.
 
 ## Version 0.6 Beta highlights
 
@@ -79,7 +88,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.6 Beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
@@ -103,7 +112,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6 Beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6-beta).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Place the contents of the `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.

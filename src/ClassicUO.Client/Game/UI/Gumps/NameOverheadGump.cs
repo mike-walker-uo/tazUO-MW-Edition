@@ -59,6 +59,62 @@ namespace ClassicUO.Game.UI.Gumps
             return defaultHue;
         }
 
+        private static bool IsProtectedItem(Item item)
+        {
+            if (item == null || !item.OnGround)
+                return false;
+
+            if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
+            {
+                if (!string.IsNullOrEmpty(name)
+                    && (name.IndexOf("[locked down]", StringComparison.OrdinalIgnoreCase) >= 0
+                        || name.IndexOf("[secured]", StringComparison.OrdinalIgnoreCase) >= 0
+                        || name.IndexOf("[secure]", StringComparison.OrdinalIgnoreCase) >= 0))
+                    return true;
+
+                if (!string.IsNullOrEmpty(data))
+                {
+                    bool notSecured = data.IndexOf("unsecure", StringComparison.OrdinalIgnoreCase) >= 0
+                        || data.IndexOf("not secure", StringComparison.OrdinalIgnoreCase) >= 0;
+                    bool notLockedDown = data.IndexOf("not locked down", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if ((!notLockedDown && data.IndexOf("locked down", StringComparison.OrdinalIgnoreCase) >= 0)
+                        || (!notSecured && data.IndexOf("secure", StringComparison.OrdinalIgnoreCase) >= 0))
+                        return true;
+
+                    if (notSecured || notLockedDown)
+                        return false;
+                }
+            }
+
+            // The movable/weight heuristic cannot confirm a house lockdown.
+            // Keep unknown items in the "unlocked" search rather than hiding a decay risk.
+            return false;
+        }
+
+        private bool MatchesSearch(Entity entity)
+        {
+            string search = NameOverHeadManager.Search?.Trim();
+            if (string.IsNullOrEmpty(search))
+                return true;
+
+            if (search.Equals("unlocked", StringComparison.OrdinalIgnoreCase))
+                return entity is Item floorItem && floorItem.OnGround && !IsProtectedItem(floorItem);
+
+            if (!string.IsNullOrEmpty(entity.Name)
+                && entity.Name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            if (!string.IsNullOrEmpty(_text?.Text)
+                && _text.Text.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            return World.OPL.TryGetNameAndData(entity.Serial, out string name, out string data)
+                && ((!string.IsNullOrEmpty(name)
+                        && name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                    || (!string.IsNullOrEmpty(data)
+                        && data.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0));
+        }
+
         private AlphaBlendControl _background;
         private Point _lockedPosition,
             _lastLeftMousePositionDown;
@@ -68,6 +124,9 @@ namespace ClassicUO.Game.UI.Gumps
             _needsNameUpdate;
         private TextBox _text;
         private Texture2D _borderColor = SolidColorTextureCache.GetTexture(Color.Black);
+        private CustomGumpTheme _appliedTheme;
+        private byte _appliedOpacity;
+        private bool _themeApplied;
         private Vector2 _textDrawOffset = Vector2.Zero;
         private static int currentHeight = 22;
         private static readonly int COLLISION_SPACING = 8;
@@ -113,6 +172,9 @@ namespace ClassicUO.Game.UI.Gumps
                 Dispose();
                 return;
             }
+
+            if (entity is Item item && item.OnGround)
+                World.OPL.Contains(item.Serial);
 
             _text = TextBox.GetOne(string.Empty, ProfileManager.CurrentProfile.NamePlateFont, ProfileManager.CurrentProfile.NamePlateFontSize, ResolveNameHue(entity), TextBox.RTLOptions.DefaultCenterStroked());
 
@@ -214,6 +276,19 @@ namespace ClassicUO.Game.UI.Gumps
                     Hue = ResolveNameHue(entity)
                 }
             );
+        }
+
+        private void UpdateThemeSurface()
+        {
+            CustomGumpTheme theme = CustomGumpThemeManager.Current;
+            byte opacity = ProfileManager.CurrentProfile.NamePlateOpacity;
+            if (_themeApplied && _appliedTheme == theme && _appliedOpacity == opacity)
+                return;
+
+            CustomGumpThemeManager.ApplyDataSurface(_background, opacity / 100f, false);
+            _appliedTheme = theme;
+            _appliedOpacity = opacity;
+            _themeApplied = true;
         }
 
         protected override void CloseWithRightClick()
@@ -540,81 +615,112 @@ namespace ClassicUO.Game.UI.Gumps
             base.OnMouseExit(x, y);
         }
 
-        // Per-frame cached scan: every nameplate's overlap-avoidance pass calls this; without caching
-        // it allocates a fresh List<NameOverheadGump> AND walks every UI gump per nameplate per frame.
-        private static readonly List<NameOverheadGump> _allVisibleBuffer = new List<NameOverheadGump>();
-        private static uint _allVisibleCacheTick;
-        private static bool _allVisibleCacheValid;
+        private static readonly List<(uint Serial, Rectangle Bounds)> _placedNameplates =
+            new List<(uint Serial, Rectangle Bounds)>();
+        private static readonly Dictionary<(int X, int Y), List<int>> _placementCells =
+            new Dictionary<(int X, int Y), List<int>>();
+        private const int PLACEMENT_CELL_SHIFT = 7; // 128-pixel cells
+        private static uint _placementTick;
 
-        private static List<NameOverheadGump> GetAllVisibleNameOverheads()
+        private static bool IntersectsPlacedNameplate(Rectangle bounds, uint serial)
         {
-            if (_allVisibleCacheValid && Time.Ticks == _allVisibleCacheTick)
+            for (int cellY = bounds.Top >> PLACEMENT_CELL_SHIFT; cellY <= (bounds.Bottom - 1) >> PLACEMENT_CELL_SHIFT; cellY++)
             {
-                return _allVisibleBuffer;
-            }
-
-            _allVisibleBuffer.Clear();
-
-            for (var node = UIManager.Gumps.First; node != null; node = node.Next)
-            {
-                if (node.Value is NameOverheadGump nameGump &&
-                    !nameGump.IsDisposed &&
-                    nameGump.IsVisible)
+                for (int cellX = bounds.Left >> PLACEMENT_CELL_SHIFT; cellX <= (bounds.Right - 1) >> PLACEMENT_CELL_SHIFT; cellX++)
                 {
-                    _allVisibleBuffer.Add(nameGump);
-                }
-            }
-
-            _allVisibleCacheTick = Time.Ticks;
-            _allVisibleCacheValid = true;
-            return _allVisibleBuffer;
-        }
-
-        private Rectangle GetBounds(int x, int y, int width, int height)
-        {
-            return new Rectangle(x, y, width, height);
-        }
-
-        private Point AdjustPositionToAvoidOverlap(int originalX, int originalY)
-        {
-            if (!ProfileManager.CurrentProfile.NamePlateAvoidOverlap)
-            {
-                return new Point(originalX, originalY);
-            }
-
-            var allNameOverheads = GetAllVisibleNameOverheads();
-            var adjustedX = originalX;
-            var adjustedY = originalY;
-            var maxIterations = 10;
-            var iterations = 0;
-
-            while (iterations < maxIterations)
-            {
-                var proposedBounds = GetBounds(adjustedX, adjustedY, Width, Height);
-                bool hasCollision = false;
-
-                foreach (var other in allNameOverheads)
-                {
-                    if (other == this || other.LocalSerial == this.LocalSerial)
+                    if (!_placementCells.TryGetValue((cellX, cellY), out List<int> indices))
                         continue;
 
-                    var otherBounds = GetBounds(other.X, other.Y, other.Width, other.Height);
-
-                    if (proposedBounds.Intersects(otherBounds))
+                    foreach (int index in indices)
                     {
-                        adjustedY = otherBounds.Bottom + COLLISION_SPACING;
-                        hasCollision = true;
-                        break;
+                        var placed = _placedNameplates[index];
+                        if (placed.Serial != serial && bounds.Intersects(placed.Bounds))
+                            return true;
                     }
                 }
-
-                if (!hasCollision)
-                    break;
-
-                iterations++;
             }
 
-            return new Point(adjustedX, adjustedY);
+            return false;
+        }
+
+        private static void IndexPlacement(Rectangle bounds, int index)
+        {
+            for (int cellY = bounds.Top >> PLACEMENT_CELL_SHIFT; cellY <= (bounds.Bottom - 1) >> PLACEMENT_CELL_SHIFT; cellY++)
+            {
+                for (int cellX = bounds.Left >> PLACEMENT_CELL_SHIFT; cellX <= (bounds.Right - 1) >> PLACEMENT_CELL_SHIFT; cellX++)
+                {
+                    if (!_placementCells.TryGetValue((cellX, cellY), out List<int> indices))
+                    {
+                        indices = new List<int>();
+                        _placementCells.Add((cellX, cellY), indices);
+                    }
+
+                    indices.Add(index);
+                }
+            }
+        }
+
+        private Point AdjustPositionToAvoidOverlap(int originalX, int originalY, int layoutHeight,
+            Rectangle viewport)
+        {
+            if (!ProfileManager.CurrentProfile.NamePlateAvoidOverlap)
+                return new Point(originalX, originalY);
+
+            if (_placementTick != Time.Ticks)
+            {
+                _placedNameplates.Clear();
+                foreach (List<int> indices in _placementCells.Values)
+                    indices.Clear();
+                _placementTick = Time.Ticks;
+            }
+
+            int stepX = Math.Max(32, (Width + COLLISION_SPACING) / 2);
+            int stepY = layoutHeight + COLLISION_SPACING;
+            for (int ring = 0; ring <= 8; ring++)
+            {
+                for (int row = -ring; row <= ring; row++)
+                {
+                    for (int column = -ring; column <= ring; column++)
+                    {
+                        if (Math.Max(Math.Abs(row), Math.Abs(column)) != ring)
+                            continue;
+
+                        int x = originalX + column * stepX;
+                        int y = originalY + row * stepY;
+                        if (x < viewport.X || y < viewport.Y
+                            || x + Width > viewport.Right || y + layoutHeight > viewport.Bottom)
+                            continue;
+
+                        Rectangle bounds = new Rectangle(x - COLLISION_SPACING / 2,
+                            y - COLLISION_SPACING / 2,
+                            Width + COLLISION_SPACING, layoutHeight + COLLISION_SPACING);
+                        if (!IntersectsPlacedNameplate(bounds, LocalSerial))
+                        {
+                            RememberPlacement(bounds);
+                            return new Point(x, y);
+                        }
+                    }
+                }
+            }
+
+            RememberPlacement(new Rectangle(originalX, originalY, Width, layoutHeight));
+            return new Point(originalX, originalY);
+        }
+
+        private void RememberPlacement(Rectangle bounds)
+        {
+            for (int i = 0; i < _placedNameplates.Count; i++)
+            {
+                if (_placedNameplates[i].Serial == LocalSerial)
+                {
+                    _placedNameplates[i] = (LocalSerial, bounds);
+                    IndexPlacement(bounds, i);
+                    return;
+                }
+            }
+
+            _placedNameplates.Add((LocalSerial, bounds));
+            IndexPlacement(bounds, _placedNameplates.Count - 1);
         }
 
         public override void Update()
@@ -639,7 +745,7 @@ namespace ClassicUO.Game.UI.Gumps
                     if (!_isLastTarget) //Only set this if it was not already last target
                     {
                         _borderColor = SolidColorTextureCache.GetTexture(Color.Red);
-                        _background.Hue = (ushort)(_text.Hue = ResolveNameHue(entity));
+                        _text.Hue = ResolveNameHue(entity);
                         _isLastTarget = true;
                     }
                 }
@@ -648,7 +754,7 @@ namespace ClassicUO.Game.UI.Gumps
                     if (_isLastTarget)//If we make it here, it is no longer the last target so we update colors and set this to false.
                     {
                         _borderColor = SolidColorTextureCache.GetTexture(Color.Black);
-                        _background.Hue = (ushort)(_text.Hue = ResolveNameHue(entity));
+                        _text.Hue = ResolveNameHue(entity);
                         _isLastTarget = false;
                     }
                 }
@@ -681,25 +787,10 @@ namespace ClassicUO.Game.UI.Gumps
                     return false;
                 }
 
-                if (!string.IsNullOrEmpty(NameOverHeadManager.Search))
+                if (!MatchesSearch(m))
                 {
-                    string sText = NameOverHeadManager.Search.ToLower();
-                    if (m.Name == null || !m.Name.ToLower().Contains(sText))
-                    {
-                        if (World.OPL.TryGetNameAndData(m.Serial, out string name, out string data))
-                        {
-                            if (/*(data != null && !data.ToLower().Contains(sText)) && */(name != null && !name.ToLower().Contains(sText)))
-                            {
-                                IsVisible = false;
-                                return true;
-                            }
-                        }
-                        else
-                        {
-                            IsVisible = false;
-                            return true;
-                        }
-                    }
+                    IsVisible = false;
+                    return true;
                 }
 
                 _isMobile = true;
@@ -773,25 +864,10 @@ namespace ClassicUO.Game.UI.Gumps
                     return false;
                 }
 
-                if (!string.IsNullOrEmpty(NameOverHeadManager.Search))
+                if (!MatchesSearch(item))
                 {
-                    string sText = NameOverHeadManager.Search.ToLower();
-                    if (item.Name == null || !item.Name.ToLower().Contains(sText))// && (!item.ItemData.Name?.ToLower().Contains(sText)))
-                    {
-                        if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
-                        {
-                            if ((data != null && !data.ToLower().Contains(sText)) && (name != null && !name.ToLower().Contains(sText)))
-                            {
-                                IsVisible = false;
-                                return true;
-                            }
-                        }
-                        else
-                        {
-                            IsVisible = false;
-                            return true;
-                        }
-                    }
+                    IsVisible = false;
+                    return true;
                 }
 
                 var bounds = Client.Game.Arts.GetRealArtBounds(item.Graphic);
@@ -823,26 +899,35 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
-            var adjustedPos = AdjustPositionToAvoidOverlap(x, y);
+            int layoutHeight = Height;
+            if (ProfileManager.CurrentProfile.NamePlateHealthBar && _isMobile)
+            {
+                Mobile mobile = World.Mobiles.Get(LocalSerial);
+                if (mobile is PlayerMobile || World.Party.Contains(mobile.Serial))
+                    layoutHeight += 20;
+            }
+
+            var adjustedPos = AdjustPositionToAvoidOverlap(x, y, layoutHeight, camera.Bounds);
             x = adjustedPos.X;
             y = adjustedPos.Y;
 
             X = x;
             Y = y;
 
-            hueVector.Z = ProfileManager.CurrentProfile.NamePlateBorderOpacity / 100f;
-
-            batcher.DrawRectangle
-            (
-                _borderColor,
-                x,
-                y,
-                Width,
-                Height,
-                hueVector
-            );
-
+            UpdateThemeSurface();
+            CustomGumpTheme theme = CustomGumpThemeManager.Current;
+            _background.IsVisible = !(CustomGumpThemeManager.IsArtTheme(theme)
+                && CustomThemeArt.DrawNameplateFill(batcher, x, y, Width, Height, theme,
+                    ProfileManager.CurrentProfile.NamePlateOpacity / 100f));
             base.Draw(batcher, x, y);
+            bool protectedItem = SerialHelper.IsItem(LocalSerial)
+                && IsProtectedItem(World.Items.Get(LocalSerial));
+            if (protectedItem)
+                batcher.Draw(SolidColorTextureCache.GetTexture(Color.Black),
+                    new Rectangle(x, y, Width, Height),
+                    ShaderHueTranslator.GetHueVector(0, false,
+                        ProfileManager.CurrentProfile.NamePlateOpacity / 100f * 0.60f));
+            int plateY = y;
 
             if (ProfileManager.CurrentProfile.NamePlateHealthBar && _isMobile)
             {
@@ -904,6 +989,14 @@ namespace ClassicUO.Game.UI.Gumps
                     y += 20;
                 }
             }
+
+            hueVector.Z = ProfileManager.CurrentProfile.NamePlateBorderOpacity / 100f;
+            Texture2D nameplateBorder = _isLastTarget
+                ? _borderColor
+                : SolidColorTextureCache.GetTexture(protectedItem
+                    ? new Color(94, 97, 101)
+                    : CustomGumpThemeManager.CompactBorderColor);
+            batcher.DrawRectangle(nameplateBorder, x, plateY, Width, Height, hueVector);
 
             return _text.Draw(batcher, (int)(x + 2 + _textDrawOffset.X), (int)(y + 2 + _textDrawOffset.Y));
         }

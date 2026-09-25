@@ -30,6 +30,7 @@
 
 #endregion
 
+using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
@@ -65,8 +66,11 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly EquipmentSlot[] _slots = new EquipmentSlot[9];
         private readonly EquipmentSlot[] _slots_right = new EquipmentSlot[8];
         private Label _titleLabel;
+        private TextBox _hdTitleText;
         private GumpPic _virtueMenuPic;
         private Button _warModeBtn;
+        private ThemedGumpBackground _followThemePanel;
+        private CustomGumpTheme _followTheme;
 
         public PaperDollGump() : base(0, 0)
         {
@@ -111,17 +115,65 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            bool ornate = CustomGumpThemeManager.IsArtTheme(CustomGumpThemeManager.Current)
-                && !IsMinimized && _picBase != null;
+            PaperdollSkin skin = PaperdollSkinArt.Current;
+            bool skinned = skin != PaperdollSkin.Classic && !IsMinimized && _picBase != null;
             float originalAlpha = _picBase?.Alpha ?? 1f;
             float backgroundAlpha = (ProfileManager.CurrentProfile?.PaperdollOpacity ?? 100) / 100f;
-            if (ornate)
+            if (skinned)
             {
-                CustomThemeArt.DrawPanel(batcher, x, y, _picBase.Width, _picBase.Height, backgroundAlpha);
+                if (skin == PaperdollSkin.FollowTheme)
+                {
+                    CustomGumpTheme theme = CustomGumpThemeManager.Current;
+                    if (_followThemePanel == null || _followTheme != theme)
+                    {
+                        _followThemePanel?.Dispose();
+                        _followThemePanel = new ThemedGumpBackground(_picBase.Width, _picBase.Height, 0.9f,
+                            theme, false);
+                        _followTheme = theme;
+                    }
+                    _followThemePanel.Width = _picBase.Width;
+                    _followThemePanel.Height = _picBase.Height;
+                    _followThemePanel.OpacityScaleOverride = backgroundAlpha;
+                    _followThemePanel.Update();
+                    _followThemePanel.Draw(batcher, x, y);
+                }
+                else
+                    PaperdollSkinArt.DrawPanel(batcher, x, y, _picBase.Width, _picBase.Height, skin, backgroundAlpha);
+                if (skin == PaperdollSkin.FollowTheme)
+                {
+                    int titleY = (int)(settings.Position_Y_Title * Scale) - (int)(6 * Scale);
+                    PaperdollSkinArt.DrawButton(batcher, x + (int)(12 * Scale), y + titleY,
+                        _picBase.Width - (int)(24 * Scale), (int)(38 * Scale), skin, backgroundAlpha);
+                }
                 _picBase.Alpha = 0f;
             }
             else if (_picBase != null && !IsMinimized)
                 _picBase.Alpha = backgroundAlpha;
+
+            if (_picBase != null)
+                _picBase.ContainsByBounds = skinned;
+            if (_titleLabel != null)
+            {
+                _titleLabel.Hue = skinned ? (ushort)0x0481 : settings.Hue_Title;
+                _titleLabel.SetFontStyle(skinned ? FontStyle.BlackBorder : FontStyle.None);
+                _titleLabel.Alpha = skin >= PaperdollSkin.Stone && skinned ? 0f : 1f;
+            }
+            if (_hdTitleText != null)
+            {
+                _hdTitleText.Alpha = skin >= PaperdollSkin.Stone && skinned ? 1f : 0f;
+                Color titleColor = PaperdollSkinArt.TitleTextColor(skin);
+                if (_hdTitleText.FontColor != titleColor)
+                    _hdTitleText.FontColor = titleColor;
+            }
+            for (int i = 0; i < Children.Count; i++)
+            {
+                if (Children[i] is Button button && button.ButtonID <= (int)Buttons.Status)
+                {
+                    button.Alpha = skinned ? 0f : 1f;
+                    button.ContainsByBounds = skinned;
+                }
+            }
+
             bool result = base.Draw(batcher, x, y);
             if (_picBase != null)
                 _picBase.Alpha = originalAlpha;
@@ -158,6 +210,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            _followThemePanel?.Dispose();
+            _followThemePanel = null;
             _backpackEquipmentStrip?.Dispose();
             _backpackEquipmentStrip = null;
 
@@ -282,16 +336,6 @@ namespace ClassicUO.Game.UI.Gumps
                     }.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale)
                 );
 
-                Add(
-                    new PaperDollToolsLauncherButton(
-                        settings.Position_X_Tools,
-                        settings.Position_Y_Tools,
-                        settings.Size_Width_Tools,
-                        settings.Size_Height_Tools,
-                        (int)Buttons.Tools
-                    ).ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale)
-                );
-
                 // TOGGLE PEACE/WAR BUTTON
                 Mobile mobile = World.Mobiles.Get(LocalSerial);
 
@@ -378,7 +422,7 @@ namespace ClassicUO.Game.UI.Gumps
             _virtueMenuPic.MouseDoubleClick += VirtueMenu_MouseDoubleClickEvent;
 
             if (LocalSerial == World.Player.Serial)
-                Add(new DurabilityGumpMinimized()
+                Add(new PaperDollToolsIcon(this)
                 {
                     X = settings.Position_X_Durability,
                     Y = settings.Position_Y_Durability,
@@ -466,6 +510,21 @@ namespace ClassicUO.Game.UI.Gumps
             _titleLabel.ScaleWidthAndHeight(Scale).ScaleXAndY(Scale).SetInternalScale(Scale);
 
             Add(_titleLabel);
+            _hdTitleText = TextBox.GetOne("", TrueTypeLoader.EMBEDDED_FONT, (float)(12 * Scale),
+                Color.WhiteSmoke, TextBox.RTLOptions.Default((int)(settings.Size_Width_Hue * Scale)));
+            _hdTitleText.X = (int)(settings.Position_X_Title * Scale);
+            _hdTitleText.Y = (int)(settings.Position_Y_Title * Scale);
+            _hdTitleText.Alpha = 0f;
+            Add(_hdTitleText);
+
+            int controlCount = Children.Count;
+            for (int i = 0; i < controlCount; i++)
+            {
+                if (Children[i] is Button button && button.ButtonID <= (int)Buttons.Status)
+                    Add(new PaperdollSkinButtonFace(this, button, ButtonText((Buttons)button.ButtonID)));
+            }
+            if (_hitBox != null)
+                Add(new PaperdollSkinButtonFace(this, _hitBox, "^"));
 
             RequestUpdateContents();
 
@@ -483,6 +542,7 @@ namespace ClassicUO.Game.UI.Gumps
         public void UpdateTitle(string text)
         {
             _titleLabel.Text = text;
+            _hdTitleText.Text = text;
         }
 
         private void VirtueMenu_MouseDoubleClickEvent(object sender, MouseDoubleClickEventArgs args)
@@ -801,11 +861,6 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
-                case Buttons.Tools:
-                    ToggleFeatureTools();
-
-                    break;
-
                 case Buttons.PeaceWarToggle:
                     GameActions.ToggleWarMode();
 
@@ -870,7 +925,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        private void ToggleFeatureTools()
+        internal void ToggleFeatureTools()
         {
             PaperDollFeatureToolsGump tools = UIManager.GetGump<PaperDollFeatureToolsGump>();
             if (tools != null && !tools.IsDisposed)
@@ -891,9 +946,92 @@ namespace ClassicUO.Game.UI.Gumps
             Quests,
             Skills,
             Guild,
-            Tools,
             PeaceWarToggle,
             Status
+        }
+
+        private static string ButtonText(Buttons button)
+        {
+            switch (button)
+            {
+                case Buttons.Help: return "HELP";
+                case Buttons.Options: return "OPTIONS";
+                case Buttons.LogOut: return "LOG OUT";
+                case Buttons.Journal: return "JOURNAL";
+                case Buttons.Quests: return "QUESTS";
+                case Buttons.Skills: return "SKILLS";
+                case Buttons.Guild: return "GUILD";
+                case Buttons.PeaceWarToggle: return "PEACE";
+                case Buttons.Status: return "STATUS";
+                default: return string.Empty;
+            }
+        }
+
+        private sealed class PaperdollSkinButtonFace : Control
+        {
+            private readonly PaperDollGump _owner;
+            private readonly Control _target;
+            private readonly RenderedText _text;
+            private readonly TextBox _hdText;
+
+            internal PaperdollSkinButtonFace(PaperDollGump owner, Control target, string text)
+            {
+                _owner = owner;
+                _target = target;
+                X = target.X;
+                Y = target.Y;
+                Width = target.Width;
+                Height = target.Height;
+                AcceptMouseInput = false;
+                _text = RenderedText.Create(text, 0x0481, 1, true, FontStyle.BlackBorder);
+                _hdText = TextBox.GetOne(text, TrueTypeLoader.EMBEDDED_FONT,
+                    (float)(12 * owner.Scale), Color.WhiteSmoke, TextBox.RTLOptions.Default());
+            }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                PaperdollSkin skin = PaperdollSkinArt.Current;
+                if (skin == PaperdollSkin.Classic || _owner.IsMinimized || _target.IsDisposed)
+                    return true;
+
+                if (_target == _owner._warModeBtn)
+                {
+                    _text.Text = _owner._isWarMode ? "PEACE" : "WAR";
+                    _hdText.Text = _owner._isWarMode ? "PEACE" : "WAR";
+                    _hdText.Update();
+                }
+
+                if (_target != _owner._hitBox || skin == PaperdollSkin.FollowTheme)
+                    PaperdollSkinArt.DrawButton(batcher, x, y, Width, Height, skin, 1f, _target.MouseIsOver);
+                if (skin >= PaperdollSkin.Stone)
+                {
+                    Color textColor = PaperdollSkinArt.ButtonTextColor(skin);
+                    if (_hdText.FontColor != textColor)
+                        _hdText.FontColor = textColor;
+                    _hdText.Draw(batcher, x + (Width - _hdText.Width) / 2,
+                        y + (Height - _hdText.Height) / 2);
+                }
+                else if (_text.Texture != null && _text.Width > 0 && _text.Height > 0)
+                {
+                    double scale = Math.Min(_owner.Scale,
+                        Math.Min((Width - 4d) / _text.Width, (Height - 2d) / _text.Height));
+                    int textWidth = Math.Max(1, (int)(_text.Width * scale));
+                    int textHeight = Math.Max(1, (int)(_text.Height * scale));
+                    batcher.Draw(_text.Texture,
+                        new Rectangle(x + (Width - textWidth) / 2, y + (Height - textHeight) / 2,
+                            textWidth, textHeight), _text.Texture.Bounds,
+                        ShaderHueTranslator.GetHueVector(0));
+                }
+
+                return true;
+            }
+
+            public override void Dispose()
+            {
+                _text.Destroy();
+                _hdText.Dispose();
+                base.Dispose();
+            }
         }
 
         private class EquipmentSlot : Control

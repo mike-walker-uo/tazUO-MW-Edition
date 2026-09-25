@@ -45,6 +45,7 @@ namespace ClassicUO.Game.Managers
     public class DurabilityManager : IDisposable
     {
         internal const int CriticalDurability = 10;
+        internal const int MinimumWeaponDurability = 50;
         internal const ushort CriticalHue = 0x04E6;
         private const long WARNING_INTERVAL_MS = 10 * 60 * 1000;
 
@@ -73,6 +74,33 @@ namespace ClassicUO.Game.Managers
         public bool TryGetDurability(uint serial, out DurabiltyProp durability)
         {
             return _itemLayerSlots.TryGetValue(serial, out durability);
+        }
+
+        internal static bool MeetsReadinessMinimum(int current, bool isWeapon) =>
+            current >= (isWeapon ? MinimumWeaponDurability : CriticalDurability);
+
+        internal static bool TryGetItemDurability(Item item, out int current, out int maximum)
+        {
+            current = maximum = 0;
+            if (item == null || item.IsDestroyed)
+                return false;
+
+            DurabilityManager manager = World.DurabilityManager;
+            if (manager != null && manager.TryGetDurability(item.Serial, out DurabiltyProp equipped))
+            {
+                current = equipped.Durabilty;
+                maximum = equipped.MaxDurabilty;
+                return true;
+            }
+
+            if (!World.OPL.TryGetNameAndData(item.Serial, out _, out string data))
+            {
+                World.OPL.Contains(item.Serial); // Request missing properties before counting a weapon.
+                return false;
+            }
+
+            string template = ClilocLoader.Instance.GetString(1060639, "Durability ~1_val~ / ~2_val~");
+            return TryParseDurabilityValues(template, data, out current, out maximum);
         }
 
         public void Tick()

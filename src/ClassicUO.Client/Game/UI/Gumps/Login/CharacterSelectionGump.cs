@@ -56,9 +56,11 @@ namespace ClassicUO.Game.UI.Gumps.Login
         public CharacterSelectionGump() : base(0, 0)
         {
             CanCloseWithRightClick = false;
+            bool hd = LoginArt.Stone != null;
 
             int posInList = 0;
             int yOffset = 150;
+            int rowSpacing = 40;
             int yBonus = 0;
             int listTitleY = 106;
 
@@ -73,7 +75,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             if (Client.Version >= ClientVersion.CV_6040 || Client.Version >= ClientVersion.CV_5020 && loginScene.Characters.Length > 5)
             {
                 listTitleY = 96;
-                yOffset = 125;
+                yOffset = 132;
+                rowSpacing = 36;
                 yBonus = 45;
             }
 
@@ -88,13 +91,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             Add
             (
-                new ResizePic(0x0A28)
-                {
-                    X = 160,
-                    Y = 70,
-                    Width = 408,
-                    Height = 343 + yBonus
-                },
+                hd ? (Control)new LoginStonePanel(160, 70, 408, 320 + yBonus)
+                    : new ResizePic(0x0A28) { X = 160, Y = 70, Width = 408, Height = 343 + yBonus },
                 1
             );
 
@@ -142,10 +140,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     CharacterEntryGump g;
                     Add
                     (g =
-                        new CharacterEntryGump((uint)i, character, SelectCharacter, LoginCharacter)
+                        new CharacterEntryGump((uint)i, character, SelectCharacter, LoginCharacter, hd)
                         {
                             X = 224,
-                            Y = yOffset + posInList * 40,
+                            Y = yOffset + posInList * rowSpacing,
                             Hue = i == _selectedCharacter ? SELECTED_COLOR : NORMAL_COLOR
                         },
                         1
@@ -159,50 +157,21 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             if (CanCreateChar(loginScene))
             {
-                Add
-                (
-                    new Button((int)Buttons.New, 0x159D, 0x159F, 0x159E)
-                    {
-                        X = 224,
-                        Y = 350 + yBonus,
-                        ButtonAction = ButtonAction.Activate
-                    },
-                    1
-                );
+                Add(hd ? (Control)new LoginArtButton((int)Buttons.New, "New", 224, 436, 76, 29)
+                    : new Button((int)Buttons.New, 0x159D, 0x159F, 0x159E)
+                    { X = 224, Y = 350 + yBonus, ButtonAction = ButtonAction.Activate }, 1);
             }
 
-            Add
-            (
-                new Button((int)Buttons.Delete, 0x159A, 0x159C, 0x159B)
-                {
-                    X = 442,
-                    Y = 350 + yBonus,
-                    ButtonAction = ButtonAction.Activate
-                },
-                1
-            );
+            Add(hd ? (Control)new LoginArtButton((int)Buttons.Delete, "Delete", 406, 436, 80, 29)
+                : new Button((int)Buttons.Delete, 0x159A, 0x159C, 0x159B)
+                { X = 442, Y = 350 + yBonus, ButtonAction = ButtonAction.Activate }, 1);
 
-            Add
-            (
-                new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
-                {
-                    X = 586,
-                    Y = 445,
-                    ButtonAction = ButtonAction.Activate
-                },
-                1
-            );
-
-            Add
-            (
-                new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
-                {
-                    X = 610,
-                    Y = 445,
-                    ButtonAction = ButtonAction.Activate
-                },
-                1
-            );
+            Add(hd ? (Control)new LoginArtButton((int)Buttons.Prev, "Back", 525, 436, 52, 29)
+                : new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
+                { X = 586, Y = 445, ButtonAction = ButtonAction.Activate }, 1);
+            Add(hd ? (Control)new LoginArtButton((int)Buttons.Next, "Next", 580, 436, 52, 29)
+                : new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
+                { X = 610, Y = 445, ButtonAction = ButtonAction.Activate }, 1);
 
             AcceptKeyboardInput = true;
             ChangePage(1);
@@ -371,7 +340,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             private readonly Action<uint> _loginFn;
             private readonly Action<uint> _selectedFn;
 
-            public CharacterEntryGump(uint index, string character, Action<uint> selectedFn, Action<uint> loginFn)
+            public CharacterEntryGump(uint index, string character, Action<uint> selectedFn, Action<uint> loginFn, bool hd)
             {
                 CharacterIndex = index;
                 _selectedFn = selectedFn;
@@ -380,13 +349,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 // Bg
                 Add
                 (
-                    new ResizePic(0x0BB8)
-                    {
-                        X = 0,
-                        Y = 0,
-                        Width = 280,
-                        Height = 30
-                    }
+                    hd ? (Control)new LoginArtSurface(0, 0, 280, 30, new Microsoft.Xna.Framework.Color(233, 223, 202))
+                        : new ResizePic(0x0BB8) { X = 0, Y = 0, Width = 280, Height = 30 }
                 );
 
                 // Char Name
