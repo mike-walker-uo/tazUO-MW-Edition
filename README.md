@@ -42,6 +42,14 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 - Added an insurance check to Restock Agent readiness and prevented Item Finder from opening spellbooks, bulk-order books, runebooks, atlases, and other books as containers. Books remain searchable as items.
 - Improved nameplate-window reopening, chat and nearby-loot UI behavior, and several client hot paths.
 
+### Chess and Stockfish setup
+
+Chess needs a separate Stockfish executable for legal-move checks in both **Play Stockfish** and **Two players**. Stockfish is not included in the client download.
+
+1. Download the Windows x86-64 build from the [official Stockfish download page](https://stockfishchess.org/download/) and extract it.
+2. Put the extracted executable beside `ClassicUO.exe` and name it `stockfish.exe`. If you keep it elsewhere, enter `-chess path "C:\Games\Stockfish\stockfish.exe"` in game, using its actual full path. Repeat this command after restarting the client.
+3. Enter `-chess` or open Chess from the client commands, then choose **Play Stockfish** or **Two players**. Two-player games are local to the same client; they are not shared over the network.
+
 ## Version 0.6 Beta highlights
 
 - Latest fix update: Item Finder scans nested containers within nearby chests, keeps catalog entries between scans, excludes temporary Arcane Focus items, and warns when a located item has moved since indexing.
@@ -101,6 +109,8 @@ On Windows, the client uses Windows system DPI scaling by default so the interfa
 The button sends the hotkey to Razor Enhanced's plugin callback. Razor Enhanced must be loaded and its hotkeys enabled. The action does not send the key to the game or run another tazUO macro bound to that key.
 
 ## Videos of the features:  
+Version 0.6 Features: https://youtu.be/B9YZbGYMdFA
+
 Version 0.5 Features: https://youtu.be/cbgis1d0R6E  
 Version 0.3 Features: https://youtu.be/4MyUOeN3P4A  
 Custom Chivalry Effects: https://youtu.be/81xNXowYFro  
