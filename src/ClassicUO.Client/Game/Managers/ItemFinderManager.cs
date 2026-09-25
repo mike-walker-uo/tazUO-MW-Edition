@@ -50,7 +50,7 @@ namespace ClassicUO.Game.Managers
         );
 
         private static readonly Regex _bookNamePattern = new Regex(
-            @"\b(?:[a-z]*books?|tomes?|atlases?)\b",
+            @"\b(?:[a-z]*books?|tomes?|atlas(?:es)?)\b",
             RegexOptions.Compiled | RegexOptions.IgnoreCase
         );
 
