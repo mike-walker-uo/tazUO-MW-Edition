@@ -124,7 +124,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 1. Make a backup of your ClassicUO folder.
 2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
-4. Optional: Place the contents of the `UOMusic` folder in your UO folder under `Music/Digital`.
+4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.
 6. Optional: After login, click **Scan** in the Music Player gump.
 
