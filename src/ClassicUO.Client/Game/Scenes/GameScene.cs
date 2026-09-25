@@ -106,6 +106,7 @@ namespace ClassicUO.Game.Scenes
         private UseItemQueue _useItemQueue = new UseItemQueue();
         private MoveItemQueue _moveItemQueue = new MoveItemQueue();
         private bool _useObjectHandles;
+        private bool _nameplateChordHeld;
         private RenderTarget2D _world_render_target,
             _light_render_target;
         private AnimatedStaticsManager _animatedStaticsManager;
@@ -800,6 +801,11 @@ namespace ClassicUO.Game.Scenes
             }
 
             GetViewPort();
+
+            bool nameplateChordHeld = Keyboard.Ctrl && Keyboard.Shift;
+            if (nameplateChordHeld && !_nameplateChordHeld && NameOverHeadManager.IsPermaToggled)
+                NameOverHeadManager.Open();
+            _nameplateChordHeld = nameplateChordHeld;
 
             var useObjectHandles = NameOverHeadManager.IsShowing;
             if (useObjectHandles != _useObjectHandles)

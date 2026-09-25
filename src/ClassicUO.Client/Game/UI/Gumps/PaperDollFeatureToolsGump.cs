@@ -5,6 +5,7 @@ using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -14,7 +15,7 @@ namespace ClassicUO.Game.UI.Gumps
     internal sealed class PaperDollFeatureToolsGump : Gump
     {
         private const int WIDTH = 308;
-        private const int HEIGHT = 190;
+        private const int HEIGHT = 402;
         private readonly Profile _profile;
         private readonly string _profilePath;
         private int _lastX;
@@ -106,11 +107,22 @@ namespace ClassicUO.Game.UI.Gumps
         {
             switch (buttonID)
             {
+                case 10: Open<CommandPaletteGump>(() => new CommandPaletteGump()); break;
+                case 11: Open<GumpThemeSelectorGump>(() => new GumpThemeSelectorGump()); break;
+                case 12: Open<MusicPlayerGump>(() => new MusicPlayerGump()); break;
+                case 13: Open<PerfHudGump>(() => new PerfHudGump()); break;
+                case 14: Open<TrailEffectsGump>(() => new TrailEffectsGump()); break;
+                case 15: Open<SpellAbilityEffectsGump>(() => new SpellAbilityEffectsGump()); break;
+                case 16: Open<BandageOptionsGump>(() => new BandageOptionsGump()); break;
+                case 17: OpenChat<GlobalChatGump>(() => GlobalChatGump.OpenByUser(200, 200)); break;
+                case 18: OpenChat<GuildChatGump>(() => GuildChatGump.OpenByUser(220, 220)); break;
+                case 19: OpenChat<NearbySpeechGump>(() => NearbySpeechGump.OpenByUser(240, 240)); break;
                 case 1: Open<WorldExplorerGump>(() => new WorldExplorerGump()); break;
                 case 2: Open<ItemFinderGump>(() => new ItemFinderGump()); break;
                 case 3: Open<AlertCenterGump>(() => new AlertCenterGump()); break;
                 case 4: Open<RestockAgentGump>(() => new RestockAgentGump()); break;
                 case 5: Open<EquipmentGuruGump>(() => new EquipmentGuruGump()); break;
+                case 6: Open<DurabilitysGump>(() => new DurabilitysGump()); break;
                 case 9: Dispose(); break;
                 default: return;
             }
@@ -134,12 +146,23 @@ namespace ClassicUO.Game.UI.Gumps
             });
             Add(Button(264, 16, 20, 22, "X", 9, "Close tools panel"));
 
-            Add(Button(24, 64, 126, 30, "World Explorer", 1));
-            Add(Button(158, 64, 126, 30, "Item Finder", 2));
-            Add(Button(24, 100, 126, 30, alerts == 0 ? "Alert Center" : $"Alerts ({alerts})", 3));
-            Add(Button(158, 100, 126, 30, "Restock Agent", 4,
+            Add(Button(24, 64, 126, 30, "Commands", 10));
+            Add(Button(158, 64, 126, 30, "Gump Themes", 11));
+            Add(Button(24, 100, 126, 30, "Music Player", 12));
+            Add(Button(158, 100, 126, 30, "Performance HUD", 13));
+            Add(Button(24, 136, 126, 30, "TrailFX", 14));
+            Add(Button(158, 136, 126, 30, "Spell Effects", 15));
+            Add(Button(24, 172, 126, 30, "Bandage Agent", 16));
+            Add(Button(158, 172, 126, 30, "Global Chat", 17));
+            Add(Button(24, 208, 126, 30, "Guild Chat", 18));
+            Add(Button(158, 208, 126, 30, "Nearby Chat", 19));
+            Add(Button(24, 244, 126, 30, "World Explorer", 1));
+            Add(Button(158, 244, 126, 30, "Item Finder", 2));
+            Add(Button(24, 280, 126, 30, alerts == 0 ? "Alert Center" : $"Alerts ({alerts})", 3));
+            Add(Button(158, 280, 126, 30, "Restock Agent", 4,
                 ready ? "Readiness check: ready" : "Readiness check: attention needed"));
-            Add(Button(24, 136, 260, 30, "Equipment Guru", 5));
+            Add(Button(24, 316, 260, 30, "Equipment Guru", 5));
+            Add(Button(24, 352, 260, 30, "Durability Tracker", 6));
         }
 
         private static NiceButton Button(
@@ -164,16 +187,62 @@ namespace ClassicUO.Game.UI.Gumps
             return button;
         }
 
-        private static void Open<T>(System.Func<T> factory) where T : Gump
+        internal static void Open<T>(System.Func<T> factory) where T : Gump
         {
             T existing = UIManager.GetGump<T>();
             if (existing != null && !existing.IsDisposed)
             {
+                existing.SetInScreen();
                 existing.BringOnTop();
                 return;
             }
 
             UIManager.Add(factory());
+        }
+
+        internal static void OpenChat<T>(Action open) where T : Gump
+        {
+            T existing = UIManager.GetGump<T>();
+            if (existing != null && !existing.IsDisposed)
+            {
+                existing.SetInScreen();
+                existing.BringOnTop();
+            }
+            else
+                open();
+        }
+    }
+
+    internal sealed class PaperDollToolsIcon : Gump
+    {
+        private readonly PaperDollGump _owner;
+
+        internal uint Graphic { get; set; } = 5587;
+
+        internal PaperDollToolsIcon(PaperDollGump owner) : base(0, 0)
+        {
+            _owner = owner;
+            SetTooltip("Open feature tools");
+            WantUpdateSize = true;
+            AcceptMouseInput = true;
+            Width = 30;
+            Height = 30;
+        }
+
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            ref readonly var art = ref Client.Game.Gumps.GetGump(Graphic);
+            if (art.Texture != null)
+                batcher.Draw(art.Texture, new Rectangle(x, y, Width, Height), art.UV,
+                    ShaderHueTranslator.GetHueVector(0));
+
+            return base.Draw(batcher, x, y);
+        }
+
+        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        {
+            if (button == MouseButtonType.Left)
+                _owner.ToggleFeatureTools();
         }
     }
 
@@ -181,6 +250,7 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private static Texture2D _caption;
         private static bool _captionAttempted;
+        internal bool SuppressArtwork { get; set; }
 
         internal PaperDollToolsLauncherButton(int x, int y, int width, int height, int id)
             : base(x, y, NativeWidth(width), NativeHeight(height), ButtonAction.Activate, "TOOLS",
@@ -224,6 +294,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            if (SuppressArtwork)
+                return true;
+
             // Paperdoll HELP artwork has the matching blue oval and gold frame.
             // Its caption is baked into the gump, so repeat a clean interior column.
             ref readonly var art = ref Client.Game.Gumps.GetGump(

@@ -890,8 +890,17 @@ namespace ClassicUO.Game.Managers
         public ushort DesiredAmount { get; set; } = 1;
         public uint TargetContainerSerial { get; set; }
 
-        internal bool IsMatch(Item item) => item.Graphic == Graphic
-            && (MatchAnyHue || item.Hue == Hue);
+        internal bool IsMatch(Item item)
+        {
+            if (item.Graphic != Graphic || !MatchAnyHue && item.Hue != Hue)
+                return false;
+
+            if (!item.ItemData.IsWeapon)
+                return true;
+
+            return DurabilityManager.TryGetItemDurability(item, out int current, out _)
+                && DurabilityManager.MeetsReadinessMinimum(current, true);
+        }
 
         internal RestockEntry Copy() => new RestockEntry
         {

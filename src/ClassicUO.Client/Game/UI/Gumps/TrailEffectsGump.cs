@@ -150,10 +150,10 @@ namespace ClassicUO.Game.UI.Gumps
             if (ProfileManager.CurrentProfile != null)
                 ProfileManager.CurrentProfile.FootstepGraphicsEnabled = true;
             SceneryInteractionManager.SurfaceParticlesEnabled = true;
-            MoveTrailOverlay.SetStyle(MovementTrailStyle.ShadowSmoke);
+            MoveTrailOverlay.SetStyle(MovementTrailStyle.FallingLeaves);
             MoveTrailOverlay.IntensityPercent = 100;
             MoveTrailOverlay.LifetimeMs = 3000;
-            MoveTrailOverlay.SetEnabled(false);
+            MoveTrailOverlay.SetEnabled(true);
             Reopen();
         }
 

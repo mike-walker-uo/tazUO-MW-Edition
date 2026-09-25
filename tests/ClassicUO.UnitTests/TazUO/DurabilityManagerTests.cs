@@ -29,5 +29,15 @@ namespace ClassicUO.UnitTests.TazUO
                 out _,
                 out _).Should().BeFalse();
         }
+
+        [Theory]
+        [InlineData(49, true, false)]
+        [InlineData(50, true, true)]
+        [InlineData(9, false, false)]
+        [InlineData(10, false, true)]
+        public void Uses_higher_readiness_minimum_for_weapons(int current, bool isWeapon, bool expected)
+        {
+            DurabilityManager.MeetsReadinessMinimum(current, isWeapon).Should().Be(expected);
+        }
     }
 }

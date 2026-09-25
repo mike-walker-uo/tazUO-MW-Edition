@@ -87,8 +87,8 @@ namespace ClassicUO.Game.UI
             }
         }
 
-        public static bool Enabled = false;
-        public static MovementTrailStyle Style { get; set; } = MovementTrailStyle.ShadowSmoke;
+        public static bool Enabled = true;
+        public static MovementTrailStyle Style { get; set; } = MovementTrailStyle.FallingLeaves;
         public static int IntensityPercent { get; set; } = 100;
         public static int LifetimeMs { get; set; } = 3000;
 

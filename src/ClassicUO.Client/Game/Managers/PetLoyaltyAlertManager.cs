@@ -46,7 +46,7 @@ namespace ClassicUO.Game.Managers
     /// </summary>
     public static class PetLoyaltyAlertManager
     {
-        public static bool Enabled;
+        public static bool Enabled = true;
         private static bool _hooked;
         private static long _lastToastAt = -REMINDER_GAP_MS;
         private static long _nextTooltipRefresh;

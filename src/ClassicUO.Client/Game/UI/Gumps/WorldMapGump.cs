@@ -97,6 +97,45 @@ namespace ClassicUO.Game.UI.Gumps
         public Texture2D MapTexture { get { return _mapTexture; } }
 
         public static readonly List<WMapMarkerFile> _markerFiles = new List<WMapMarkerFile>();
+        private static uint _markerRevision;
+        private readonly List<(WMapMarkerFile File, WMapMarker Marker)> _nearbyMarkers = new();
+        private Point _markerCacheCenter;
+        private int _markerCacheMap = -1;
+        private int _markerCacheZoom = -1;
+        private int _markerCacheRadius;
+        private uint _markerCacheRevision;
+
+        internal static void NotifyMarkersChanged() => _markerRevision++;
+
+        private void RefreshNearbyMarkers(Rectangle mapArea)
+        {
+            // Keep a wide margin so small follow-target movements need no rescan.
+            int radius = Math.Max(mapArea.Width, mapArea.Height) * 2 + 8;
+            if (_markerCacheMap == World.MapIndex && _markerCacheZoom == _zoomIndex
+                && _markerCacheRadius == radius
+                && _markerCacheRevision == _markerRevision
+                && Math.Abs(_center.X - _markerCacheCenter.X) <= radius / 4
+                && Math.Abs(_center.Y - _markerCacheCenter.Y) <= radius / 4)
+                return;
+
+            _nearbyMarkers.Clear();
+            foreach (WMapMarkerFile file in _markerFiles)
+            {
+                foreach (WMapMarker marker in file.Markers)
+                {
+                    if (marker.MapId == World.MapIndex
+                        && Math.Abs(marker.X - _center.X) <= radius
+                        && Math.Abs(marker.Y - _center.Y) <= radius)
+                        _nearbyMarkers.Add((file, marker));
+                }
+            }
+
+            _markerCacheCenter = _center;
+            _markerCacheMap = World.MapIndex;
+            _markerCacheZoom = _zoomIndex;
+            _markerCacheRadius = radius;
+            _markerCacheRevision = _markerRevision;
+        }
 
         private SpriteFont _markerFont = Fonts.Map1;
         private int _markerFontIndex = 1;
@@ -2135,6 +2174,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                     _mapMarkersLoaded = true;
+                    NotifyMarkersChanged();
 
                     GameActions.Print(string.Format(ResGumps.WorldMapMarkersLoaded0, count), 0x2A);
                 }
@@ -2203,6 +2243,7 @@ namespace ClassicUO.Game.UI.Gumps
             var mapMarkerFile = _markerFiles.FirstOrDefault(x => x.FullPath == UserMarkersFilePath);
 
             mapMarkerFile?.Markers.Add(mapMarker);
+            NotifyMarkersChanged();
         }
 
         public void AddUserMarker(string markerName, int x, int y, int map, string color = "yellow")
@@ -2255,6 +2296,7 @@ namespace ClassicUO.Game.UI.Gumps
             var mapMarkerFile = _markerFiles.FirstOrDefault(x => x.FullPath == UserMarkersFilePath);
 
             mapMarkerFile?.Markers.Add(mapMarker);
+            NotifyMarkersChanged();
         }
 
         public void RemoveUserMarker(string markerName)
@@ -2278,6 +2320,7 @@ namespace ClassicUO.Game.UI.Gumps
              {
                  mapMarkerFile.Markers.Remove(marker);
              }
+             NotifyMarkersChanged();
 
              try
              {
@@ -2311,6 +2354,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             userFile.Markers = LoadUserMarkers();
+            NotifyMarkersChanged();
         }
 
         /// <summary>
@@ -2547,36 +2591,25 @@ namespace ClassicUO.Game.UI.Gumps
             if (_showMarkers && _mapMarkersLoaded)
             {
                 WMapMarker lastMarker = null;
-                int curMap = World.MapIndex;
+                RefreshNearbyMarkers(srcRect);
 
-                foreach (WMapMarkerFile file in _markerFiles)
+                foreach (var entry in _nearbyMarkers)
                 {
-                    if (file.Hidden)
-                    {
+                    if (entry.File.Hidden)
                         continue;
-                    }
 
-                    foreach (WMapMarker marker in file.Markers)
+                    if (DrawMarker
+                    (
+                        batcher,
+                        entry.Marker,
+                        gX,
+                        gY,
+                        halfWidth,
+                        halfHeight,
+                        Zoom
+                    ))
                     {
-                        // Inline early-out: avoids a method call for every off-map marker.
-                        if (marker.MapId != curMap)
-                        {
-                            continue;
-                        }
-
-                        if (DrawMarker
-                        (
-                            batcher,
-                            marker,
-                            gX,
-                            gY,
-                            halfWidth,
-                            halfHeight,
-                            Zoom
-                        ))
-                        {
-                            lastMarker = marker;
-                        }
+                        lastMarker = entry.Marker;
                     }
                 }
 

@@ -380,7 +380,7 @@ namespace ClassicUO.Game.UI.Controls
                 {
                     break;
                 }
-                Control c = Children.ElementAt(i);
+                Control c = Children[i];
 
                 if (c != null && (c.Page == 0 || c.Page == ActivePage))
                 {
@@ -409,7 +409,7 @@ namespace ClassicUO.Game.UI.Controls
 
             if (Children.Count != 0)
             {
-                List<Control> removalList = new List<Control>(); ;
+                List<Control> removalList = null;
                 int w = 0, h = 0;
 
                 for (int i = 0; i < Children.Count; i++)
@@ -419,7 +419,7 @@ namespace ClassicUO.Game.UI.Controls
                         continue;
                     }
 
-                    Control c = Children.ElementAt(i);
+                    Control c = Children[i];
 
                     if (c == null)
                     {
@@ -428,6 +428,8 @@ namespace ClassicUO.Game.UI.Controls
 
                     if (c.IsDisposed)
                     {
+                        if (removalList == null)
+                            removalList = new List<Control>();
                         removalList.Add(c);
                         continue;
                     }
@@ -451,7 +453,7 @@ namespace ClassicUO.Game.UI.Controls
                     }
                 }
 
-                if (removalList.Count > 0)
+                if (removalList != null)
                 {
                     foreach (Control c in removalList)
                     {
@@ -493,7 +495,7 @@ namespace ClassicUO.Game.UI.Controls
 
             if (Children.Count != 0)
             {
-                List<Control> removalList = new List<Control>(); ;
+                List<Control> removalList = null;
 
                 for (int i = 0; i < Children.Count; i++)
                 {
@@ -502,7 +504,7 @@ namespace ClassicUO.Game.UI.Controls
                         continue;
                     }
 
-                    Control c = Children.ElementAt(i);
+                    Control c = Children[i];
 
                     if (c == null)
                     {
@@ -511,6 +513,8 @@ namespace ClassicUO.Game.UI.Controls
 
                     if (c.IsDisposed)
                     {
+                        if (removalList == null)
+                            removalList = new List<Control>();
                         removalList.Add(c);
                         continue;
                     }
@@ -519,7 +523,7 @@ namespace ClassicUO.Game.UI.Controls
 
                 }
 
-                if (removalList.Count > 0)
+                if (removalList != null)
                 {
                     foreach (Control c in removalList)
                     {

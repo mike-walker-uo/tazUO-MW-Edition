@@ -13,45 +13,6 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class DurabilityGumpMinimized : Gump
-    {
-        public uint Graphic { get; set; } = 5587;
-
-        public DurabilityGumpMinimized() : base(0, 0)
-        {
-            SetTooltip("Open Equipment Durability Tracker");
-
-            WantUpdateSize = true;
-            AcceptMouseInput = true;
-            Width = 30;
-            Height = 30;
-        }
-
-        public override bool AcceptMouseInput => DurabilityManager.HasDurabilityData;
-
-        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
-        {
-            ref readonly var texture = ref Client.Game.Gumps.GetGump(Graphic);
-
-            if (texture.Texture != null && DurabilityManager.HasDurabilityData)
-            {
-                Rectangle rect = new Rectangle(x, y, Width, Height);
-                batcher.Draw(texture.Texture, rect, texture.UV, ShaderHueTranslator.GetHueVector(0));
-            }
-
-            return base.Draw(batcher, x, y);
-        }
-
-        protected override void OnMouseUp(int x, int y, MouseButtonType button)
-        {
-            if (button == MouseButtonType.Left && DurabilityManager.HasDurabilityData)
-            {
-                UIManager.GetGump<DurabilitysGump>()?.Dispose();
-                UIManager.Add(new DurabilitysGump());
-            }
-        }
-    }
-
     internal class DurabilitysGump : NineSliceGump
     {
         private static int lastWidth = 300, lastHeight = 400;

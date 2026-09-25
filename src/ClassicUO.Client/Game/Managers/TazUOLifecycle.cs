@@ -24,6 +24,7 @@ namespace ClassicUO.Game.Managers
             WaterEnhancementManager.ApplyProfile(ProfileManager.CurrentProfile);
             TerrainMaterialManager.ApplyProfile(ProfileManager.CurrentProfile);
             TazUOFeatureSettings.Load();
+            UI.MoveTrailOverlay.EnsureHooked();
             ApplyFootstepVisualDefaults(ProfileManager.CurrentProfile);
             ApplyCombatOverlayDefaults(ProfileManager.CurrentProfile);
             AutomationCoordinator.ResetForProfile(ProfileManager.CurrentProfile?.AutomationEnabled ?? true);
@@ -91,10 +92,7 @@ namespace ClassicUO.Game.Managers
         {
             if (profile == null || profile.FootstepVisualDefaultsVersion >= 1) return;
 
-            // The former defaults were persisted as enabled in existing profiles.
-            // Reset them once so upgrades receive the new blood-free defaults.
-            UI.MoveTrailOverlay.Enabled = false;
-            UI.MoveTrailOverlay.ResetSession();
+            // Keep each profile's explicit trail choice; only migrate blood/track defaults.
             UI.MobBloodOverlay.Enabled = false;
             UI.MobBloodOverlay.ResetSession();
             profile.BloodDecalsEnabled = false;

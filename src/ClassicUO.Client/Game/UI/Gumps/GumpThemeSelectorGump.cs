@@ -13,9 +13,9 @@ namespace ClassicUO.Game.UI.Gumps
     internal sealed class GumpThemeSelectorGump : Gump
     {
         private const int W = 620;
-        private const int H = 750;
+        private const int H = 640;
         private const int PAD = 12;
-        private const int CARD_W = 292;
+        private const int CARD_W = 284;
         private const int CARD_H = 37;
         private int _lastX;
         private int _lastY;
@@ -28,7 +28,8 @@ namespace ClassicUO.Game.UI.Gumps
             "Obsidian", "Doom", "Midnight", "Necromancer's Crypt", "Ornate",
             "Britannian Chronicle", "Moonglow Arcane", "Ter Mur Relic",
             "Mariner's Chart", "Gilded Grove", "Aetherglass", "Celestial",
-            "Exodus", "Blood Oath", "Hildebrandt"
+            "Exodus", "Blood Oath", "Hildebrandt", "HD Stone", "HD Wood", "HD Metal", "HD Marble",
+            "HD Glass", "HD Stained Glass"
         };
 
         private static readonly string[] _descriptions =
@@ -65,7 +66,13 @@ namespace ClassicUO.Game.UI.Gumps
             "Silver stars and midnight blue",
             "Arcane bronze and red crystal",
             "Black iron and bloodstone",
-            "Painted heroic fantasy and gold"
+            "Painted heroic fantasy and gold",
+            "Dark stone and brass",
+            "Oak and iron",
+            "Steel and silver",
+            "White marble and graphite",
+            "Smoked glass and silver",
+            "Jewel glass and dark lead"
         };
 
         internal GumpThemeSelectorGump()
@@ -106,9 +113,14 @@ namespace ClassicUO.Game.UI.Gumps
                 Y = 29
             });
 
+            var scroll = new ScrollArea(PAD, 48, W - PAD * 2, H - 100, true)
+            {
+                ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways
+            };
+            Add(scroll);
             for (int i = 0; i < CustomGumpThemeManager.ThemeCount; i++)
             {
-                AddThemeCard((CustomGumpTheme)i, i);
+                AddThemeCard(scroll, (CustomGumpTheme)i, i);
             }
 
             Add(new Label(
@@ -161,26 +173,26 @@ namespace ClassicUO.Game.UI.Gumps
             base.Dispose();
         }
 
-        private void AddThemeCard(CustomGumpTheme theme, int index)
+        private void AddThemeCard(ScrollArea scroll, CustomGumpTheme theme, int index)
         {
             int column = index % 2;
             int row = index / 2;
-            int x = PAD + column * (CARD_W + 12);
-            int y = 54 + row * 38;
+            int x = column * (CARD_W + 12);
+            int y = row * 38;
             bool selected = theme == CustomGumpThemeManager.Current;
             ushort textHue = CustomGumpThemeManager.GetTextHue(theme);
 
-            Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme, true)
+            scroll.Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme, true)
             {
                 X = x,
                 Y = y
             });
-            Add(new Label(DisplayName(theme), true, textHue, font: 1)
+            scroll.Add(new Label(DisplayName(theme), true, textHue, font: 1)
             {
                 X = x + 10,
                 Y = y + 8
             });
-            Add(new Label(_descriptions[index], true, textHue, 190, font: 1)
+            scroll.Add(new Label(_descriptions[index], true, textHue, 190, font: 1)
             {
                 X = x + 10,
                 Y = y + 24
@@ -193,7 +205,8 @@ namespace ClassicUO.Game.UI.Gumps
                 selected ? "ACTIVE" : "Use",
                 () => SelectTheme(theme),
                 selected ? (ushort)0x44 : (ushort)0x35,
-                selected
+                selected,
+                scroll
             );
         }
 
@@ -219,7 +232,8 @@ namespace ClassicUO.Game.UI.Gumps
             string text,
             Action action,
             ushort hue,
-            bool disabled = false)
+            bool disabled = false,
+            ScrollArea scroll = null)
         {
             var button = new NiceButton(
                 x,
@@ -248,7 +262,10 @@ namespace ClassicUO.Game.UI.Gumps
                 };
             }
 
-            Add(button);
+            if (scroll == null)
+                Add(button);
+            else
+                scroll.Add(button);
         }
     }
 }

@@ -43,6 +43,10 @@ namespace ClassicUO.Game.UI
 
         private static readonly HashSet<uint> _corpsesRequested = new HashSet<uint>();
         private static readonly HashSet<uint> _openedCorpses = new HashSet<uint>();
+        private readonly HashSet<uint> _nearbyCorpses = new HashSet<uint>();
+        private readonly HashSet<uint> _currentNearbyCorpses = new HashSet<uint>();
+        private readonly List<Item> _nearbyCorpseBuffer = new List<Item>();
+        private ulong _nearbyContents;
         private static int _selectedIndex;
         private static Point _lastLocation;
         private long _nextClean = 0;
@@ -135,7 +139,61 @@ namespace ClassicUO.Game.UI
 
         private void EventSink_OnPositionChanged(object sender, PositionChangedArgs e)
         {
-            RequestUpdateContents();
+            _currentNearbyCorpses.Clear();
+            ulong contents = 0;
+            foreach (Item item in CollectNearbyCorpses())
+            {
+                _currentNearbyCorpses.Add(item.Serial);
+                contents ^= FingerprintCorpseContents(item);
+            }
+
+            if (!_nearbyCorpses.SetEquals(_currentNearbyCorpses) || _nearbyContents != contents)
+                RequestUpdateContents();
+        }
+
+        private List<Item> CollectNearbyCorpses()
+        {
+            _nearbyCorpseBuffer.Clear();
+            if (World.Map == null)
+                return _nearbyCorpseBuffer;
+
+            int range = ProfileManager.CurrentProfile.AutoOpenCorpseRange;
+            int centerX = World.RangeSize.X;
+            int centerY = World.RangeSize.Y;
+            for (int y = centerY - range; y <= centerY + range; y++)
+            {
+                for (int x = centerX - range; x <= centerX + range; x++)
+                {
+                    for (GameObject obj = World.Map.GetTile(x, y, false); obj != null; obj = obj.TNext)
+                    {
+                        if (obj is Item item && !item.IsDestroyed && item.IsCorpse && item.Distance <= range)
+                            _nearbyCorpseBuffer.Add(item);
+                    }
+                }
+            }
+
+            return _nearbyCorpseBuffer;
+        }
+
+        private static ulong FingerprintCorpseContents(Item corpse)
+        {
+            ulong hash = 1469598103934665603UL ^ corpse.Serial;
+            for (LinkedObject link = corpse.Items; link != null; link = link.Next)
+            {
+                Item item = (Item)link;
+                unchecked
+                {
+                    hash = (hash ^ item.Serial) * 1099511628211UL;
+                    hash = (hash ^ item.Graphic) * 1099511628211UL;
+                    hash = (hash ^ item.Hue) * 1099511628211UL;
+                    hash = (hash ^ item.Amount) * 1099511628211UL;
+                    hash = (hash ^ (item.IsLootable ? 1UL : 0UL)) * 1099511628211UL;
+                    if (item.IsCorpse)
+                        hash = (hash ^ FingerprintCorpseContents(item)) * 1099511628211UL;
+                }
+            }
+
+            return hash;
         }
 
         private void ResizeDrag_MouseUp(object sender, MouseEventArgs e)
@@ -180,15 +238,16 @@ namespace ClassicUO.Game.UI
 
             _dataBox.Clear();
             _openedCorpses.Clear();
+            _nearbyCorpses.Clear();
+            _nearbyContents = 0;
 
             List<Item> finalItemList = new List<Item>();
 
-            foreach (Item item in World.Items.Values)
+            foreach (Item item in CollectNearbyCorpses())
             {
-                if (!item.IsDestroyed && item.IsCorpse && item.Distance <= ProfileManager.CurrentProfile.AutoOpenCorpseRange)
-                {
-                    ProcessCorpse(item, ref finalItemList);
-                }
+                _nearbyCorpses.Add(item.Serial);
+                ProcessCorpse(item, ref finalItemList);
+                _nearbyContents ^= FingerprintCorpseContents(item);
             }
 
             finalItemList = finalItemList
@@ -273,6 +332,7 @@ namespace ClassicUO.Game.UI
             base.Dispose();
             _corpsesRequested.Clear();
             EventSink.OnCorpseCreated -= EventSink_OnCorpseCreated;
+            EventSink.OnPositionChanged -= EventSink_OnPositionChanged;
             _resizeDrag.MouseUp -= ResizeDrag_MouseUp;
             _resizeDrag.MouseDown -= ResizeDrag_MouseDown;
             EventSink.OPLOnReceive -= EventSink_OPLOnReceive;

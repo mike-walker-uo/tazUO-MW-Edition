@@ -1291,6 +1291,8 @@ namespace ClassicUO.Game.UI.Gumps
                 IsSelectable = false;
                 AlwaysShowBackground = !_classic;
                 BackgroundColor = classic ? new Color(56, 37, 23) : new Color(42, 52, 58);
+                HoverOverlayColor = Color.White;
+                HoverOverlayAlpha = 0.25f;
                 DisplayBorder = !_classic;
                 BorderColor = classic ? new Color(170, 133, 55) : new Color(92, 104, 110);
             }

@@ -308,6 +308,34 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new RestockAgentGump(true));
             });
 
+            Register("chess", (s) =>
+            {
+                if (s != null && s.Length > 1
+                    && s[1].Equals("path", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (s.Length < 3)
+                    {
+                        GameActions.Print("Usage: -chess path <stockfish.exe>", 0x35);
+                        return;
+                    }
+                    string path = string.Join(" ", s.Skip(2)).Trim().Trim('"');
+                    ChessGump.EnginePath = Path.IsPathRooted(path)
+                        ? path : Path.Combine(AppContext.BaseDirectory, path);
+                }
+
+                ChessGump existing = UIManager.GetGump<ChessGump>();
+                if (existing != null && !existing.IsDisposed)
+                {
+                    if (s == null || s.Length <= 1)
+                    {
+                        existing.BringOnTop();
+                        return;
+                    }
+                    existing.Dispose();
+                }
+                UIManager.Add(new ChessGump());
+            });
+
             Register("alertcenter", (s) =>
             {
                 AlertCenterGump existing = UIManager.GetGump<AlertCenterGump>();
@@ -335,7 +363,7 @@ namespace ClassicUO.Game.Managers
                 if (s == null || s.Length < 2)
                 {
                     GameActions.Print($"Gump theme: {GumpThemeSelectorGump.DisplayName(CustomGumpThemeManager.Current)}.", 0x35);
-                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|next", 0x35);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|hdstone|hdwood|hdmetal|hdmarble|hdglass|hdstainedglass|next", 0x35);
                     return;
                 }
 
@@ -348,7 +376,7 @@ namespace ClassicUO.Game.Managers
                 }
                 else if (!CustomGumpThemeManager.TryParse(requested, out theme))
                 {
-                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|next", 0x21);
+                    GameActions.Print("Usage: -gumptheme minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|hdstone|hdwood|hdmetal|hdmarble|hdglass|hdstainedglass|next", 0x21);
                     return;
                 }
 

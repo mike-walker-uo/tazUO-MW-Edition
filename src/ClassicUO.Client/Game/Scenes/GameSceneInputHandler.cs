@@ -44,7 +44,6 @@ using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using SDL3;
 using System;
-using System.Linq;
 using MathHelper = ClassicUO.Utility.MathHelper;
 
 namespace ClassicUO.Game.Scenes
@@ -52,6 +51,7 @@ namespace ClassicUO.Game.Scenes
     internal partial class GameScene
     {
         private static readonly System.Collections.Generic.List<BaseHealthBarGump> _dragSelectBars = new();
+        private static readonly System.Collections.Generic.HashSet<uint> _dragSelectNameplates = new();
         private static readonly System.Comparison<BaseHealthBarGump> _dragSelectBarSort = (a, b) =>
         {
             int c = a.ScreenCoordinateX.CompareTo(b.ScreenCoordinateX);
@@ -299,6 +299,21 @@ namespace ClassicUO.Game.Scenes
                 rect = Client.Game.Gumps.GetGump(0x0804).UV;
             }
 
+            bool nameplateOnly =
+                (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 1 && ctrl) ||
+                (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 2 && shift) ||
+                (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 3 && alt);
+
+            if (nameplateOnly)
+            {
+                _dragSelectNameplates.Clear();
+                foreach (Gump gump in UIManager.Gumps)
+                {
+                    if (gump is NameOverheadGump plate && plate.IsVisible)
+                        _dragSelectNameplates.Add(plate.LocalSerial);
+                }
+            }
+
 
             foreach (Mobile mobile in World.Mobiles.Values)
             {
@@ -315,26 +330,8 @@ namespace ClassicUO.Game.Scenes
                     ) && (mobile.IsHuman || mobile.IsGargoyle))
                     continue;
 
-                bool skip = false;
-                if ((
-                        (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 1 && ctrl) ||
-                        (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 2 && shift) ||
-                        (ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 3 && alt)
-                    ))
-                {
-                    bool hasNameplate = false;
-                    foreach (NameOverheadGump g in UIManager.Gumps.OfType<NameOverheadGump>())
-                    {
-                        if (g.IsVisible && g.LocalSerial == mobile.Serial)
-                        {
-                            hasNameplate = true;
-                            break;
-                        }
-                    }
-                    skip = !hasNameplate;
-                }
-
-                if (skip) continue;
+                if (nameplateOnly && !_dragSelectNameplates.Contains(mobile.Serial))
+                    continue;
 
                 Point p = mobile.RealScreenPosition;
 
