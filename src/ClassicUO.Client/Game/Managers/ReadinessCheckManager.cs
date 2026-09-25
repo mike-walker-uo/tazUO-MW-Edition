@@ -1,5 +1,6 @@
 // TazUO addition: shared readiness evaluation for restock and equipment checks.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ClassicUO.Game.Data;
@@ -40,26 +41,15 @@ namespace ClassicUO.Game.Managers
 
             foreach (DurabiltyProp durability in durabilities)
             {
-                if (durability.MaxDurabilty <= 0)
-                {
-                    continue;
-                }
-
-                result.DurabilityItems++;
-
-                if (result.LowestDurability == null
-                    || durability.Durabilty < result.LowestDurability.Durabilty)
-                {
-                    result.LowestDurability = durability;
-                }
-
-                if (durability.Durabilty < DurabilityManager.CriticalDurability)
-                {
-                    result.CriticalDurabilityItems++;
-                }
+                Item item = World.Items.Get((uint)durability.Serial);
+                RecordDurability(result, durability, item != null && item.ItemData.IsWeapon);
             }
 
-            result.DurabilityReady = result.CriticalDurabilityItems == 0;
+            PlayerMobile player = World.Player;
+            CheckUntrackedWeapon(result, player?.FindItemByLayer(Layer.OneHanded));
+            CheckUntrackedWeapon(result, player?.FindItemByLayer(Layer.TwoHanded));
+            result.DurabilityReady = result.BelowMinimumDurabilityItems == 0
+                                     && result.UnverifiedWeaponItems == 0;
 
             List<byte> requiredLayers = RestockAgentManager.Settings.RequiredEquipmentLayers;
             result.EquipmentBaselineCount = requiredLayers.Count;
@@ -79,7 +69,37 @@ namespace ClassicUO.Game.Managers
 
             result.EquipmentReady = result.MissingEquipmentLayers.Count == 0;
 
-            PlayerMobile player = World.Player;
+            if (player != null)
+            {
+                for (LinkedObject node = player.Items; node != null; node = node.Next)
+                {
+                    Item item = (Item)node;
+                    Layer layer = item.Layer;
+                    if (layer <= Layer.Invalid || layer >= Layer.Mount
+                        || layer == Layer.Hair || layer == Layer.Beard || layer == Layer.Backpack)
+                        continue;
+
+                    result.InsuranceItems++;
+                    if (!World.OPL.TryGetNameAndData(item.Serial, out _, out _))
+                    {
+                        World.OPL.Contains(item.Serial);
+                        result.UnverifiedInsuranceLayers.Add(layer);
+                        continue;
+                    }
+
+                    var properties = new ItemPropertiesData(item);
+                    bool protectedItem = properties.singlePropertyData.Any(property =>
+                        string.Equals(property.Name, "Insured", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(property.Name, "Blessed", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(property.Name, "Cursed", StringComparison.OrdinalIgnoreCase));
+                    if (!protectedItem)
+                        result.UninsuredEquipmentLayers.Add(layer);
+                }
+            }
+
+            result.InsuranceReady = result.UninsuredEquipmentLayers.Count == 0
+                                    && result.UnverifiedInsuranceLayers.Count == 0;
+
             Item backpack = player?.FindItemByLayer(Layer.Backpack);
             result.BackpackAvailable = backpack != null;
 
@@ -102,8 +122,40 @@ namespace ClassicUO.Game.Managers
                              && result.SuppliesReady
                              && result.DurabilityReady
                              && result.EquipmentReady
+                             && result.InsuranceReady
                              && result.BackpackReady;
             return result;
+        }
+
+        private static void CheckUntrackedWeapon(ReadinessSnapshot result, Item item)
+        {
+            DurabilityManager manager = World.DurabilityManager;
+            if (item == null || !item.ItemData.IsWeapon
+                || manager != null && manager.TryGetDurability(item.Serial, out _))
+                return;
+
+            if (DurabilityManager.TryGetItemDurability(item, out int current, out int maximum))
+                RecordDurability(result, new DurabiltyProp((int)item.Serial, current, maximum), true);
+            else
+                result.UnverifiedWeaponItems++;
+        }
+
+        private static void RecordDurability(ReadinessSnapshot result, DurabiltyProp durability, bool isWeapon)
+        {
+            if (durability.MaxDurabilty <= 0)
+                return;
+
+            result.DurabilityItems++;
+            if (result.LowestDurability == null
+                || durability.Durabilty < result.LowestDurability.Durabilty)
+                result.LowestDurability = durability;
+            if (!DurabilityManager.MeetsReadinessMinimum(durability.Durabilty, isWeapon))
+            {
+                result.BelowMinimumDurabilityItems++;
+                if (result.LowestBelowMinimumDurability == null
+                    || durability.Durabilty < result.LowestBelowMinimumDurability.Durabilty)
+                    result.LowestBelowMinimumDurability = durability;
+            }
         }
     }
 
@@ -115,11 +167,17 @@ namespace ClassicUO.Game.Managers
         internal int ReadySupplyTargets { get; set; }
         internal bool DurabilityReady { get; set; }
         internal int DurabilityItems { get; set; }
-        internal int CriticalDurabilityItems { get; set; }
+        internal int BelowMinimumDurabilityItems { get; set; }
+        internal int UnverifiedWeaponItems { get; set; }
         internal DurabiltyProp LowestDurability { get; set; }
+        internal DurabiltyProp LowestBelowMinimumDurability { get; set; }
         internal bool EquipmentReady { get; set; }
         internal int EquipmentBaselineCount { get; set; }
         internal List<Layer> MissingEquipmentLayers { get; } = new List<Layer>();
+        internal bool InsuranceReady { get; set; }
+        internal int InsuranceItems { get; set; }
+        internal List<Layer> UninsuredEquipmentLayers { get; } = new List<Layer>();
+        internal List<Layer> UnverifiedInsuranceLayers { get; } = new List<Layer>();
         internal bool BackpackAvailable { get; set; }
         internal bool BackpackReady { get; set; }
         internal bool WeightReady { get; set; } = true;

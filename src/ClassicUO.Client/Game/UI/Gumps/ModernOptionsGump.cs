@@ -3039,6 +3039,22 @@ namespace ClassicUO.Game.UI.Gumps
 
             #endregion
 
+            #region Paperdoll skins
+
+            page = ((int)PAGE.TUOOptions + 1017);
+            content.AddToLeft(SubCategoryButton("Paperdoll skins", page, content.LeftWidth));
+            content.ResetRightSide();
+
+            content.AddToRight(new ComboBoxWithLabel(
+                "Classic paperdoll skin", 0, ThemeSettings.COMBO_BOX_WIDTH,
+                new[] { "Old style", "Follow gump theme", "HD stone", "HD wood", "HD metal",
+                    "HD marble", "HD glass", "HD obsidian", "HD water", "HD ice", "HD emerald", "HD gold",
+                    "HD stained glass" },
+                profile.PaperdollSkin,
+                (selected, _) => profile.PaperdollSkin = (byte)selected), true, page);
+
+            #endregion
+
             #region Modern paperdoll
 
             page = ((int)PAGE.TUOOptions + 1002);

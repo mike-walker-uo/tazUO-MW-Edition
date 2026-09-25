@@ -30,6 +30,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Label _readyBadge;
         private readonly Label _supplyCheck;
         private readonly Label _equipmentCheck;
+        private readonly Label _insuranceCheck;
         private readonly Label _durabilityCheck;
         private readonly Label _packCheck;
         private readonly VBoxContainer _itemsBox;
@@ -206,13 +207,15 @@ namespace ClassicUO.Game.UI.Gumps
             });
             AddSurface(24, 495, WIDTH - 48, 54, 0.38f);
             AddReadinessHeading("SUPPLIES", 36);
-            AddReadinessHeading("EQUIPMENT", 244);
-            AddReadinessHeading("DURABILITY", 452);
-            AddReadinessHeading("BACKPACK", 660);
+            AddReadinessHeading("EQUIPMENT", 204);
+            AddReadinessHeading("INSURANCE", 372);
+            AddReadinessHeading("DURABILITY", 540);
+            AddReadinessHeading("BACKPACK", 708);
             Add(_supplyCheck = CreateReadinessValue(36));
-            Add(_equipmentCheck = CreateReadinessValue(244));
-            Add(_durabilityCheck = CreateReadinessValue(452));
-            Add(_packCheck = CreateReadinessValue(660));
+            Add(_equipmentCheck = CreateReadinessValue(204));
+            Add(_insuranceCheck = CreateReadinessValue(372));
+            Add(_durabilityCheck = CreateReadinessValue(540));
+            Add(_packCheck = CreateReadinessValue(708));
 
             Add(CreateButton(LEFT_X, 557, 126, 30, "RESTOCK NOW", 1));
             Add(CreateButton(LEFT_X + 134, 557, 104, 30, "CHECK NOW", 6));
@@ -690,7 +693,26 @@ namespace ClassicUO.Game.UI.Gumps
                     $"{snapshot.MissingEquipmentLayers.Count} missing: {firstMissing}", false);
             }
 
-            if (snapshot.DurabilityItems == 0)
+            if (snapshot.UnverifiedInsuranceLayers.Count > 0)
+                SetReadinessValue(_insuranceCheck,
+                    $"{snapshot.UnverifiedInsuranceLayers.Count} unverified", false);
+            else if (snapshot.UninsuredEquipmentLayers.Count > 0)
+                SetReadinessValue(_insuranceCheck,
+                    $"{snapshot.UninsuredEquipmentLayers.Count} uninsured", false);
+            else if (snapshot.InsuranceItems == 0)
+            {
+                _insuranceCheck.Text = "No gear equipped";
+                _insuranceCheck.Hue = FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.RestockAgent);
+            }
+            else
+                SetReadinessValue(_insuranceCheck, "All protected", true);
+
+            if (snapshot.UnverifiedWeaponItems > 0)
+            {
+                SetReadinessValue(_durabilityCheck,
+                    $"{snapshot.UnverifiedWeaponItems} weapon unverified", false);
+            }
+            else if (snapshot.DurabilityItems == 0)
             {
                 _durabilityCheck.Text = "No tracked durability";
                 _durabilityCheck.Hue = FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.RestockAgent);
@@ -704,7 +726,7 @@ namespace ClassicUO.Game.UI.Gumps
             else
             {
                 SetReadinessValue(_durabilityCheck,
-                    $"{snapshot.CriticalDurabilityItems} critical · lowest {snapshot.LowestDurability.Durabilty}/{snapshot.LowestDurability.MaxDurabilty}",
+                    $"{snapshot.BelowMinimumDurabilityItems} low · lowest {snapshot.LowestBelowMinimumDurability.Durabilty}/{snapshot.LowestBelowMinimumDurability.MaxDurabilty}",
                     false);
             }
 
@@ -722,7 +744,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (snapshot.IsReady)
             {
-                _status.Text = "Ready: supplies, gear, durability and backpack checks passed.";
+                _status.Text = "Ready: supplies, gear, insurance, durability and backpack checks passed.";
                 GameActions.Print("Readiness: READY. All configured checks passed.", 0x35);
                 return;
             }
@@ -741,10 +763,19 @@ namespace ClassicUO.Game.UI.Gumps
                 issues.Add("missing " + string.Join(", ", snapshot.MissingEquipmentLayers));
             }
 
-            if (!snapshot.DurabilityReady)
+            if (snapshot.UninsuredEquipmentLayers.Count > 0)
+                issues.Add("uninsured " + string.Join(", ", snapshot.UninsuredEquipmentLayers));
+
+            if (snapshot.UnverifiedInsuranceLayers.Count > 0)
+                issues.Add("insurance unverified " + string.Join(", ", snapshot.UnverifiedInsuranceLayers));
+
+            if (snapshot.BelowMinimumDurabilityItems > 0)
             {
-                issues.Add($"{snapshot.CriticalDurabilityItems} critical durability item(s)");
+                issues.Add($"{snapshot.BelowMinimumDurabilityItems} low durability item(s) (weapons need 50)");
             }
+
+            if (snapshot.UnverifiedWeaponItems > 0)
+                issues.Add($"{snapshot.UnverifiedWeaponItems} weapon durability unverified");
 
             if (!snapshot.BackpackReady)
             {

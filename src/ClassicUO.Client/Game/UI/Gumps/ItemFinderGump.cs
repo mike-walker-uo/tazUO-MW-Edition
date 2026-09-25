@@ -430,7 +430,11 @@ namespace ClassicUO.Game.UI.Gumps
 
                 uint serial = _containersToScan.Dequeue();
 
-                if (IsContainerOpen(serial))
+                if (!ItemFinderManager.CanScanContainer(World.Items.Get(serial)))
+                {
+                    _containersToClose.Remove(serial);
+                }
+                else if (IsContainerOpen(serial))
                 {
                     _containersToClose.Remove(serial);
                     _openedContainers.Add(serial);
@@ -468,7 +472,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void QueueContainer(uint serial)
         {
-            if (!_queuedContainers.Add(serial))
+            if (!ItemFinderManager.CanScanContainer(World.Items.Get(serial))
+                || !_queuedContainers.Add(serial))
                 return;
 
             _containersToScan.Enqueue(serial);
@@ -490,7 +495,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 for (var node = container.Items; node != null; node = node.Next)
                 {
-                    if (node is Item child && !child.IsDestroyed && child.ItemData.IsContainer)
+                    if (node is Item child && ItemFinderManager.CanScanContainer(child))
                         QueueContainer(child.Serial);
                 }
             }

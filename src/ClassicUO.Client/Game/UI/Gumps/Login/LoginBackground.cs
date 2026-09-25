@@ -39,7 +39,11 @@ namespace ClassicUO.Game.UI.Gumps.Login
     {
         public LoginBackground() : base(0, 0)
         {
-            if (Client.Version >= ClientVersion.CV_706400)
+            if (LoginArt.Wood != null)
+            {
+                Add(new LoginArtImage(LoginArt.Wood, 0, 0, 640, 480));
+            }
+            else if (Client.Version >= ClientVersion.CV_706400)
             {
                 // Background
                 Add

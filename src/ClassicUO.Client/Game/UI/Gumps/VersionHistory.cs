@@ -11,6 +11,17 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6]\n" +
+            """
+            - Added an in-game chess board for local two-player games or play against a separately installed Stockfish engine, with piece tooltips and visible computer moves
+            - Recreated the login, shard, character-selection, and loading screens with high-resolution art and revised layouts
+            - Added HD gump themes and paperdoll skins, including wood, metal, marble, glass, and stained glass; new profiles default to HD Wood gumps
+            - Expanded the paperdoll tools panel with links to client features and durability tracking
+            - Added equipment insurance checks to Restock Agent readiness
+            - Stopped Item Finder scans from opening spellbooks, bulk-order books, runebooks, atlases, and other books as containers while keeping them searchable as items
+            - Improved nameplate-window reopening, chat and nearby-loot UI behavior, and client performance
+            """ +
+            "\n",
             "[0.6 Beta]\n" +
             """
             - Fix update: Item Finder scans nested containers, preserves its catalog between scans, skips temporary Arcane Focus items, and warns when a located item has moved

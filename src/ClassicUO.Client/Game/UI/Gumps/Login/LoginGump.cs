@@ -41,6 +41,7 @@ using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using SDL3;
+using System;
 using System.Collections.Generic;
 
 namespace ClassicUO.Game.UI.Gumps.Login
@@ -51,7 +52,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
         private readonly ushort _buttonOver;
         private readonly Checkbox _checkboxAutologin;
         private readonly Checkbox _checkboxSaveAccount;
-        private readonly Button _nextArrow0;
+        private readonly Control _nextArrow0;
         private readonly PasswordStbTextBox _passwordFake;
         private readonly StbTextBox _textboxAccount;
 
@@ -67,7 +68,69 @@ namespace ClassicUO.Game.UI.Gumps.Login
             byte font;
             ushort hue;
 
-            if (Client.Version < ClientVersion.CV_706400)
+            if (LoginArt.Chest != null)
+            {
+                _buttonNormal = 0;
+                _buttonOver = 0;
+
+                Add(new LoginArtImage(LoginArt.Chest, 0, 0, 640, 480));
+                if (LoginArt.Logo != null)
+                    Add(new LoginArtImage(LoginArt.Logo, 200, 138, 240, 103));
+                else
+                    Add(new Label("Ultima Online", true, 0xFFFF, font: 1) { X = 267, Y = 198 });
+
+                bool asianLanguage = string.Equals(Settings.GlobalSettings.Language, "CHT", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Settings.GlobalSettings.Language, "KOR", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Settings.GlobalSettings.Language, "JPN", StringComparison.OrdinalIgnoreCase);
+                Control accountLabel = asianLanguage
+                    ? (Control)new Label(ResGumps.Account, true, 0xFFFF, font: 1)
+                    : TextBox.GetOne(ResGumps.Account, "avadonian", 14,
+                        new Color(236, 213, 167), TextBox.RTLOptions.Default());
+                accountLabel.X = 217;
+                accountLabel.Y = 219;
+                Add(accountLabel);
+
+                Control passwordLabel = asianLanguage
+                    ? (Control)new Label(ResGumps.Password, true, 0xFFFF, font: 1)
+                    : TextBox.GetOne(ResGumps.Password, "avadonian", 14,
+                        new Color(236, 213, 167), TextBox.RTLOptions.Default());
+                passwordLabel.X = 217;
+                passwordLabel.Y = 275;
+                Add(passwordLabel);
+
+                Add(new LoginArtButton((int)Buttons.Quit, "Quit", 18, 244, 75, 31));
+                Add(new LoginArtButton((int)Buttons.Credits, "Credits", 533, 125, 88, 31));
+                Add(_nextArrow0 = new LoginArtButton((int)Buttons.NextArrow, "Login", 280, 345, 82, 32));
+
+                offsetX = 215;
+                offsetY = 241;
+                offtextY = 56;
+                font = 1;
+                hue = 0xFFFF;
+
+                Control uoVersion = asianLanguage
+                    ? (Control)new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", true, 0xFFFF, font: 1)
+                    : TextBox.GetOne($"UO Version {Settings.GlobalSettings.ClientVersion}.", "avadonian", 14,
+                        new Color(228, 217, 198), TextBox.RTLOptions.Default());
+                uoVersion.X = 365 - uoVersion.Width / 2;
+                uoVersion.Y = 437;
+                Add(uoVersion);
+
+                Control editionVersion = asianLanguage
+                    ? (Control)new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", true, 0xFFFF, font: 1)
+                    : TextBox.GetOne($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", "avadonian", 14,
+                        new Color(228, 217, 198), TextBox.RTLOptions.Default());
+                editionVersion.X = 365 - editionVersion.Width / 2;
+                editionVersion.Y = 452;
+                Add(editionVersion);
+
+                Add(_checkboxAutologin = new Checkbox(0x00D2, 0x00D3,
+                    ResGumps.Autologin, font, hue, asianLanguage) { X = 230, Y = 397 });
+                Add(_checkboxSaveAccount = new Checkbox(0x00D2, 0x00D3,
+                    ResGumps.SaveAccount, font, hue, asianLanguage)
+                    { X = _checkboxAutologin.X + _checkboxAutologin.Width + 10, Y = 397 });
+            }
+            else if (Client.Version < ClientVersion.CV_706400)
             {
                 _buttonNormal = 0x15A4;
                 _buttonOver = 0x15A5;
@@ -321,7 +384,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 hue = 0x0481;
             }
 
-            if (PNGLoader.Instance.TryGetEmbeddedTexture("tazuo-mw-logo.png", out var mwLogoTexture))
+            if (LoginArt.Chest == null && PNGLoader.Instance.TryGetEmbeddedTexture("tazuo-mw-logo.png", out var mwLogoTexture))
             {
                 Add
                 (
@@ -336,28 +399,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
 
             // Account Text Input Background
-            Add
-            (
-                new ResizePic(0x0BB8)
-                {
-                    X = offsetX,
-                    Y = offsetY,
-                    Width = 210,
-                    Height = 30
-                }
-            );
+            Add(LoginArt.Chest != null
+                ? (Control)new LoginArtSurface(offsetX, offsetY, 210, 30, new Color(233, 223, 202))
+                : new ResizePic(0x0BB8) { X = offsetX, Y = offsetY, Width = 210, Height = 30 });
 
             // Password Text Input Background
-            Add
-            (
-                new ResizePic(0x0BB8)
-                {
-                    X = offsetX,
-                    Y = offsetY + offtextY,
-                    Width = 210,
-                    Height = 30
-                }
-            );
+            Add(LoginArt.Chest != null
+                ? (Control)new LoginArtSurface(offsetX, offsetY + offtextY, 210, 30, new Color(233, 223, 202))
+                : new ResizePic(0x0BB8) { X = offsetX, Y = offsetY + offtextY, Width = 210, Height = 30 });
 
             offsetX += 7;
 
@@ -427,6 +476,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             _checkboxAutologin.IsChecked = Settings.GlobalSettings.AutoLogin;
 
 
+            string linkColor = LoginArt.Chest != null ? "#FFD4BA88" : "#FF00FF00";
+
             Add
             (
                 new HtmlControl
@@ -438,7 +489,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu/support.php\">Support ClassicUO!",
+                    $"<body link=\"{linkColor}\" vlink=\"{linkColor}\" ><a href=\"https://www.classicuo.eu/support.php\">Support ClassicUO!",
                     0x32,
                     true,
                     isunicode: true,
@@ -452,13 +503,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 new HtmlControl
                 (
                     505,
-                    440,
+                    LoginArt.Chest != null ? 438 : 440,
                     100,
                     15,
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">CUO Website",
+                    $"<body link=\"{linkColor}\" vlink=\"{linkColor}\" ><a href=\"https://www.classicuo.eu\">CUO Website",
                     0x32,
                     true,
                     isunicode: true,
@@ -471,13 +522,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 new HtmlControl
                 (
                     505,
-                    460,
+                    LoginArt.Chest != null ? 456 : 460,
                     100,
                     15,
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">CUO Discord",
+                    $"<body link=\"{linkColor}\" vlink=\"{linkColor}\" ><a href=\"https://discord.gg/VdyCpjQ\">CUO Discord",
                     0x32,
                     true,
                     isunicode: true,
@@ -489,7 +540,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             HitBox _hit;
             var options = TextBox.RTLOptions.Default();
             options.Width = 200;
-            Add(_ = TextBox.GetOne("TazUO MW Edition Github", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            Color footerColor = Color.Orange;
+            Add(_ = TextBox.GetOne("TazUO MW Edition Github", TrueTypeLoader.EMBEDDED_FONT, 15, footerColor, options));
             _.X = 30;
             _.Y = 400;
             _.AcceptMouseInput = true;
@@ -499,7 +551,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/mike-walker-uo/tazUO-MW-Edition");
             };
 
-            Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, footerColor, options));
             _.X = 30;
             _.Y = 420;
             _.AcceptMouseInput = true;
@@ -509,7 +561,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/PlayTazUO/TazUO/wiki");
             };
 
-            Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, footerColor, options));
             _.X = 30;
             _.Y = 440;
             _.AcceptMouseInput = true;
@@ -530,7 +582,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             )
             {
                 X = _checkboxSaveAccount.X + _checkboxSaveAccount.Width + 10,
-                Y = 417,
+                Y = _checkboxSaveAccount.Y,
                 IsChecked = Settings.GlobalSettings.LoginMusic
             };
 
@@ -620,11 +672,11 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             base.Update();
 
-            if (_time < Time.Ticks)
+            if (_nextArrow0 is Button arrow && _time < Time.Ticks)
             {
                 _time = (float)Time.Ticks + 1000;
 
-                _nextArrow0.ButtonGraphicNormal = _nextArrow0.ButtonGraphicNormal == _buttonNormal ? _buttonOver : _buttonNormal;
+                arrow.ButtonGraphicNormal = arrow.ButtonGraphicNormal == _buttonNormal ? _buttonOver : _buttonNormal;
             }
 
             if (_passwordFake.HasKeyboardFocus)

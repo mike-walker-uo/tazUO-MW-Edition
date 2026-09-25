@@ -245,6 +245,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (sender is int idx)
             {
                 _markers.RemoveAt(idx);
+                WorldMapGump.NotifyMarkersChanged();
                 // Clear area
                 Remove(_scrollArea);
                 //Redraw List

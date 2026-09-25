@@ -43,9 +43,7 @@ namespace ClassicUO.Game.UI
     /// </summary>
     public static class LowHpVignette
     {
-        // Default off — superseded by LowHpScreenTint (full-screen tint).
-        // Leave the toggle so users can re-enable the edge-pulse if preferred.
-        public static bool Enabled = false;
+        public static bool Enabled = true;
         public static int ThresholdPct = 30;
         private const int BORDER_THICKNESS = 10;
 

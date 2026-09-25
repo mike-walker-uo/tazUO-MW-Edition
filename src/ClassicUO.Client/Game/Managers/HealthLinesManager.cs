@@ -126,6 +126,19 @@ namespace ClassicUO.Game.Managers
                 p.X += (int)mobile.Offset.X + 22 + 5;
                 p.Y += (int)(mobile.Offset.Y - mobile.Offset.Z) + 22 + 5;
 
+                Point barPosition = p;
+                barPosition.X -= 5;
+                barPosition = camera.WorldToScreen(barPosition);
+                float zoomScale = camera.Zoom < 1f ? 1f / camera.Zoom : 1f;
+                int horizontalMargin = (int)((160 + mobile.FrameInfo.Width) * zoomScale);
+                int verticalMargin = (int)((256 + mobile.FrameInfo.Height) * zoomScale);
+                if (mobile.FrameInfo.Width > 0 && mobile.FrameInfo.Height > 0
+                    && (barPosition.X < -horizontalMargin
+                    || barPosition.X > camera.Bounds.Width + horizontalMargin
+                    || barPosition.Y < -verticalMargin
+                    || barPosition.Y > camera.Bounds.Height + verticalMargin))
+                    continue;
+
                 if (mode != 1 && !mobile.IsDead)
                 {
                     if (showWhen == 2 && current != max || showWhen <= 1)
@@ -193,8 +206,7 @@ namespace ClassicUO.Game.Managers
                     continue;
                 }
 
-                p.X -= 5;
-                p = Client.Game.Scene.Camera.WorldToScreen(p);
+                p = barPosition;
                 p.X -= BAR_WIDTH_HALF;
                 p.Y -= BAR_HEIGHT_HALF;
 

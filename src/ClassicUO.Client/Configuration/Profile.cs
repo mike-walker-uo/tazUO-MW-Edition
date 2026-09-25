@@ -109,9 +109,10 @@ namespace ClassicUO.Configuration
         public List<WorldExplorerPin> WorldExplorerPins { get; set; } = new List<WorldExplorerPin>();
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
-        public byte CustomGumpTheme { get; set; }
+        public byte CustomGumpTheme { get; set; } = (byte)ClassicUO.Game.UI.Gumps.CustomGumpTheme.HdWood;
         public byte CustomGumpOpacity { get; set; } = 100;
         public byte PaperdollOpacity { get; set; } = 100;
+        public byte PaperdollSkin { get; set; } = (byte)ClassicUO.Game.UI.Gumps.PaperdollSkin.Marble;
         public byte DurabilityGumpOpacity { get; set; } = 100;
         public bool BoostGumpOpacityOnHover { get; set; }
         public byte GumpHoverOpacityPercent { get; set; } = 100;

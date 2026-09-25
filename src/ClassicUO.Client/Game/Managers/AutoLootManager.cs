@@ -272,15 +272,26 @@ namespace ClassicUO.Game.Managers
 
         private void OnPositionChanged(object sender, PositionChangedArgs e)
         {
-            if (!loaded) return;
+            if (!loaded || !ProfileManager.CurrentProfile.EnableScavenger || World.Map == null)
+                return;
 
-            if(ProfileManager.CurrentProfile.EnableScavenger)
-                foreach (Item item in World.Items.Values)
+            // Scavenging only reaches two tiles away. Walk those map cells
+            // instead of scanning every item currently known to the client.
+            int centerX = World.RangeSize.X;
+            int centerY = World.RangeSize.Y;
+            for (int y = centerY - 2; y <= centerY + 2; y++)
+            {
+                for (int x = centerX - 2; x <= centerX + 2; x++)
                 {
-                    if (item == null || !item.OnGround || item.IsCorpse || item.IsLocked) continue;
-                    if (item.Distance >= 3) continue;
-                    CheckAndLoot(item);
+                    for (GameObject obj = World.Map.GetTile(x, y, false); obj != null; obj = obj.TNext)
+                    {
+                        if (obj is not Item item || !item.OnGround || item.IsCorpse || item.IsLocked)
+                            continue;
+                        if (item.Distance < 3)
+                            CheckAndLoot(item);
+                    }
                 }
+            }
         }
 
         private void OnOpenContainer(object sender, uint e)

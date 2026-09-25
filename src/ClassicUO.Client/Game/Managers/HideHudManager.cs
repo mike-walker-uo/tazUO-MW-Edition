@@ -53,7 +53,7 @@ public static class HideHudManager
                 gump.IsVisible = isVisible;
             else if (ByteFlagHelper.HasFlag(flags, (ulong)HideHudFlags.TopMenuBar) && gump is TopBarGump)
                 gump.IsVisible = isVisible;
-            else if (ByteFlagHelper.HasFlag(flags, (ulong)HideHudFlags.DurabilityTracker) && (gump is DurabilitysGump || gump is DurabilityGumpMinimized))
+            else if (ByteFlagHelper.HasFlag(flags, (ulong)HideHudFlags.DurabilityTracker) && gump is DurabilitysGump)
                 gump.IsVisible = isVisible;
             else if (ByteFlagHelper.HasFlag(flags, (ulong)HideHudFlags.BuffBar) && (gump is BuffGump || gump is ImprovedBuffGump))
                 gump.IsVisible = isVisible;

@@ -158,18 +158,25 @@ namespace ClassicUO.Game.UI.Controls
             ScrollBarBase scrollbar = (ScrollBarBase)Children[0];
             scrollbar.Draw(batcher, x + scrollbar.X, y + scrollbar.Y);
 
-            if (batcher.ClipBegin(x + ScissorRectangle.X, y + ScissorRectangle.Y, Width - 14 + ScissorRectangle.Width, Height + ScissorRectangle.Height))
+            int clipTop = y + ScissorRectangle.Y;
+            int clipBottom = clipTop + Height + ScissorRectangle.Height;
+            if (batcher.ClipBegin(x + ScissorRectangle.X, clipTop, Width - 14 + ScissorRectangle.Width, Height + ScissorRectangle.Height))
             {
                 for (int i = 1; i < Children.Count; i++)
                 {
                     Control child = Children[i];
 
-                    if (!child.IsVisible)
+                    if (child.IsDisposed || !child.IsVisible)
                     {
                         continue;
                     }
 
                     int finalY = y + child.Y - scrollbar.Value + ScissorRectangle.Y;
+                    // Some controls draw a little outside their bounds. Keep a
+                    // small margin while skipping rows far beyond the clip.
+                    if (child.Height > 0 && (finalY + child.Height < clipTop - 16
+                        || finalY > clipBottom + 16))
+                        continue;
 
                     child.Draw(batcher, x + child.X, finalY);
                 }

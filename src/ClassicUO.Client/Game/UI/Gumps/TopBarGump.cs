@@ -283,6 +283,22 @@ namespace ClassicUO.Game.UI.Gumps
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Toggle nameplates", () => { NameOverHeadManager.ToggleOverheads(); }));
 
             var submenu = new ContextMenuItemEntry("Tools");
+            submenu.Add(new ContextMenuItemEntry("Commands", () => PaperDollFeatureToolsGump.Open<CommandPaletteGump>(() => new CommandPaletteGump())));
+            submenu.Add(new ContextMenuItemEntry("Gump Themes", () => PaperDollFeatureToolsGump.Open<GumpThemeSelectorGump>(() => new GumpThemeSelectorGump())));
+            submenu.Add(new ContextMenuItemEntry("Music Player", () => PaperDollFeatureToolsGump.Open<MusicPlayerGump>(() => new MusicPlayerGump())));
+            submenu.Add(new ContextMenuItemEntry("Performance HUD", () => PaperDollFeatureToolsGump.Open<PerfHudGump>(() => new PerfHudGump())));
+            submenu.Add(new ContextMenuItemEntry("TrailFX", () => PaperDollFeatureToolsGump.Open<TrailEffectsGump>(() => new TrailEffectsGump())));
+            submenu.Add(new ContextMenuItemEntry("Spell Effects", () => PaperDollFeatureToolsGump.Open<SpellAbilityEffectsGump>(() => new SpellAbilityEffectsGump())));
+            submenu.Add(new ContextMenuItemEntry("Bandage Agent", () => PaperDollFeatureToolsGump.Open<BandageOptionsGump>(() => new BandageOptionsGump())));
+            submenu.Add(new ContextMenuItemEntry("Global Chat", () => PaperDollFeatureToolsGump.OpenChat<GlobalChatGump>(() => GlobalChatGump.OpenByUser(200, 200))));
+            submenu.Add(new ContextMenuItemEntry("Guild Chat", () => PaperDollFeatureToolsGump.OpenChat<GuildChatGump>(() => GuildChatGump.OpenByUser(220, 220))));
+            submenu.Add(new ContextMenuItemEntry("Nearby Chat", () => PaperDollFeatureToolsGump.OpenChat<NearbySpeechGump>(() => NearbySpeechGump.OpenByUser(240, 240))));
+            submenu.Add(new ContextMenuItemEntry("World Explorer", () => PaperDollFeatureToolsGump.Open<WorldExplorerGump>(() => new WorldExplorerGump())));
+            submenu.Add(new ContextMenuItemEntry("Item Finder", () => PaperDollFeatureToolsGump.Open<ItemFinderGump>(() => new ItemFinderGump())));
+            submenu.Add(new ContextMenuItemEntry("Alert Center", () => PaperDollFeatureToolsGump.Open<AlertCenterGump>(() => new AlertCenterGump())));
+            submenu.Add(new ContextMenuItemEntry("Restock Agent", () => PaperDollFeatureToolsGump.Open<RestockAgentGump>(() => new RestockAgentGump())));
+            submenu.Add(new ContextMenuItemEntry("Equipment Guru", () => PaperDollFeatureToolsGump.Open<EquipmentGuruGump>(() => new EquipmentGuruGump())));
+            submenu.Add(new ContextMenuItemEntry("Durability Tracker", () => PaperDollFeatureToolsGump.Open<DurabilitysGump>(() => new DurabilitysGump())));
             submenu.Add(new ContextMenuItemEntry("Spell quick cast", () => { UIManager.Add(new SpellQuickSearch(200, 200, (sp) => {if (sp != null) GameActions.CastSpell(sp.ID);})); }));
             submenu.Add(new ContextMenuItemEntry("Open boat control", () => { UIManager.Add(new BoatControl() { X = 200, Y = 200 }); }));
             submenu.Add(new ContextMenuItemEntry("Nearby Loot Gump", () => { UIManager.Add(new NearbyLootGump()); }));
@@ -295,26 +311,6 @@ namespace ClassicUO.Game.UI.Gumps
                     return;
                 }
                 UIManager.Add(new DamageTrackerGump(100, 100));
-            }));
-            submenu.Add(new ContextMenuItemEntry("Global Chat", () =>
-            {
-                var existing = UIManager.GetGump<GlobalChatGump>();
-                if (existing != null && !existing.IsDisposed)
-                {
-                    existing.CloseByUser();
-                    return;
-                }
-                GlobalChatGump.OpenByUser(200, 200);
-            }));
-            submenu.Add(new ContextMenuItemEntry("Guild Chat", () =>
-            {
-                var existing = UIManager.GetGump<GuildChatGump>();
-                if (existing != null && !existing.IsDisposed)
-                {
-                    existing.CloseByUser();
-                    return;
-                }
-                GuildChatGump.OpenByUser(220, 220);
             }));
             submenu.Add(new ContextMenuItemEntry("Pet Status Panel", () =>
             {
