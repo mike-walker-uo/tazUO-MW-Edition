@@ -87,6 +87,7 @@ namespace ClassicUO.Game.Managers
             new Feature("FullHpToast", FullHpToastManager.Tick, () => FullHpToastManager.Enabled),
             new Feature("AutoStopOnDeath", AutoStopOnDeathManager.Tick, () => AutoStopOnDeathManager.Enabled),
             new Feature("ParagonGlow", ParagonGlowManager.Tick, () => ParagonGlowManager.Enabled),
+            new Feature("HealerAppearance", HealerAppearanceManager.Tick),
             new Feature("MobBlood", UI.MobBloodOverlay.Tick, () => UI.MobBloodOverlay.Enabled),
             new Feature("GhostFade", UI.GhostFadeOverlay.Tick, () => UI.GhostFadeOverlay.Enabled),
             new Feature("SpawnTimer", SpawnTimerManager.Tick, () => SpawnTimerManager.HasPending),

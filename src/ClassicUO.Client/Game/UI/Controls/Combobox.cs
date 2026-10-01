@@ -47,6 +47,7 @@ namespace ClassicUO.Game.UI.Controls
         private readonly string[] _items;
         private readonly Label _label;
         private readonly int _maxHeight;
+        private readonly Func<int, Color?> _itemColor;
         private int _selectedIndex;
 
         public Combobox
@@ -59,7 +60,8 @@ namespace ClassicUO.Game.UI.Controls
             int maxHeight = 200,
             bool showArrow = true,
             string emptyString = "",
-            byte font = 9
+            byte font = 9,
+            Func<int, Color?> itemColor = null
         )
         {
             X = x;
@@ -70,6 +72,7 @@ namespace ClassicUO.Game.UI.Controls
             _font = font;
             _items = items;
             _maxHeight = maxHeight;
+            _itemColor = itemColor;
 
             Add
             (
@@ -79,18 +82,18 @@ namespace ClassicUO.Game.UI.Controls
                 }
             );
 
-            string initialText = selected > -1 ? items[selected] : emptyString;
+            string initialText = selected > -1 ? ItemText(selected) : emptyString;
 
             bool isAsianLang = string.Compare(Settings.GlobalSettings.Language, "CHT", StringComparison.InvariantCultureIgnoreCase) == 0 || 
                 string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0 ||
                 string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
 
-            bool unicode = isAsianLang;
-            byte font1 = (byte)(isAsianLang ? 1 : _font);
+            bool unicode = isAsianLang || _itemColor != null;
+            byte font1 = (byte)(unicode ? 1 : _font);
 
             Add
             (
-                _label = new Label(initialText, unicode, 0x0453, font: font1)
+                _label = new Label(initialText, unicode, 0x0453, font: font1, ishtml: _itemColor != null)
                 {
                     X = 2, Y = 5
                 }
@@ -112,7 +115,7 @@ namespace ClassicUO.Game.UI.Controls
 
                 if (_items != null)
                 {
-                    _label.Text = _items[value];
+                    _label.Text = ItemText(value);
 
                     OnOptionSelected?.Invoke(this, value);
                 }
@@ -121,6 +124,14 @@ namespace ClassicUO.Game.UI.Controls
 
 
         public event EventHandler<int> OnOptionSelected;
+
+        private string ItemText(int index)
+        {
+            string text = _items[index] ?? string.Empty;
+            Color? color = _itemColor?.Invoke(index);
+            if (!color.HasValue || text.Length == 0) return text;
+            return $"<basefont color=\"#{color.Value.R:X2}{color.Value.G:X2}{color.Value.B:X2}\">{text}</basefont>";
+        }
 
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -209,12 +220,12 @@ namespace ClassicUO.Game.UI.Controls
                     string.Compare(Settings.GlobalSettings.Language, "KOR", StringComparison.InvariantCultureIgnoreCase) == 0 ||
                     string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
 
-                bool unicode = isAsianLang;
-                byte font1 = (byte)(isAsianLang ? 1 : font);
+                bool unicode = isAsianLang || combobox._itemColor != null;
+                byte font1 = (byte)(unicode ? 1 : font);
 
                 for (int i = 0; i < items.Length; i++)
                 {
-                    string item = items[i];
+                    string item = combobox.ItemText(i);
 
                     if (item == null)
                     {
@@ -228,7 +239,8 @@ namespace ClassicUO.Game.UI.Controls
                         0x0453,
                         0x0453,
                         0x0453,
-                        font: font1
+                        font: font1,
+                        ishtml: combobox._itemColor != null
                     )
                     {
                         X = 2,
@@ -241,6 +253,13 @@ namespace ClassicUO.Game.UI.Controls
                     label.MouseUp += LabelOnMouseUp;
 
                     labels[i] = label;
+                }
+
+                if (combobox._itemColor != null)
+                {
+                    int rowHeight = Math.Max(ELEMENT_HEIGHT, labels.Max(label => label.Height));
+                    for (int i = 0; i < labels.Length; i++)
+                        labels[i].Y = i * rowHeight;
                 }
 
                 int totalHeight = Math.Min(maxHeight, labels.Max(o => o.Y + o.Height));

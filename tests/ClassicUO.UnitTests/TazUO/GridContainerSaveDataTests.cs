@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Gumps;
 using FluentAssertions;
 using Xunit;
 
@@ -41,7 +42,12 @@ namespace ClassicUO.UnitTests.TazUO
         [Fact]
         public void ItemCellsAndLocksRoundTripThroughJson()
         {
-            var entry = new GridContainerEntry { Serial = 42 };
+            var entry = new GridContainerEntry
+            {
+                Serial = 42,
+                SortMode = (int)GridContainer.GridSortMode.EquipmentLayer,
+                AutoSort = true
+            };
             entry.ReplaceSlots
             (
                 new Dictionary<int, uint> { [7] = 100 },
@@ -62,6 +68,8 @@ namespace ClassicUO.UnitTests.TazUO
             );
 
             restored.Should().ContainSingle();
+            restored[0].SortMode.Should().Be((int)GridContainer.GridSortMode.EquipmentLayer);
+            restored[0].AutoSort.Should().BeTrue();
             restored[0].Slots[100].Slot.Should().Be(7);
             restored[0].Slots[100].Locked.Should().BeTrue();
         }

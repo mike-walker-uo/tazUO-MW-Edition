@@ -69,7 +69,7 @@ namespace ClassicUO.Game.UI.Gumps
             GameActions.RequestMobileStatus(entity.Serial, true);
             LocalSerial = entity.Serial;
             CanCloseWithRightClick = true;
-            _name = entity.Name;
+            _name = HealerAppearanceManager.GetDisplayName(entity);
             _isDead = entity is Mobile mm && mm.IsDead;
 
             BuildGump();
@@ -81,7 +81,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (World.Mobiles.TryGetValue(serial, out Mobile m))
             {
                 LocalSerial = serial;
-                _name = m.Name;
+                _name = HealerAppearanceManager.GetDisplayName(m);
                 _isDead = m.IsDead;
 
                 Children.Clear();
@@ -711,9 +711,10 @@ namespace ClassicUO.Game.UI.Gumps
                     _isDead = false;
                 }
 
-                if (!string.IsNullOrEmpty(entity.Name) && _name != entity.Name)
+                string displayName = HealerAppearanceManager.GetDisplayName(entity);
+                if (!string.IsNullOrEmpty(displayName) && _name != displayName)
                 {
-                    _name = entity.Name;
+                    _name = displayName;
 
                     if (_textBox != null)
                     {
@@ -2008,9 +2009,10 @@ namespace ClassicUO.Game.UI.Gumps
                     _isDead = false;
                 }
 
-                if (!string.IsNullOrEmpty(entity.Name) && !(inparty && LocalSerial == World.Player.Serial) && _name != entity.Name)
+                string displayName = HealerAppearanceManager.GetDisplayName(entity);
+                if (!string.IsNullOrEmpty(displayName) && !(inparty && LocalSerial == World.Player.Serial) && _name != displayName)
                 {
-                    _name = entity.Name;
+                    _name = displayName;
 
                     if (_textBox != null)
                     {

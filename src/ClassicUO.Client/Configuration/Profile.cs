@@ -1344,6 +1344,15 @@ namespace ClassicUO.Configuration
                                     case GumpType.PaperDoll:
                                         gump = new ModernPaperdoll(World.Player.Serial);
                                         break;
+                                    case GumpType.GlobalChat:
+                                        gump = new GlobalChatGump(x, y);
+                                        break;
+                                    case GumpType.GuildChat:
+                                        gump = new GuildChatGump(x, y);
+                                        break;
+                                    case GumpType.NearbySpeechHistory:
+                                        gump = new NearbySpeechGump(x, y);
+                                        break;
                                 }
 
                                 if (gump != null)

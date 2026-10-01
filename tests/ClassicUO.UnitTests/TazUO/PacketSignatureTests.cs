@@ -10,6 +10,10 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData("Global Chat: Lobby", true)]
         [InlineData("  Global Chat: Lobby", true)]
         [InlineData("Message containing Global Chat: later", true)]
+        [InlineData("UOAlive Chat Global [c Global [tc Trade [ec Events [hc Help [lfg LFG", true)]
+        [InlineData("UOAlive Chat Trade [tc Trade [lfg LFG", true)]
+        [InlineData("UOAlive Chat unrelated window", false)]
+        [InlineData("Channels All Global Trade Events Help LFG Guild Party", false)]
         [InlineData("Guild Chat: Lobby", false)]
         [InlineData("", false)]
         public void GlobalChatReplacementRequiresFirstLabel(string text, bool expected)

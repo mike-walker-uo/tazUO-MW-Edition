@@ -114,7 +114,8 @@ namespace ClassicUO.Game.UI.Gumps
             get
             {
                 string status = autoSortContainer ? "<basefont color=\"green\">Enabled" : "<basefont color=\"red\">Disabled";
-                string sortModeText = sortMode == GridSortMode.Name ? "Name" : "Graphic + Hue";
+                string sortModeText = sortMode == GridSortMode.Name ? "Name"
+                    : sortMode == GridSortMode.EquipmentLayer ? "Equipment Layer" : "Graphic + Hue";
                 return $"Sort this container.<br>Left click to show sort options<br>Alt + Click to enable auto sort<br>Current sort: {sortModeText}<br>Auto sort currently {status}";
             }
         }
@@ -458,6 +459,15 @@ namespace ClassicUO.Game.UI.Gumps
                 UpdateItems(true);
                 gridContainerEntry.UpdateSaveDataEntry(this);
             }, true, sortMode == GridSortMode.Name));
+
+            control.Add(new ContextMenuItemEntry("Sort by Equipment Layer", () =>
+            {
+                sortMode = GridSortMode.EquipmentLayer;
+                sortContents.ContextMenu = GenSortContextMenu();
+                sortContents.SetTooltip(sortButtonTooltip);
+                UpdateItems(true);
+                gridContainerEntry.UpdateSaveDataEntry(this);
+            }, true, sortMode == GridSortMode.EquipmentLayer));
 
             return control;
         }
@@ -1007,7 +1017,8 @@ namespace ClassicUO.Game.UI.Gumps
         public enum GridSortMode
         {
             GraphicAndHue = 0,
-            Name = 1
+            Name = 1,
+            EquipmentLayer = 2
         }
 
         public enum BorderStyle
@@ -1910,6 +1921,10 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     contents.Sort(_compareByName);
                 }
+                else if (sortMode == GridSortMode.EquipmentLayer)
+                {
+                    contents.Sort(_compareByEquipmentLayer);
+                }
                 else // Default: Sort by graphic + hue
                 {
                     contents.Sort(_compareByGraphicHue);
@@ -1921,6 +1936,17 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 int c = a.Graphic.CompareTo(b.Graphic);
                 return c != 0 ? c : a.Hue.CompareTo(b.Hue);
+            };
+
+            internal static int EquipmentLayerSortKey(StaticTiles data) =>
+                (data.IsWearable || data.IsWeapon) && data.Layer > (byte)Layer.Invalid
+                    && data.Layer < (byte)Layer.Mount && data.Layer != (byte)Layer.Backpack
+                    ? data.Layer : int.MaxValue;
+
+            private static readonly Comparison<Item> _compareByEquipmentLayer = (a, b) =>
+            {
+                int c = EquipmentLayerSortKey(a.ItemData).CompareTo(EquipmentLayerSortKey(b.ItemData));
+                return c != 0 ? c : _compareByGraphicHue(a, b);
             };
 
             private static readonly Comparison<Item> _compareByName = (a, b) =>

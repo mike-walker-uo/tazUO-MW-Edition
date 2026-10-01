@@ -12,6 +12,7 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
+using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -69,6 +70,7 @@ namespace ClassicUO.Game.UI.Gumps
         private uint _deadline;
         private int _bookIndex;
         private int _atlasPage;
+        private int _scanFailures;
         private int _travelPage;
         private WorldExplorerPin _travelPin;
         private PendingAction _pending;
@@ -506,6 +508,7 @@ namespace ClassicUO.Game.UI.Gumps
             _catalog.RemoveAll(p => p.Kind != "portal");
             _bookIndex = 0;
             _atlasPage = 0;
+            _scanFailures = 0;
             CollectBackpack(backpack);
             RebuildRows();
         }
@@ -604,7 +607,8 @@ namespace ClassicUO.Game.UI.Gumps
                 _pending = PendingAction.None;
                 _scanCompleted = true;
                 RebuildRows();
-                Status("Scan complete: " + _catalog.Count(p => p.Kind != "portal") + " rune locations from " + _books.Count + " books.");
+                Status("Scan complete: " + _catalog.Count(p => p.Kind != "portal") + " rune locations from " + _books.Count + " books."
+                    + (_scanFailures > 0 ? " " + _scanFailures + " scan failures; see client log." : string.Empty));
                 return;
             }
             Item book = _books[_bookIndex];
@@ -655,9 +659,10 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static string BookType(Gump gump)
         {
-            if (gump.Children.OfType<Button>().Any(b => b.ButtonID >= 100 && b.ButtonID < 148
-                && (Math.Abs(b.X - 46) <= 8 || Math.Abs(b.X - 251) <= 8)
-                && b.Y >= 45 && b.Y <= 210))
+            if (gump.Children.OfType<GumpPicBase>().Any(p => p.Graphic == 39923)
+                || gump.Children.OfType<Button>().Any(b => b.ButtonID >= 100 && b.ButtonID < 148
+                    && (Math.Abs(b.X - 46) <= 8 || Math.Abs(b.X - 251) <= 8)
+                    && b.Y >= 45 && b.Y <= 210))
                 return "atlas";
             if (gump.Children.OfType<Button>().Any(b => b.ButtonID >= 10 && b.ButtonID < 26
                 && b.Page == 1 && b.X >= 115 && b.X <= 310 && b.Y >= 55 && b.Y <= 180))
@@ -697,18 +702,59 @@ namespace ClassicUO.Game.UI.Gumps
             return ControlText(text);
         }
 
+        // Atlas slots follow the two columns of eight rows, independent of shard reply IDs.
+        internal static int[] AtlasRowOrder(IReadOnlyList<Point> positions)
+        {
+            var columns = new List<int[]>();
+            foreach (var column in Enumerable.Range(0, positions.Count).GroupBy(i => positions[i].X).OrderBy(g => g.Key))
+            {
+                int[] ordered = column.OrderBy(i => positions[i].Y).ToArray();
+                for (int start = 0; start + 8 <= ordered.Length; start++)
+                {
+                    int spacing = positions[ordered[start + 1]].Y - positions[ordered[start]].Y;
+                    if (spacing <= 0 || spacing > 40
+                        || !Enumerable.Range(1, 7).All(row => positions[ordered[start + row]].Y
+                            - positions[ordered[start + row - 1]].Y == spacing))
+                        continue;
+                    columns.Add(ordered.Skip(start).Take(8).ToArray());
+                    break;
+                }
+            }
+            if (columns.Count != 2 || !Enumerable.Range(0, 8).All(row =>
+                positions[columns[0][row]].Y == positions[columns[1][row]].Y))
+                return Array.Empty<int>();
+            return columns.SelectMany(column => column).ToArray();
+        }
+
+        private static List<Button> AtlasRows(Gump gump)
+        {
+            List<Button> buttons = gump.Children.OfType<Button>()
+                .Where(b => (b.Page == 0 || b.Page == gump.ActivePage)
+                    && b.ButtonAction == ButtonAction.Activate && b.ButtonGraphicNormal == 2103
+                    && !string.IsNullOrWhiteSpace(RowName(gump, b))).ToList();
+            return AtlasRowOrder(buttons.Select(b => new Point(b.X, b.Y)).ToArray())
+                .Select(i => buttons[i]).ToList();
+        }
+
+        private static Button AtlasNextButton(Gump gump) => gump.Children.OfType<Button>()
+            .FirstOrDefault(b => b.ButtonAction == ButtonAction.Activate && b.ButtonGraphicNormal == 2206);
+
         private void ReadBook(Gump gump, Item book)
         {
             string kind = BookType(gump);
             int count = 0;
-            foreach (Button button in gump.Children.OfType<Button>())
+            List<Button> atlasRows = kind == "atlas" ? AtlasRows(gump) : null;
+            if (atlasRows != null && atlasRows.Count == 0)
+            {
+                _scanFailures++;
+                Log.Warn("World Explorer: unsupported Atlas layout " + gump.ServerSerial + "\n" + gump.PacketGumpText);
+            }
+            foreach (Button button in atlasRows ?? gump.Children.OfType<Button>().ToList())
             {
                 int slot;
                 if (kind == "atlas")
                 {
-                    if (button.ButtonID < 100 || button.ButtonID >= 148 || button.Y < 45 || button.Y > 210)
-                        continue;
-                    slot = button.ButtonID - 100;
+                    slot = _atlasPage * 16 + atlasRows.IndexOf(button);
                 }
                 else
                 {
@@ -793,6 +839,8 @@ namespace ClassicUO.Game.UI.Gumps
                     return;
                 if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage)
                 {
+                    _scanFailures++;
+                    Log.Warn("World Explorer: timed out opening " + ItemName(_books[_bookIndex]));
                     Status("Timed out opening " + ItemName(_books[_bookIndex]) + "; continuing.");
                     _bookIndex++;
                     NextBook();
@@ -813,10 +861,11 @@ namespace ClassicUO.Game.UI.Gumps
                     || (!IsRunebookGraphic(book.Graphic) && kind != "atlas"))
                     return;
                 ReadBook(gump, book);
-                if (kind == "atlas" && _atlasPage < 2 && HasButton(gump, 1150))
+                Button next = kind == "atlas" ? AtlasNextButton(gump) : null;
+                if (next != null && _atlasPage < 2)
                 {
                     _atlasPage++;
-                    Reply(gump, 1150);
+                    Reply(gump, next.ButtonID);
                     WaitFor(PendingAction.ScanAtlasPage);
                     return;
                 }
@@ -864,42 +913,43 @@ namespace ClassicUO.Game.UI.Gumps
             int targetPage = _travelPin.Slot / 16;
             if (_pending != PendingAction.TravelAtlasSelected && _travelPage < targetPage)
             {
-                if (!HasButton(gump, 1150))
+                Button next = AtlasNextButton(gump);
+                if (next == null)
                 {
                     _pending = PendingAction.None;
                     Status("Atlas page is unavailable.");
                     return;
                 }
                 _travelPage++;
-                Reply(gump, 1150);
+                Reply(gump, next.ButtonID);
                 WaitFor(PendingAction.TravelAtlasPage);
                 return;
             }
             if (_pending != PendingAction.TravelAtlasSelected)
             {
-                int select = 100 + _travelPin.Slot;
-                Button row = gump.Children.OfType<Button>().FirstOrDefault(b => b.ButtonID == select
-                    && (Math.Abs(b.X - 46) <= 8 || Math.Abs(b.X - 251) <= 8));
+                Button row = AtlasRows(gump).ElementAtOrDefault(_travelPin.Slot % 16);
                 if (row == null || !string.Equals(RowName(gump, row), _travelPin.Name, StringComparison.Ordinal))
                 {
                     _pending = PendingAction.None;
                     Status("Atlas location changed. Scan and pin it again.");
                     return;
                 }
-                Reply(gump, select);
+                Reply(gump, row.ButtonID);
                 WaitFor(PendingAction.TravelAtlasSelected);
                 return;
             }
-            bool selected = gump.Children.Any(c => c.Y >= 340 && c.Y <= 370
+            List<Button> rows = AtlasRows(gump);
+            bool selected = rows.Count == 16 && gump.Children.Any(c => c.Y > rows.Max(b => b.Y) + 40
+                && c.X < rows[8].X
                 && string.Equals(ControlText(c), _travelPin.Name, StringComparison.Ordinal));
-            int action = AtlasTravelButton();
-            if (!selected || !HasButton(gump, action))
+            Button action = AtlasTravelButton(gump, rows);
+            if (!selected || action == null)
             {
                 _pending = PendingAction.None;
                 Status("Atlas did not confirm this destination or method.");
                 return;
             }
-            Reply(gump, action);
+            Reply(gump, action.ButtonID);
             _pending = PendingAction.None;
             Status("Travel requested: " + DisplayName(_travelPin) + ".");
         }
@@ -914,14 +964,18 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        private int AtlasTravelButton()
+        private Button AtlasTravelButton(Gump gump, List<Button> rows)
         {
-            switch (Profile?.WorldExplorerTravelMethod ?? 0)
+            if (rows.Count != 16) return null;
+            int method = Profile?.WorldExplorerTravelMethod ?? 0;
+            return gump.Children.OfType<Button>().FirstOrDefault(b =>
             {
-                case 1: return 7;
-                case 2: return 5;
-                default: return 4;
-            }
+                if (b.ButtonAction != ButtonAction.Activate || b.Y <= rows.Max(row => row.Y)) return false;
+                string name = RowName(gump, b) ?? string.Empty;
+                if (method == 1) return name.Equals("Sacred Journey", StringComparison.OrdinalIgnoreCase);
+                return name.StartsWith("Recall", StringComparison.OrdinalIgnoreCase)
+                    && name.IndexOf(method == 2 ? "Charge" : "Spell", StringComparison.OrdinalIgnoreCase) >= 0;
+            });
         }
 
         private void Status(string message)
