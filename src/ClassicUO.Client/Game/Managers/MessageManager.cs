@@ -259,10 +259,13 @@ namespace ClassicUO.Game.Managers
                         if (IgnoreManager.IgnoredCharsList.Contains(parent.Name) && type != MessageType.Spell)
                             break;
 
+                        bool healerName = type == MessageType.Label && parent is Mobile healer
+                            && HealerAppearanceManager.IsHealer(healer)
+                            && (text == healer.Name || HealerAppearanceManager.HasHealerTitle(text));
                         TextObject msg = CreateMessage
                         (
-                            text,
-                            hue,
+                            healerName ? HealerAppearanceManager.DisplayName : text,
+                            healerName ? HealerAppearanceManager.GoldHue : hue,
                             font,
                             unicode,
                             type,

@@ -272,7 +272,13 @@ namespace ClassicUO.Game.UI
 
                                 if (mob != null)
                                 {
-                                    sbHTML.Append(Notoriety.GetHTMLHue(mob.NotorietyFlag));
+                                    if (Managers.HealerAppearanceManager.IsHealer(mob))
+                                    {
+                                        name = Managers.HealerAppearanceManager.DisplayName;
+                                        sbHTML.Append("<basefont color=\"#FFD65A\">");
+                                    }
+                                    else
+                                        sbHTML.Append(Notoriety.GetHTMLHue(mob.NotorietyFlag));
                                     hasStartColor = true;
                                 }
                             }

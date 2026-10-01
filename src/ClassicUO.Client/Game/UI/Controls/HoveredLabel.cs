@@ -51,7 +51,8 @@ namespace ClassicUO.Game.UI.Controls
             int maxwidth = 0,
             byte font = 255,
             FontStyle style = FontStyle.None,
-            TEXT_ALIGN_TYPE align = TEXT_ALIGN_TYPE.TS_LEFT
+            TEXT_ALIGN_TYPE align = TEXT_ALIGN_TYPE.TS_LEFT,
+            bool ishtml = false
         ) : base
         (
             $" {text}",
@@ -60,7 +61,8 @@ namespace ClassicUO.Game.UI.Controls
             maxwidth,
             font,
             style,
-            align
+            align,
+            ishtml
         )
         {
             _overHue = overHue;

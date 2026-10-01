@@ -80,14 +80,17 @@ namespace ClassicUO.Game.GameObjects
 
             bool hasShadow = EnvironmentalShadowManager.ShouldCastMobile(this);
             bool inParty = InParty;
+            bool healer = !IsDead && !IsHidden && Distance <= World.ClientViewRange
+                && HealerAppearanceManager.IsHealer(this);
 
-            if (AuraManager.IsEnabled)
+            if (healer || AuraManager.IsEnabled)
             {
                 AuraManager.Draw(
                     batcher,
                     drawX,
                     drawY,
-                    ProfileManager.CurrentProfile.PartyAura && inParty
+                    healer ? HealerAppearanceManager.GoldHue
+                    : ProfileManager.CurrentProfile.PartyAura && inParty
                         ? ProfileManager.CurrentProfile.PartyAuraHue
                         : Notoriety.GetHue(NotorietyFlag),
                     depth + 1f
@@ -170,6 +173,9 @@ namespace ClassicUO.Game.GameObjects
                 else if (inParty && profile.OverridePartyAndGuildHue)
                     overridenHue = profile.FriendHue;
             }
+
+            if (healer && overridenHue == 0)
+                overridenHue = HealerAppearanceManager.GoldHue;
 
             ProcessSteps(out byte dir);
             byte layerDir = dir;

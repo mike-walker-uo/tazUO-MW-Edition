@@ -83,7 +83,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             _button.MouseDown += (sender, e) =>
             {
-                if (!ProfileManager.CurrentProfile.GameWindowLock)
+                if (e.Button == MouseButtonType.Left && ProfileManager.CurrentProfile?.GameWindowLock == false)
                 {
                     _clicked = true;
                 }
@@ -91,7 +91,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             _button.MouseUp += (sender, e) =>
             {
-                if (!ProfileManager.CurrentProfile.GameWindowLock)
+                if (e.Button != MouseButtonType.Left)
+                    return;
+
+                if (_clicked && ProfileManager.CurrentProfile?.GameWindowLock == false)
                 {
                     Point n = ResizeGameWindow(_lastSize);
 
@@ -99,9 +102,9 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         NetClient.Socket.Send_GameWindowSize((uint)n.X, (uint)n.Y);
                     }
-
-                    _clicked = false;
                 }
+
+                _clicked = false;
             };
 
             _button.SetTooltip(ResGumps.ResizeGameWindow);
@@ -118,8 +121,8 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             Add(_borderControl);
-            Add(_button);
             Add(_systemChatControl);
+            Add(_button);
             Resize();
 
             if (ProfileManager.CurrentProfile.LastVersionHistoryShown != CUOEnviroment.Version.ToString())
@@ -135,6 +138,17 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Update()
         {
+            if (IsDisposed || ProfileManager.CurrentProfile == null)
+            {
+                CanMove = false;
+                _clicked = false;
+                return;
+            }
+
+            CanMove = !ProfileManager.CurrentProfile.GameWindowLock;
+            if (!CanMove)
+                _clicked = false;
+
             base.Update();
 
             if (IsDisposed)
@@ -142,13 +156,13 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            if (Mouse.IsDragging)
+            if (_clicked && Mouse.IsDragging)
             {
                 Point offset = Mouse.LDragOffset;
 
                 _lastSize = _savedSize;
 
-                if (_clicked && offset != Point.Zero)
+                if (offset != Point.Zero)
                 {
                     int w = _lastSize.X + offset.X;
                     int h = _lastSize.Y + offset.Y;
@@ -247,12 +261,12 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _borderControl.Width = Width;
             _borderControl.Height = Height;
-            _button.X = Width - (_button.Width >> 1);
-            _button.Y = Height - (_button.Height >> 1);
+            _button.X = Width - BORDER_WIDTH - _button.Width;
+            _button.Y = Height - BORDER_WIDTH - _button.Height;
             _scene.Camera.Bounds.Width = _systemChatControl.Width = Width - BORDER_WIDTH * 2;
             _scene.Camera.Bounds.Height = _systemChatControl.Height = Height - BORDER_WIDTH * 2;
             _systemChatControl.Resize();
-            WantUpdateSize = true;
+            WantUpdateSize = false;
 
             UpdateGameWindowPos();
         }
@@ -300,6 +314,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Contains(int x, int y)
         {
+            if (!_button.IsDisposed && _button.Bounds.Contains(x, y))
+                return true;
+
             if (
                 x >= BORDER_WIDTH
                 && x < Width - BORDER_WIDTH * 2

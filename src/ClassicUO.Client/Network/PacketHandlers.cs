@@ -7684,7 +7684,10 @@ namespace ClassicUO.Network
         internal static bool IsGlobalChatSignature(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return false;
-            return text.IndexOf("Global Chat:", StringComparison.OrdinalIgnoreCase) >= 0;
+            return text.IndexOf("Global Chat:", StringComparison.OrdinalIgnoreCase) >= 0
+                || (text.IndexOf("UOAlive Chat", StringComparison.OrdinalIgnoreCase) >= 0
+                    && text.IndexOf("[tc", StringComparison.OrdinalIgnoreCase) >= 0
+                    && text.IndexOf("[lfg", StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         internal static bool IsRepairBenchSignature(string text)

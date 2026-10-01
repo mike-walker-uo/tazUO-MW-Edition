@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6)
+[Download version 0.6.1](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.1)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -32,6 +32,14 @@ It has many features, some of them are:
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6.1 highlights
+
+1. **Chat channels:** Implemented the new UOAlive Chat channels including color code! View/Send selectors for Global, Trade, Events, Help, LFG, Guild and Party, with correct posting commands. All shows public channels.
+2. **Chat restoration:** Global Chat, Guild Chat and Nearby Speech windows reopen after login.
+3. **Equipment sorting:** backpack/container grid views can sort now also by equipment layer, place non-equipment last while preserving locked slots.
+4. **Game window fixes:** now resize (blue dot) and relocation (grab the edges) of the game window is working.
+5. **Runic Atlas fixes:** World Explorer now scans the Runic Atlases correctly.
 
 ## Version 0.6 highlights
 
@@ -122,7 +130,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.1 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.1).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.

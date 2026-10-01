@@ -70,6 +70,8 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Label _inputPrompt;
         private readonly HitBox _resizeGrip;
         private readonly int _artInset;
+        private readonly int _extraHeaderHeight;
+        private Predicate<ChatHistoryRecord> _recordFilter;
 
         private bool _resizing;
         private int _resizeStartX, _resizeStartY, _startW, _startH;
@@ -80,7 +82,7 @@ namespace ClassicUO.Game.UI.Gumps
         protected BaseChatGump(int x, int y, int w, int h, int fontSizeOverride,
                                string headerText, string sendPromptText,
                                ChatHistoryStore store, Action<string> sendAction,
-                               bool showInput = true) : base(0, 0)
+                               bool showInput = true, int extraHeaderHeight = 0, bool colorChannelTags = false) : base(0, 0)
         {
             _store = store;
             _sendAction = sendAction;
@@ -92,6 +94,7 @@ namespace ClassicUO.Game.UI.Gumps
             Height = h;
             FontSizeOverride = fontSizeOverride;
             _artInset = CustomThemeArt.ContentInset;
+            _extraHeaderHeight = extraHeaderHeight;
 
             CanMove = true;
             AcceptMouseInput = true;
@@ -144,7 +147,7 @@ namespace ClassicUO.Game.UI.Gumps
             });
             CustomGumpThemeManager.StyleDataButton(_clearButton);
 
-            int bodyY = HEADER_H + _artInset + (_artInset == 0 ? 0 : 6);
+            int bodyY = ExtraHeaderY + _extraHeaderHeight;
             int bodyH = Height - bodyY - (showInput ? INPUT_HEIGHT : 0) - PADDING - _artInset;
             int bodyW = Width - 14 - ((PADDING + _artInset) * 2);
 
@@ -161,7 +164,8 @@ namespace ClassicUO.Game.UI.Gumps
             _scrollBar = new ScrollBar(Width - 14 - PADDING - _artInset, bodyY, bodyH);
             Add(_scrollBar);
 
-            _body = new ChatBody(_store, PADDING + _artInset, bodyY, bodyW, bodyH, _scrollBar);
+            _body = new ChatBody(_store, PADDING + _artInset, bodyY, bodyW, bodyH, _scrollBar,
+                record => _recordFilter == null || _recordFilter(record), colorChannelTags);
             Add(_body);
 
             if (showInput)
@@ -204,6 +208,21 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         protected int FontSizeOverride { get; private set; }
+        protected int ExtraHeaderY => HEADER_H + _artInset + (_artInset == 0 ? 0 : 6);
+
+        protected void SetRecordFilter(Predicate<ChatHistoryRecord> filter)
+        {
+            _recordFilter = filter;
+            _body.RebuildFromHistory(GetCurrentFontSize(), _search.Text);
+        }
+
+        protected void SetSendPrompt(string text)
+        {
+            _inputPrompt.Text = text;
+            Resize(Width, Height);
+        }
+
+        protected virtual void SendMessage(string text) => _sendAction?.Invoke(text);
 
         protected abstract int GetProfileFontSize();
         protected abstract void StoreFontSizeOverride(int v);
@@ -303,7 +322,7 @@ namespace ClassicUO.Game.UI.Gumps
             _fontPlus.X = w - 144 - _artInset;
             _clearButton.X = w - 50 - PADDING - _artInset;
 
-            int bodyY = HEADER_H + _artInset + (_artInset == 0 ? 0 : 6);
+            int bodyY = ExtraHeaderY + _extraHeaderHeight;
             int bodyH = h - bodyY - (_input == null ? 0 : INPUT_HEIGHT) - PADDING - _artInset;
             int bodyW = w - 14 - ((PADDING + _artInset) * 2);
 
@@ -319,6 +338,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 int promptWidth = Math.Max(60, _inputPrompt.Width + 8);
                 _inputPrompt.Y = h - INPUT_HEIGHT - _artInset + 2;
+                _input.X = PADDING + _artInset + promptWidth;
                 _input.Y = h - INPUT_HEIGHT - _artInset + 2;
                 _input.Width = w - (PADDING + _artInset) * 2 - promptWidth - 8;
                 _inputBackground.Width = _input.Width;
@@ -333,14 +353,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void SubmitInputText()
         {
-            if (_input == null || _sendAction == null)
+            if (_input == null)
                 return;
 
             string text = _input.Text;
             if (string.IsNullOrWhiteSpace(text))
                 return;
             _input.SetText(string.Empty);
-            _sendAction(text);
+            SendMessage(text);
         }
 
         public override void Save(XmlTextWriter writer)
@@ -416,6 +436,7 @@ namespace ClassicUO.Game.UI.Gumps
         private sealed class ChatLine
         {
             public TextBox Time;
+            public TextBox ChannelBox;
             public TextBox NameBox; // null for system messages (no Name)
             public TextBox Box;     // message text (or whole message for system)
         }
@@ -425,15 +446,20 @@ namespace ClassicUO.Game.UI.Gumps
             private readonly Deque<ChatLine> _lines = new Deque<ChatLine>();
             private readonly ScrollBar _scrollBar;
             private readonly ChatHistoryStore _store;
+            private readonly Predicate<ChatHistoryRecord> _recordFilter;
+            private readonly bool _colorChannelTags;
             private bool _stickToBottom = true;
             private string _activeFilter = string.Empty;
             private int _activeFontSize = 16;
 
-            public ChatBody(ChatHistoryStore store, int x, int y, int w, int h, ScrollBar scrollBar)
+            public ChatBody(ChatHistoryStore store, int x, int y, int w, int h, ScrollBar scrollBar,
+                Predicate<ChatHistoryRecord> recordFilter, bool colorChannelTags)
             {
                 _store = store;
                 X = x; Y = y; Width = w; Height = h;
                 _scrollBar = scrollBar;
+                _recordFilter = recordFilter;
+                _colorChannelTags = colorChannelTags;
                 AcceptMouseInput = true;
                 CanMove = true;
                 WantUpdateSize = false;
@@ -441,8 +467,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             public void OnResize() => RecalcScroll();
 
-            private static bool MatchesFilter(ChatHistoryRecord r, string filter)
+            private bool MatchesFilter(ChatHistoryRecord r, string filter)
             {
+                if (!_recordFilter(r)) return false;
                 if (filter == "__none__") return false;
                 if (string.IsNullOrEmpty(filter)) return true;
                 if (r.Text != null && r.Text.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0) return true;
@@ -502,24 +529,40 @@ namespace ClassicUO.Game.UI.Gumps
 
                 TextBox time = TextBox.GetOne($"{r.Time:HH:mm}", font, size - 2, 1150, TextBox.RTLOptions.Default());
 
-                if (string.IsNullOrEmpty(r.Name))
+                string name = r.Name;
+                string text = r.Text ?? string.Empty;
+                Color messageColor = TextBox.ConvertHueToColor(messageHue);
+                TextBox channelBox = null;
+                if (_colorChannelTags)
+                {
+                    GlobalChatChannel? channel = GlobalChatChannels.GetDisplayParts(r, out name, out text);
+                    if (channel.HasValue)
+                    {
+                        messageColor = GlobalChatChannels.TagColor(channel.Value);
+                        channelBox = TextBox.GetOne("[" + GlobalChatChannels.Names[(int)channel.Value] + "] ",
+                            font, size, messageColor, TextBox.RTLOptions.Default().IgnoreColors());
+                    }
+                }
+                int channelWidth = channelBox?.Width ?? 0;
+
+                if (string.IsNullOrEmpty(name))
                 {
                     // System message — single coloured text after timestamp.
-                    TextBox box = TextBox.GetOne(r.Text ?? string.Empty, font, size, messageHue,
-                        new TextBox.RTLOptions { Width = Width - 4 - time.Width });
-                    _lines.AddToBack(new ChatLine { Box = box, Time = time, NameBox = null });
+                    TextBox box = TextBox.GetOne(text, font, size, messageColor,
+                        new TextBox.RTLOptions { Width = Width - 4 - time.Width - channelWidth, IgnoreColorCommands = channelBox != null });
+                    _lines.AddToBack(new ChatLine { Box = box, Time = time, ChannelBox = channelBox, NameBox = null });
                     return;
                 }
 
-                ushort nameHue = ChatNameHueMap.GetHueForName(r.Name);
-                TextBox nameBox = TextBox.GetOne($"{r.Name}: ", font, size, nameHue, TextBox.RTLOptions.Default());
+                ushort nameHue = ChatNameHueMap.GetHueForName(name);
+                TextBox nameBox = TextBox.GetOne($"{name}: ", font, size, nameHue, TextBox.RTLOptions.Default());
 
-                int remaining = Width - 8 - time.Width - nameBox.Width;
+                int remaining = Width - 8 - time.Width - channelWidth - nameBox.Width;
                 if (remaining < 80) remaining = 80;
-                TextBox messageBox = TextBox.GetOne(r.Text ?? string.Empty, font, size, messageHue,
-                    new TextBox.RTLOptions { Width = remaining });
+                TextBox messageBox = TextBox.GetOne(text, font, size, messageColor,
+                    new TextBox.RTLOptions { Width = remaining, IgnoreColorCommands = channelBox != null });
 
-                _lines.AddToBack(new ChatLine { Box = messageBox, Time = time, NameBox = nameBox });
+                _lines.AddToBack(new ChatLine { Box = messageBox, Time = time, ChannelBox = channelBox, NameBox = nameBox });
             }
 
             public void DisposeBoxes()
@@ -528,6 +571,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     l.Box?.Dispose();
                     l.Time?.Dispose();
+                    l.ChannelBox?.Dispose();
                     l.NameBox?.Dispose();
                 }
                 _lines.Clear();
@@ -548,6 +592,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (l.Box == null) continue;
                     int h = l.Box.Height;
+                    if (l.ChannelBox != null && l.ChannelBox.Height > h) h = l.ChannelBox.Height;
                     if (l.NameBox != null && l.NameBox.Height > h) h = l.NameBox.Height;
                     total += h;
                 }
@@ -573,6 +618,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (l.Box == null) continue;
                     int h = l.Box.Height;
+                    if (l.ChannelBox != null && l.ChannelBox.Height > h) h = l.ChannelBox.Height;
                     if (l.NameBox != null && l.NameBox.Height > h) h = l.NameBox.Height;
                     if (my + h < 0) { my += h; continue; }
                     if (my > Height) break;
@@ -581,6 +627,11 @@ namespace ClassicUO.Game.UI.Gumps
                     int cx = x;
                     l.Time?.Draw(batcher, cx, relY);
                     if (l.Time != null) cx += l.Time.Width + 4;
+                    if (l.ChannelBox != null)
+                    {
+                        l.ChannelBox.Draw(batcher, cx, relY);
+                        cx += l.ChannelBox.Width;
+                    }
                     if (l.NameBox != null)
                     {
                         l.NameBox.Draw(batcher, cx, relY);

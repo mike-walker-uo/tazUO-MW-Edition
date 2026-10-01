@@ -51,6 +51,8 @@ namespace ClassicUO.Game.UI.Gumps
         // Centralised hue resolver: guild-substring override (TazUO) wins over notoriety default.
         private static ushort ResolveNameHue(Entity entity)
         {
+            if (entity is Mobile healer && HealerAppearanceManager.IsHealer(healer))
+                return HealerAppearanceManager.GoldHue;
             ushort defaultHue = entity is Mobile m
                 ? Notoriety.GetHue(m.NotorietyFlag)
                 : (ushort)0x0481;
@@ -241,9 +243,11 @@ namespace ClassicUO.Game.UI.Gumps
                 return true;
             }
 
-            if (!string.IsNullOrEmpty(entity.Name))
+            string displayName = HealerAppearanceManager.GetDisplayName(entity);
+            if (!string.IsNullOrEmpty(displayName))
             {
-                _text.Text = entity.Name;
+                _text.Text = displayName;
+                _text.Hue = ResolveNameHue(entity);
 
                 Width = _background.Width = Math.Max(60, _text.Width) + 4;
                 Height = _background.Height = Math.Max(Constants.OBJECT_HANDLES_GUMP_HEIGHT, _text.Height) + 4;
@@ -759,7 +763,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 }
 
-                if (_needsNameUpdate)
+                if (_needsNameUpdate || (entity is Mobile && _text?.Text != HealerAppearanceManager.GetDisplayName(entity)))
                 {
                     SetName();
                 }

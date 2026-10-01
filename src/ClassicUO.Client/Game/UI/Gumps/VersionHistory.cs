@@ -11,6 +11,14 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.1]\n" +
+            """
+            1. Chat channels: Implemented the new UOAlive Chat channels including color code! View/Send selectors for Global, Trade, Events, Help, LFG, Guild and Party, with correct posting commands. All shows public channels.
+            2. Chat restoration: Global Chat, Guild Chat and Nearby Speech windows reopen after login.
+            3. Equipment sorting: backpack/container grid views can sort now also by equipment layer, place non-equipment last while preserving locked slots.
+            4. Game window fixes: now resize (blue dot) and relocation (grab the edges) of the game window is working.
+            5. Runic Atlas fixes: World Explorer now scans the Runic Atlases correctly.
+            """,
             "[0.6]\n" +
             """
             - Added an in-game chess board for local two-player games or play against a separately installed Stockfish engine, with piece tooltips and visible computer moves
