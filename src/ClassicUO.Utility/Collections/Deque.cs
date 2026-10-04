@@ -167,8 +167,15 @@ namespace ClassicUO.Utility.Collections
         /// </summary>
         public void Clear()
         {
+            ClearBuffer(0, Count);
             _offset = 0;
             Count = 0;
+        }
+
+        private void ClearBuffer(int index, int count)
+        {
+            for (int i = 0; i < count; i++)
+                _buffer[DequeIndexToBufferIndex(index + i)] = default;
         }
 
         /// <summary>
@@ -320,7 +327,9 @@ namespace ClassicUO.Utility.Collections
         /// <returns>The former last element.</returns>
         private T DoRemoveFromBack()
         {
-            T ret = _buffer[DequeIndexToBufferIndex(Count - 1)];
+            int index = DequeIndexToBufferIndex(Count - 1);
+            T ret = _buffer[index];
+            _buffer[index] = default;
             --Count;
 
             return ret;
@@ -332,9 +341,12 @@ namespace ClassicUO.Utility.Collections
         /// <returns>The former first element.</returns>
         private T DoRemoveFromFront()
         {
+            int index = PostIncrement(1);
+            T ret = _buffer[index];
+            _buffer[index] = default;
             --Count;
 
-            return _buffer[PostIncrement(1)];
+            return ret;
         }
 
         /// <summary>
@@ -408,6 +420,7 @@ namespace ClassicUO.Utility.Collections
             if (index == 0)
             {
                 // Removing from the beginning: rotate to the new view
+                ClearBuffer(0, collectionCount);
                 PostIncrement(collectionCount);
                 Count -= collectionCount;
 
@@ -417,6 +430,7 @@ namespace ClassicUO.Utility.Collections
             if (index == Count - collectionCount)
             {
                 // Removing from the ending: trim the existing view
+                ClearBuffer(index, collectionCount);
                 Count -= collectionCount;
 
                 return;
@@ -436,6 +450,7 @@ namespace ClassicUO.Utility.Collections
                 }
 
                 // Rotate to new view
+                ClearBuffer(0, collectionCount);
                 PostIncrement(collectionCount);
             }
             else
@@ -450,6 +465,8 @@ namespace ClassicUO.Utility.Collections
                 {
                     _buffer[DequeIndexToBufferIndex(index + j)] = _buffer[DequeIndexToBufferIndex(readIndex + j)];
                 }
+
+                ClearBuffer(Count - collectionCount, collectionCount);
             }
 
             // Adjust valid count

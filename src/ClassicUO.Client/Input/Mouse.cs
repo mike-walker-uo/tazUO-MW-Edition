@@ -32,6 +32,8 @@
 
 using ClassicUO.Configuration;
 using ClassicUO.Game;
+using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Controls;
 using Microsoft.Xna.Framework;
 using SDL3;
 
@@ -39,6 +41,30 @@ namespace ClassicUO.Input
 {
     internal static class Mouse
     {
+        private static float _coordinateScale = 1f;
+        private static Point _worldPosition, _worldLClick, _worldRClick, _worldMClick;
+        internal static Point WorldPosition => _coordinateScale == 1f ? Position : _worldPosition;
+        internal static Point InterfacePosition => ScalePoint(WorldPosition, UIManager.InterfaceScale);
+        internal static Point InterfaceLClickPosition => ScalePoint(_coordinateScale == 1f ? LClickPosition : _worldLClick, UIManager.InterfaceScale);
+        internal static Point ScalePoint(Point point, float scale) => new Point((int)(point.X / scale), (int)(point.Y / scale));
+        internal readonly struct CoordinateScope : System.IDisposable
+        {
+            private readonly Point _position, _left, _right, _middle;
+            private readonly float _scale;
+            internal CoordinateScope(float scale)
+            {
+                _position = Position; _left = LClickPosition; _right = RClickPosition; _middle = MClickPosition; _scale = _coordinateScale;
+                if (_coordinateScale == 1f) { _worldPosition = Position; _worldLClick = LClickPosition; _worldRClick = RClickPosition; _worldMClick = MClickPosition; }
+                Position = ScalePoint(_worldPosition, scale); LClickPosition = ScalePoint(_worldLClick, scale);
+                RClickPosition = ScalePoint(_worldRClick, scale); MClickPosition = ScalePoint(_worldMClick, scale);
+                _coordinateScale = scale;
+            }
+            public void Dispose() { Position = _position; LClickPosition = _left; RClickPosition = _right; MClickPosition = _middle; _coordinateScale = _scale; }
+        }
+        internal static CoordinateScope ForInterface() => new CoordinateScope(UIManager.InterfaceScale);
+        internal static CoordinateScope ForControl(Control control) => new CoordinateScope(
+            UIManager.IsWorldOverlay(control) ? 1f : UIManager.InterfaceScale);
+
         public const int MOUSE_DELAY_DOUBLE_CLICK = 350;
 
         /* Log a button press event at the given time. */

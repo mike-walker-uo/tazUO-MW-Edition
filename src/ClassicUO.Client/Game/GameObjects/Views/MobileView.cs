@@ -697,12 +697,21 @@ namespace ClassicUO.Game.GameObjects
                 frameIndex = 0;
             }
 
-            ref var spriteInfo = ref frames[frameIndex % frames.Length];
+            var nativeSpriteInfo = frames[frameIndex % frames.Length];
+            var spriteInfo = nativeSpriteInfo;
 
             // Per-body sprite scale: explicit overrides, then HP-tier (skipped
             // for dragons), then a paragon multiplier on top. Player's mount
             // and IsRenamable mobs get the PET_SCALE bump too.
             float bodyScale = ClassicUO.Game.Managers.BodyScaleManager.Get(id, owner, isMount);
+            LocalArtPack.Sprite replacement = null;
+            if (!charIsSitting && LocalArtPack.TryGetAnimation(id, animGroup, dir, frameIndex, out replacement))
+            {
+                spriteInfo.Texture = replacement.Texture;
+                spriteInfo.UV = replacement.Texture.Bounds;
+                spriteInfo.Center = new Point((int)replacement.AnchorX, (int)replacement.AnchorY - replacement.Texture.Height);
+                bodyScale *= replacement.Scale;
+            }
 
             if (spriteInfo.Texture == null)
             {
@@ -812,7 +821,7 @@ namespace ClassicUO.Game.GameObjects
                     partialHue = false;
                 }
 
-                hueVec = ShaderHueTranslator.GetHueVector(hue, partialHue, hueVec.Z);
+                hueVec = LocalArtPack.MaskHue(replacement, ShaderHueTranslator.GetHueVector(hue, partialHue, hueVec.Z));
 
                 if (spriteInfo.Texture != null)
                 {
@@ -835,7 +844,8 @@ namespace ClassicUO.Game.GameObjects
                     }
                     else
                     {
-                        int diffY = (spriteInfo.UV.Height + spriteInfo.Center.Y) - mountOffset;
+                        int diffY = (spriteInfo.UV.Height + spriteInfo.Center.Y)
+                            - (replacement != null ? (int)(mountOffset / replacement.Scale) : mountOffset);
 
                         int value = Math.Max(1, diffY);
                         int count = Math.Max((spriteInfo.UV.Height / value) + 1, 2);
@@ -859,19 +869,20 @@ namespace ClassicUO.Game.GameObjects
                                 depth + 1f + (i * tiles)
                             );
 
-                            pos.Y += rect.Height;
+                            pos.Y += rect.Height * (replacement != null ? bodyScale : 1f);
                             rect.Y += rect.Height;
                             rect.Height = remains;
                             remains -= rect.Height;
                         }
                     }
 
-                    int xx = -spriteInfo.Center.X;
-                    int yy = -(spriteInfo.UV.Height + spriteInfo.Center.Y + 3);
+                    var boundsSprite = replacement != null ? nativeSpriteInfo : spriteInfo;
+                    int xx = -boundsSprite.Center.X;
+                    int yy = -(boundsSprite.UV.Height + boundsSprite.Center.Y + 3);
 
                     if (mirror)
                     {
-                        xx = -(spriteInfo.UV.Width - spriteInfo.Center.X);
+                        xx = -(boundsSprite.UV.Width - boundsSprite.Center.X);
                     }
 
                     if (xx < owner.FrameInfo.X)
@@ -884,14 +895,14 @@ namespace ClassicUO.Game.GameObjects
                         owner.FrameInfo.Y = yy;
                     }
 
-                    if (owner.FrameInfo.Width < xx + spriteInfo.UV.Width)
+                    if (owner.FrameInfo.Width < xx + boundsSprite.UV.Width)
                     {
-                        owner.FrameInfo.Width = xx + spriteInfo.UV.Width;
+                        owner.FrameInfo.Width = xx + boundsSprite.UV.Width;
                     }
 
-                    if (owner.FrameInfo.Height < yy + spriteInfo.UV.Height)
+                    if (owner.FrameInfo.Height < yy + boundsSprite.UV.Height)
                     {
-                        owner.FrameInfo.Height = yy + spriteInfo.UV.Height;
+                        owner.FrameInfo.Height = yy + boundsSprite.UV.Height;
                     }
                 }
 

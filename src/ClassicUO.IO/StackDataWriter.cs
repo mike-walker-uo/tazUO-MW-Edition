@@ -280,7 +280,18 @@ namespace ClassicUO.IO
         [MethodImpl(IMPL_OPTION)]
         public void WriteUTF8(string str, int len)
         {
-            WriteString<byte>(Encoding.UTF8, str, len);
+            if (len == 0) return;
+
+            byte[] bytes = Encoding.UTF8.GetBytes(str ?? string.Empty);
+            int count = len < 0 ? bytes.Length : Math.Min(len, bytes.Length);
+            if (count < bytes.Length)
+            {
+                // Do not split a multibyte code point at the field boundary.
+                while (count > 0 && (bytes[count] & 0xC0) == 0x80) count--;
+            }
+
+            Write(bytes.AsSpan(0, count));
+            if (len >= 0) WriteZero(len - count);
         }
 
         [MethodImpl(IMPL_OPTION)]
@@ -309,7 +320,7 @@ namespace ClassicUO.IO
 
             if (string.IsNullOrEmpty(str))
             {
-                WriteZero(sizeof(byte));
+                WriteZero(length < 0 ? sizeof(byte) : length);
             }
             else
             {

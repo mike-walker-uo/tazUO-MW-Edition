@@ -28,6 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
         private AlphaBlendControl _bg;
         private Label _info;
 
+        private ResizeGrip _grip;
         private bool _resizing;
         private int _resizeStartMouseX;
         private int _resizeStartWidth;
@@ -45,7 +46,7 @@ namespace ClassicUO.Game.UI.Gumps
             Height = HANDLE_H;
 
             var camera = Client.Game.Scene?.Camera;
-            int screenW = camera != null ? camera.Bounds.Right : 800;
+            int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
             X = ToastManager.BaseX(screenW) + ToastManager.AnchorX;
             Y = ToastManager.DefaultTop - HANDLE_H - HANDLE_GAP + ToastManager.AnchorY;
             _lastX = X; _lastY = Y;
@@ -53,13 +54,16 @@ namespace ClassicUO.Game.UI.Gumps
             Add(_bg = new AlphaBlendControl(0.78f) { Width = Width, Height = HANDLE_H });
             CustomGumpThemeManager.ApplyDataSurface(_bg, 0.78f);
             Add(_info = new Label("Drag • right-edge resize • RClick to save", true, 0x0481, font: 1) { X = 6, Y = 7 });
+            Add(_grip = new ResizeGrip(Width - 16, Height - 16, 16, 16));
+            _grip.MouseDown += (_, e) => OnMouseDown(Width - 1, Height - 1, e.Button);
+            _grip.MouseUp += (_, e) => OnMouseUp(Width - 1, Height - 1, e.Button);
         }
 
         public override GumpType GumpType => GumpType.None;
 
         protected override void OnMouseDown(int x, int y, MouseButtonType button)
         {
-            if (button == MouseButtonType.Left && x >= Width - RESIZE_GRIP)
+            if (button == MouseButtonType.Left && !Keyboard.Alt && !IsLocked && x >= Width - RESIZE_GRIP)
             {
                 _resizing = true;
                 _resizeStartMouseX = Mouse.Position.X;
@@ -94,9 +98,10 @@ namespace ClassicUO.Game.UI.Gumps
                 if (newW > 800) newW = 800;
                 Width = newW;
                 _bg.Width = newW;
+                _grip.X = newW - 16;
                 ToastManager.ToastWidth = newW;
                 var camera = Client.Game.Scene?.Camera;
-                int screenW = camera != null ? camera.Bounds.Right : 800;
+                int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
                 ToastManager.AnchorX = X - ToastManager.BaseX(screenW);
             }
 
@@ -104,7 +109,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _lastX = X; _lastY = Y;
                 var camera = Client.Game.Scene?.Camera;
-                int screenW = camera != null ? camera.Bounds.Right : 800;
+                int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
                 ToastManager.AnchorX = X - ToastManager.BaseX(screenW);
                 ToastManager.AnchorY = Y - (ToastManager.DefaultTop - HANDLE_H - HANDLE_GAP);
             }

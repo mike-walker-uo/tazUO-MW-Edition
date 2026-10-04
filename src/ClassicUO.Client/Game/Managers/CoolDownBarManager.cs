@@ -19,7 +19,7 @@ namespace ClassicUO.Game.Managers
             var profile = ProfileManager.CurrentProfile;
             int count = profile?.CoolDownConditionCount ?? 0;
 
-            if (count <= 0 || string.IsNullOrEmpty(e?.Text))
+            if (World.Player == null || count <= 0 || string.IsNullOrEmpty(e?.Text))
             {
                 return;
             }
@@ -33,11 +33,11 @@ namespace ClassicUO.Game.Managers
                         break;
                     case 1: //self
                         if (e.Parent != null && e.Parent.Serial != World.Player.Serial)
-                            return;
+                            continue;
                         break;
                     case 2:
                         if (e.Parent != null && e.Parent.Serial == World.Player.Serial)
-                            return;
+                            continue;
                         break;
                 }
 

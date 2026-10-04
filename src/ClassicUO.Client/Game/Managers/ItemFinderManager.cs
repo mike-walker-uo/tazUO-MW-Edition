@@ -29,6 +29,7 @@ namespace ClassicUO.Game.Managers
             new Dictionary<uint, IndexedItem>();
         private static readonly Dictionary<uint, HighlightState> _highlights =
             new Dictionary<uint, HighlightState>();
+        private static readonly List<uint> _expiredHighlights = new List<uint>();
         private static uint _locatedItemSerial;
         private static uint _locatedContainerSerial;
         private static long _locatedItemExpires;
@@ -705,6 +706,7 @@ namespace ClassicUO.Game.Managers
 
         internal static void UpdateHighlights()
         {
+            if (_locatedItemSerial == 0 && _highlights.Count == 0) return;
             long now = (long)Time.Ticks;
 
             if (_locatedItemSerial != 0 && now < _locatedItemExpires)
@@ -737,8 +739,11 @@ namespace ClassicUO.Game.Managers
                 _locatedItemRevealed = false;
             }
 
-            foreach (uint serial in _highlights.Where(pair => pair.Value.Expires <= now)
-                .Select(pair => pair.Key).ToArray())
+            _expiredHighlights.Clear();
+            foreach (var pair in _highlights)
+                if (pair.Value.Expires <= now) _expiredHighlights.Add(pair.Key);
+
+            foreach (uint serial in _expiredHighlights)
             {
                 HighlightState state = _highlights[serial];
 
@@ -751,6 +756,8 @@ namespace ClassicUO.Game.Managers
 
                 _highlights.Remove(serial);
             }
+
+            _expiredHighlights.Clear();
         }
 
         internal static void ClearHighlights()

@@ -263,13 +263,15 @@ namespace ClassicUO.Utility
                 return;
             }
 
+            indexOf += startIndex;
+
             if (newChars.Length > oldChars.Length)
             {
                 int i = 0;
 
                 for (; i < oldChars.Length; ++i)
                 {
-                    slice[indexOf + i] = newChars[i];
+                    _chars[indexOf + i] = newChars[i];
                 }
 
                 Insert(indexOf + i, newChars.Slice(i));
@@ -280,14 +282,14 @@ namespace ClassicUO.Utility
 
                 for (; i < newChars.Length; ++i)
                 {
-                    slice[indexOf + i] = newChars[i];
+                    _chars[indexOf + i] = newChars[i];
                 }
 
                 Remove(indexOf + i, oldChars.Length - i);
             }
             else
             {
-                newChars.CopyTo(slice.Slice(0, oldChars.Length));
+                newChars.CopyTo(_chars.Slice(indexOf, oldChars.Length));
             }
         }
 

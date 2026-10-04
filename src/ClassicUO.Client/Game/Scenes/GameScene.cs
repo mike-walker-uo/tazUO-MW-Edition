@@ -102,6 +102,9 @@ namespace ClassicUO.Game.Scenes
         private static string _filterMode = "linear"; // "point" | "linear" | "anisotropic" | "xbr"
         private string _currentFilter;
         private Effect _postFx;
+        private LinearCompositeEffect _linearComposite;
+        private RenderTarget2D _linearEncodedTarget;
+        private bool _linearActive;
         private SamplerState _postSampler = SamplerState.PointClamp;
         private UseItemQueue _useItemQueue = new UseItemQueue();
         private MoveItemQueue _moveItemQueue = new MoveItemQueue();
@@ -185,7 +188,7 @@ namespace ClassicUO.Game.Scenes
 
         public void SetPostProcessingSettings()
         {
-            _use_render_target = ProfileManager.CurrentProfile.EnablePostProcessingEffects;
+            _use_render_target = ProfileManager.CurrentProfile.EnablePostProcessingEffects || VisualBudget.Settings?.LinearLight == true;
             switch (ProfileManager.CurrentProfile.PostProcessingType)
             {
                 case 1:
@@ -513,6 +516,12 @@ namespace ClassicUO.Game.Scenes
             _ = NetClient.Socket.Disconnect().Catch();
             _light_render_target?.Dispose();
             _world_render_target?.Dispose();
+            _linearComposite?.Dispose();
+            _linearComposite = null;
+            _linearEncodedTarget?.Dispose();
+            _linearEncodedTarget = null;
+            RegionalAmbience.Reset();
+            EffectPresentation.Reset();
             _xbr?.Dispose();
             _xbr = null;
 
@@ -595,7 +604,8 @@ namespace ClassicUO.Game.Scenes
         public void AddLight(GameObject obj, GameObject lightObject, int x, int y)
         {
             if (
-                _lightCount >= LightsLoader.MAX_LIGHTS_DATA_INDEX_COUNT
+                EffectPresentation.IsPreview
+                || _lightCount >= LightsLoader.MAX_LIGHTS_DATA_INDEX_COUNT
                 || !UseLights && !UseAltLights
                 || obj == null
             )
@@ -1205,6 +1215,17 @@ namespace ClassicUO.Game.Scenes
             bool can_draw_lights = false;
             Vector3 hue = new Vector3(0, 0, 1);
 
+            _linearActive = VisualBudget.Settings?.LinearLight == true && batcher.SupportsLinearLight;
+            if (_linearActive && _linearComposite == null)
+            {
+                string shaderPath = System.IO.Path.Combine(AppContext.BaseDirectory, "LinearComposite.fxc");
+                if (System.IO.File.Exists(shaderPath)) _linearComposite = new LinearCompositeEffect(gd, System.IO.File.ReadAllBytes(shaderPath));
+                else _linearActive = false;
+            }
+            if (!_linearActive && _linearEncodedTarget != null)
+            {
+                _linearEncodedTarget.Dispose(); _linearEncodedTarget = null;
+            }
             EnsureRenderTargets(gd);
 
             if (_use_render_target)
@@ -1217,7 +1238,7 @@ namespace ClassicUO.Game.Scenes
             }
 
             // draw lights
-            if (can_draw_lights)
+            if (can_draw_lights && !_linearActive)
             {
                 if (profile.GlobalScaling)
                     batcher.Begin(null, Matrix.CreateScale(profile.GlobalScale));
@@ -1344,14 +1365,35 @@ namespace ClassicUO.Game.Scenes
             }
             
             UpdatePostProcessState(gd);
+            Texture2D compositeSource = _world_render_target;
+            if (_linearActive && _postFx != null)
+            {
+                // Encode before spatial filtering so xBR/bicubic keep their normal input format.
+                if (_linearEncodedTarget == null || _linearEncodedTarget.Width != rtW || _linearEncodedTarget.Height != rtH)
+                {
+                    _linearEncodedTarget?.Dispose();
+                    _linearEncodedTarget = new RenderTarget2D(gd, rtW, rtH, false, SurfaceFormat.Color, DepthFormat.None);
+                }
+                gd.SetRenderTarget(_linearEncodedTarget);
+                _linearComposite.Configure(_light_render_target, can_draw_lights, UseAltLights);
+                batcher.Begin(_linearComposite, Matrix.Identity);
+                batcher.SetSampler(SamplerState.PointClamp);
+                batcher.Draw(_world_render_target, new Rectangle(0, 0, rtW, rtH), new Vector3(0, 0, 1));
+                batcher.End();
+                gd.SetRenderTarget(null);
+                gd.Viewport = camera_viewport;
+                compositeSource = _linearEncodedTarget;
+            }
 
             if (_postFx == _xbr && _xbr != null)
             {
                 BindXbrParams(gd);
             }
-            batcher.Begin(_postFx, Matrix.Identity);
+            bool encodeHere = _linearActive && compositeSource == _world_render_target;
+            if (encodeHere) _linearComposite.Configure(_light_render_target, can_draw_lights, UseAltLights);
+            batcher.Begin(encodeHere ? _linearComposite : _postFx, Matrix.Identity);
             try { batcher.SetSampler(_postSampler ?? SamplerState.PointClamp); } catch { batcher.SetSampler(SamplerState.PointClamp); }
-            batcher.Draw(_world_render_target, destRect, srcRect, new Vector3(0, 0, 1));
+            batcher.Draw(compositeSource, destRect, srcRect, new Vector3(0, 0, 1));
             batcher.End();
             batcher.SetSampler(null);
             batcher.SetBlendState(null);
@@ -1382,6 +1424,7 @@ namespace ClassicUO.Game.Scenes
 
             batcher.SetSampler(SamplerState.PointClamp);
 
+            batcher.SetLinearLight(_linearActive);
             batcher.Begin(null, matrix);
             batcher.SetBrightlight(ProfileManager.CurrentProfile.TerrainShadowsLevel * 0.1f);
             batcher.SetStencil(DepthStencilState.Default);
@@ -1404,6 +1447,9 @@ namespace ClassicUO.Game.Scenes
             );
             TerrainMaterialManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather);
             WaterEnhancementManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather, matrix);
+
+            SceneryInteractionManager.DrawContactShadows(batcher, Camera.Bounds);
+            SceneryInteractionManager.DrawFrostEdges(batcher, Weather);
 
             // Material passes alter only captured land/water. Draw effects
             // afterwards so their ground-level pixels cannot be tinted over.
@@ -1461,8 +1507,10 @@ namespace ClassicUO.Game.Scenes
             // draw weather
             GroundDecals.Draw(batcher, 0, 0);
             Weather.Draw(batcher, 0, 0, UseAltLights); // TODO: fix the depth
+            SceneryInteractionManager.DrawSelectiveBloom(batcher, Camera.Bounds);
 
             batcher.End();
+            batcher.SetLinearLight(false);
 
             if (use_render_target)
             {
@@ -1711,13 +1759,14 @@ namespace ClassicUO.Game.Scenes
                     || _world_render_target.IsDisposed
                     || _world_render_target.Width != rtWidth
                     || _world_render_target.Height != rtHeight
+                    || _world_render_target.Format != (_linearActive ? SurfaceFormat.HalfVector4 : gd.PresentationParameters.BackBufferFormat)
                  ))
             {
                 _world_render_target?.Dispose();
                 var pp = gd.PresentationParameters;
                 _world_render_target = new RenderTarget2D(
                     gd, rtWidth, rtHeight, false,
-                    pp.BackBufferFormat, pp.DepthStencilFormat, pp.MultiSampleCount, pp.RenderTargetUsage);
+                    _linearActive ? SurfaceFormat.HalfVector4 : pp.BackBufferFormat, pp.DepthStencilFormat, pp.MultiSampleCount, pp.RenderTargetUsage);
             }
 
             int ltWidth = _use_render_target ? rtWidth : vw;

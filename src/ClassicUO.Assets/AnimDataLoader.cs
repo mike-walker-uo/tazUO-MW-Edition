@@ -74,13 +74,14 @@ namespace ClassicUO.Assets
 
             if (address != IntPtr.Zero)
             {
-                IntPtr addr = address + (graphic * 68 + 4 * ((graphic >> 3) + 1));
+                int offset = graphic * 68 + 4 * ((graphic >> 3) + 1);
 
-                if (addr.ToInt64() < address.ToInt64() + _file.Length)
+                if (offset <= _file.Length - sizeof(AnimDataFrame))
                 {
+                    IntPtr addr = address + offset;
                     ref AnimDataFrame a = ref Unsafe.AsRef<AnimDataFrame>((void*)addr);
 
-                    return a;
+                    if (a.FrameCount <= 64) return a;
                 }
             }
 

@@ -30,6 +30,7 @@ namespace ClassicUO.Game.UI.Gumps
         private List<SettingsOption> options = new List<SettingsOption>();
         private Profile profile;
         private ModernOptionsGumpLanguage lang = Language.Instance.GetModernOptionsGumpLanguage;
+        private bool _razorPickerOpen;
 
         public ModernOptionsGump() : base(900, 700, Language.Instance.GetModernOptionsGumpLanguage.OptionsTitle)
         {
@@ -74,6 +75,10 @@ namespace ClassicUO.Game.UI.Gumps
             MainContent.AddToLeft(CategoryButton(lang.ButtonNameplates, (int)PAGE.NameplateOptions, MainContent.LeftWidth));
             MainContent.AddToLeft(CategoryButton(lang.ButtonCooldowns, (int)PAGE.TUOCooldowns, MainContent.LeftWidth));
             MainContent.AddToLeft(CategoryButton(lang.ButtonTazUO, (int)PAGE.TUOOptions, MainContent.LeftWidth));
+
+            var enhancements = new ModernButton(0, 0, MainContent.LeftWidth, 40, ButtonAction.Activate, "Enhancements", ThemeSettings.BUTTON_FONT_COLOR);
+            enhancements.MouseUp += (_, e) => { if (e.Button == MouseButtonType.Left) { UIManager.GetGump<ClientEnhancementsGump>()?.Dispose(); UIManager.Add(new ClientEnhancementsGump()); } };
+            MainContent.AddToLeft(enhancements);
 
             BuildGeneral();
             BuildSound();
@@ -537,25 +542,7 @@ namespace ClassicUO.Game.UI.Gumps
                 ), true, page
             );
 
-            content.AddToRight
-            (
-                new ComboBoxWithLabel
-                (
-                    lang.GetGeneral.DragPlayersOnly, 0, ThemeSettings.COMBO_BOX_WIDTH,
-                    new string[] { lang.GetGeneral.SharedNone, lang.GetGeneral.SharedCtrl, lang.GetGeneral.SharedShift, lang.GetGeneral.SharedAlt },
-                    profile.DragSelect_PlayersModifier, (s, n) => { profile.DragSelect_PlayersModifier = s; }
-                ), true, page
-            );
-
-            content.AddToRight
-            (
-                new ComboBoxWithLabel
-                (
-                    lang.GetGeneral.DragMobsOnly, 0, ThemeSettings.COMBO_BOX_WIDTH,
-                    new string[] { lang.GetGeneral.SharedNone, lang.GetGeneral.SharedCtrl, lang.GetGeneral.SharedShift, lang.GetGeneral.SharedAlt },
-                    profile.DragSelect_MonstersModifier, (s, n) => { profile.DragSelect_MonstersModifier = s; }
-                ), true, page
-            );
+            BuildHealthBarDragFilters(content, page);
 
             content.AddToRight
             (
@@ -580,7 +567,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new SliderWithLabel
                 (
-                    lang.GetGeneral.DragY, 0, ThemeSettings.SLIDER_WIDTH, 0, Client.Game.Scene.Camera.Bounds.Width, profile.DragSelectStartY,
+                    lang.GetGeneral.DragY, 0, ThemeSettings.SLIDER_WIDTH, 0, Client.Game.Scene.Camera.Bounds.Height, profile.DragSelectStartY,
                     (r) => { profile.DragSelectStartY = r; }
                 ), true, page
             );
@@ -655,7 +642,114 @@ namespace ClassicUO.Game.UI.Gumps
 
             #endregion
 
+            page = ((int)PAGE.General + 1005);
+            content.AddToLeft(SubCategoryButton("Razor Enhanced", page, content.LeftWidth));
+            content.ResetRightSide();
+            content.AddToRight(TextBox.GetOne("Select your Razor Enhanced plugin DLL or EXE. The path is saved immediately to settings.json and takes effect after restarting the client.",
+                ThemeSettings.FONT, ThemeSettings.STANDARD_TEXT_SIZE, ThemeSettings.TEXT_FONT_COLOR,
+                TextBox.RTLOptions.Default(content.RightWidth - ThemeSettings.INDENT_SPACE)), true, page);
+            content.BlankLine();
+            var razorPlugin = new ModernButton(0, 0, content.RightWidth - 20, 40, ButtonAction.Activate,
+                "Browse for Razor Enhanced plugin...", ThemeSettings.BUTTON_FONT_COLOR);
+            razorPlugin.MouseUp += (_, e) => { if (e.Button == MouseButtonType.Left) BrowseRazorPlugin(); };
+            content.AddToRight(razorPlugin, true, page);
+
             options.Add(new SettingsOption("", content, MainContent.RightWidth, (int)PAGE.General));
+        }
+
+        private void BrowseRazorPlugin()
+        {
+            if (_razorPickerOpen) return;
+            if (!CUOEnviroment.IsWindows)
+            {
+                UIManager.Add(new MessageBoxGump(420, 160, "Razor Enhanced plugin selection is available on Windows.", null));
+                return;
+            }
+
+            _razorPickerOpen = true;
+            var thread = new Thread(() =>
+            {
+                string selected = null, error = null;
+                try
+                {
+                    using var dialog = new System.Windows.Forms.OpenFileDialog
+                    {
+                        Title = "Select Razor Enhanced plugin",
+                        Filter = "Razor Enhanced plugin (*.dll;*.exe)|*.dll;*.exe",
+                        InitialDirectory = CUOEnviroment.ExecutablePath,
+                        CheckFileExists = true,
+                        Multiselect = false,
+                        RestoreDirectory = true
+                    };
+                    if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK) selected = dialog.FileName;
+                }
+                catch (Exception ex) { error = ex.Message; }
+
+                MainThreadQueue.EnqueueAction(() =>
+                {
+                    _razorPickerOpen = false;
+                    if (IsDisposed) return;
+                    if (error != null)
+                    {
+                        UIManager.Add(new MessageBoxGump(520, 180, "Could not open file picker: " + error, null));
+                        return;
+                    }
+                    if (string.IsNullOrEmpty(selected)) return;
+                    try
+                    {
+                        RazorPluginSettings.Save(selected);
+                        UIManager.Add(new MessageBoxGump(520, 220,
+                            "Razor Enhanced plugin saved to settings.json:\n" + selected + "\n\nRestart the client to apply this change.", null));
+                    }
+                    catch (Exception ex)
+                    {
+                        UIManager.Add(new MessageBoxGump(520, 220, "Could not save Razor Enhanced plugin:\n" + ex.Message, null));
+                    }
+                });
+            }) { IsBackground = true };
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+        }
+
+        private void BuildHealthBarDragFilters(LeftSideMenuRightSideContent content, int page)
+        {
+            HealthBarDragSelect.NormalizeSettings(profile);
+            content.AddToRight(TextBox.GetOne("Select one permanent filter. Hold its modifier to override.",
+                ThemeSettings.FONT, ThemeSettings.STANDARD_TEXT_SIZE, ThemeSettings.TEXT_FONT_COLOR,
+                TextBox.RTLOptions.Default(content.RightWidth - ThemeSettings.INDENT_SPACE)), true, page);
+
+            var modifiers = new ComboBoxWithLabel[HealthBarDragSelect.FilterNames.Length];
+            bool updatingModifiers = false;
+            for (int i = 0; i < modifiers.Length; i++)
+            {
+                int index = i;
+                var radio = new RadioButton(70123, 0x00D0, 0x00D1, HealthBarDragSelect.FilterNames[i], color: 0xFFFF);
+                content.AddToRight(radio, true, page);
+                radio.IsChecked = profile.DragSelectFilter == (HealthBarDragFilter)i;
+                radio.MouseUp += (sender, args) =>
+                {
+                    if (args.Button == MouseButtonType.Left && radio.MouseIsOver)
+                    {
+                        radio.IsChecked = true;
+                        profile.DragSelectFilter = (HealthBarDragFilter)index;
+                    }
+                };
+
+                content.Indent();
+                modifiers[i] = new ComboBoxWithLabel("Override key", 0, 170, HealthBarDragSelect.ModifierNames,
+                    profile.DragSelectFilterModifiers[i], (selected, name) =>
+                    {
+                        if (updatingModifiers) return;
+                        HealthBarDragSelect.AssignModifier(profile, index, selected);
+                        updatingModifiers = true;
+                        for (int j = 0; j < modifiers.Length; j++)
+                            if (modifiers[j] != null && modifiers[j].SelectedIndex != profile.DragSelectFilterModifiers[j])
+                                modifiers[j].SelectedIndex = profile.DragSelectFilterModifiers[j];
+                        updatingModifiers = false;
+                    });
+                content.AddToRight(modifiers[i], true, page);
+                content.RemoveIndent();
+            }
         }
 
         private void BuildSound()

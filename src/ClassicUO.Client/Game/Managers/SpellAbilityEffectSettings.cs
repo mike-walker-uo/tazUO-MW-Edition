@@ -435,7 +435,7 @@ namespace ClassicUO.Game.Managers
             return new SpellAbilityEffectEntry(id, category, name);
         }
 
-        private static bool TryMap(
+        internal static bool TryMap(
             EnhancedSpellVisualKind kind,
             out SpellAbilityEffectId id)
         {
@@ -457,7 +457,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static bool TryMap(
+        internal static bool TryMap(
             SpellAbilityEffectId id,
             out EnhancedSpellVisualKind kind)
         {
@@ -476,7 +476,7 @@ namespace ClassicUO.Game.Managers
             return false;
         }
 
-        private static bool TryMap(CombatVisualKind kind, out SpellAbilityEffectId id)
+        internal static bool TryMap(CombatVisualKind kind, out SpellAbilityEffectId id)
         {
             switch (kind)
             {
@@ -492,7 +492,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static bool TryMap(SpellAbilityEffectId id, out CombatVisualKind kind)
+        internal static bool TryMap(SpellAbilityEffectId id, out CombatVisualKind kind)
         {
             foreach (CombatVisualKind candidate in
                 (CombatVisualKind[])Enum.GetValues(typeof(CombatVisualKind)))
@@ -509,7 +509,7 @@ namespace ClassicUO.Game.Managers
             return false;
         }
 
-        private static bool TryMap(HitAreaElement element, out SpellAbilityEffectId id)
+        internal static bool TryMap(HitAreaElement element, out SpellAbilityEffectId id)
         {
             switch (element)
             {
@@ -521,7 +521,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static bool TryMap(SpellAbilityEffectId id, out HitAreaElement element)
+        internal static bool TryMap(SpellAbilityEffectId id, out HitAreaElement element)
         {
             foreach (HitAreaElement candidate in
                 (HitAreaElement[])Enum.GetValues(typeof(HitAreaElement)))
@@ -538,7 +538,7 @@ namespace ClassicUO.Game.Managers
             return false;
         }
 
-        private static bool TryMap(AbilityOverheadKind kind, out SpellAbilityEffectId id)
+        internal static bool TryMap(AbilityOverheadKind kind, out SpellAbilityEffectId id)
         {
             switch (kind)
             {
@@ -555,7 +555,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static bool TryMap(SpellAbilityEffectId id, out AbilityOverheadKind kind)
+        internal static bool TryMap(SpellAbilityEffectId id, out AbilityOverheadKind kind)
         {
             foreach (AbilityOverheadKind candidate in
                 (AbilityOverheadKind[])Enum.GetValues(typeof(AbilityOverheadKind)))

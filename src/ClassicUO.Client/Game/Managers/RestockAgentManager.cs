@@ -530,100 +530,87 @@ namespace ClassicUO.Game.Managers
 
         internal static bool Run() => Run(false);
 
+        internal sealed class PlannedMove
+        {
+            internal uint Item, Target;
+            internal ushort Amount;
+            internal string Name;
+        }
+
+        internal sealed class RestockPlan
+        {
+            internal string Error;
+            internal readonly List<PlannedMove> Moves = new List<PlannedMove>();
+            internal readonly List<string> Lines = new List<string>();
+            internal int ActiveEntries, CompletedEntries, Units;
+        }
+
+        internal static RestockPlan Preview()
+        {
+            var plan = new RestockPlan();
+            Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
+            if (backpack == null) { plan.Error = "Backpack not found."; return plan; }
+            List<Item> sources = GetLoadedSources();
+            if (sources.Count == 0) { plan.Error = "Add and open a source container first."; return plan; }
+            if (sources.Any(source => source.Serial == backpack.Serial || IsInside(source, backpack.Serial)))
+            { plan.Error = "Source containers must be outside your backpack."; return plan; }
+            var reserved = new Dictionary<uint, int>();
+            foreach (RestockEntry entry in Settings.Items)
+            {
+                if (entry.DesiredAmount == 0) continue;
+                plan.ActiveEntries++;
+                Item target = ResolveTarget(entry);
+                if (target == null) { plan.Lines.Add(entry.Name + ": destination unavailable"); continue; }
+                int current = CountRecursive(target, entry);
+                int incoming = 0;
+                foreach (PlannedMove move in plan.Moves)
+                {
+                    Item movedItem = World.Items.Get(move.Item), destination = World.Items.Get(move.Target);
+                    if (movedItem != null && destination != null && entry.IsMatch(movedItem)
+                        && (destination.Serial == target.Serial || IsInside(destination, target.Serial))) incoming += move.Amount;
+                }
+                int deficit = Math.Max(0, entry.DesiredAmount - current - incoming);
+                int moved = 0;
+                var seen = new HashSet<uint>();
+                foreach (Item item in sources.SelectMany(source => FindRecursive(source, entry, seen)))
+                {
+                    if (deficit == 0) break;
+                    ushort amount = ReserveUnits(reserved, item.Serial, item.ItemData.IsStackable ? Math.Max(1, (int)item.Amount) : 1, deficit);
+                    if (amount == 0) continue;
+                    plan.Moves.Add(new PlannedMove { Item = item.Serial, Target = target.Serial, Amount = amount, Name = entry.Name });
+                    deficit -= amount;
+                    moved += amount;
+                }
+                plan.Units += moved;
+                if (deficit == 0) plan.CompletedEntries++;
+                plan.Lines.Add($"{entry.Name}: have {current}, incoming {incoming}, target {entry.DesiredAmount}, move {moved}, shortage {deficit}");
+            }
+            if (plan.ActiveEntries == 0) plan.Error = "No active targets configured.";
+            return plan;
+        }
+
+        internal static ushort ReserveUnits(Dictionary<uint, int> reserved, uint serial, int stock, int deficit)
+        {
+            reserved.TryGetValue(serial, out int used);
+            ushort amount = (ushort)Math.Min(Math.Max(0, deficit), Math.Max(0, stock - used));
+            if (amount > 0) reserved[serial] = used + amount;
+            return amount;
+        }
+
         private static bool Run(bool verificationRetry)
         {
-            Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
-
-            if (backpack == null)
-            {
-                GameActions.Print("Restock: backpack not found.", 0x21);
-                return false;
-            }
-
-            List<Item> sources = GetLoadedSources();
-
-            if (sources.Count == 0)
-            {
-                GameActions.Print("Restock: add and open at least one source container first.", 0x21);
-                return false;
-            }
-
-            if (sources.Any(source => source.Serial == backpack.Serial
-                || IsInside(source, backpack.Serial)))
-            {
-                GameActions.Print("Restock: source containers must be outside your backpack.", 0x21);
-                return false;
-            }
-
+            RestockPlan plan = Preview();
+            if (plan.Error != null) { GameActions.Print("Restock: " + plan.Error, 0x21); return false; }
             if (MoveItemQueue.Instance == null)
             {
                 GameActions.Print("Restock: item move queue is unavailable.", 0x21);
                 return false;
             }
-
-            int queuedUnits = 0;
-            int completedEntries = 0;
-            int activeEntries = Settings.Items.Count(entry => entry.DesiredAmount > 0);
-
-            if (activeEntries == 0)
-            {
-                GameActions.Print("Restock: no active targets configured.", 0x21);
-                return false;
-            }
-
-            foreach (RestockEntry entry in Settings.Items)
-            {
-                if (entry.DesiredAmount == 0)
-                {
-                    continue;
-                }
-
-                Item target = ResolveTarget(entry);
-
-                if (target == null)
-                {
-                    GameActions.Print($"Restock: target container for {entry.Name} is unavailable.", 0x21);
-                    continue;
-                }
-
-                int deficit = entry.DesiredAmount - CountRecursive(target, entry);
-
-                if (deficit <= 0)
-                {
-                    completedEntries++;
-                    continue;
-                }
-
-                var seen = new HashSet<uint>();
-
-                foreach (Item item in sources.SelectMany(source => FindRecursive(source, entry, seen)))
-                {
-                    if (deficit <= 0)
-                    {
-                        break;
-                    }
-
-                    ushort available = item.ItemData.IsStackable
-                        ? (ushort)Math.Max(1, (int)item.Amount)
-                        : (ushort)1;
-                    ushort amount = (ushort)Math.Min(deficit, available);
-                    MoveItemQueue.Instance.Enqueue(
-                        item.Serial,
-                        target.Serial,
-                        amount,
-                        0xFFFF,
-                        0xFFFF,
-                        0
-                    );
-                    deficit -= amount;
-                    queuedUnits += amount;
-                }
-
-                if (deficit <= 0)
-                {
-                    completedEntries++;
-                }
-            }
+            foreach (PlannedMove move in plan.Moves)
+                MoveItemQueue.Instance.Enqueue(move.Item, move.Target, move.Amount, 0xFFFF, 0xFFFF, 0);
+            int queuedUnits = plan.Units;
+            int completedEntries = plan.CompletedEntries;
+            int activeEntries = plan.ActiveEntries;
 
             if (queuedUnits > 0)
             {

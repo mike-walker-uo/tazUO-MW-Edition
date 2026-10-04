@@ -66,6 +66,7 @@ namespace ClassicUO.Game.UI
 
         public static void DrawWorld(UltimaBatcher2D batcher)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.DivineFury);
             if (!SpellAbilityEffectSettings.CustomEffectsEnabled ||
                 _triggeredAt == 0 || World.Player == null || !World.InGame) return;
 
@@ -199,7 +200,7 @@ namespace ClassicUO.Game.UI
             Color white = new Color(255, 250, 220);
             Color gold = new Color(255, 195, 70);
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < EffectPresentation.Count(10); i++)
             {
                 float angle = i * MathHelper.TwoPi / 10f + 0.16f;
                 Vector2 direction = new Vector2(
@@ -229,7 +230,7 @@ namespace ClassicUO.Game.UI
             Color blue = new Color(101, 167, 255);
             Color gold = new Color(255, 215, 102);
 
-            for (int i = 0; i < 18; i++)
+            for (int i = 0; i < EffectPresentation.Count(18); i++)
             {
                 float phase = progress * 14f + i * 1.49f;
                 float heightT = ((progress * 1.7f + i * 0.137f) % 1f);

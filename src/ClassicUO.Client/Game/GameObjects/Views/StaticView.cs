@@ -124,6 +124,8 @@ namespace ClassicUO.Game.GameObjects
                 graphic = Constants.TREE_REPLACE_GRAPHIC;
             }
 
+            if (ItemData.Height > 5 && !ItemData.IsRoof && !ItemData.IsWall && !ItemData.IsWet && !ItemData.IsBackground)
+                SceneryInteractionManager.RecordParticleContact(posX + 22, posY + 22, 36);
             DrawStaticAnimated(
                 batcher,
                 graphic,

@@ -5,8 +5,9 @@
     <ApplicationIcon>cuoicon.ico</ApplicationIcon>
     <AssemblyName>ClassicUO</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
-    <AssemblyVersion>0.6.1</AssemblyVersion>
-    <FileVersion>0.6.1</FileVersion>
+    <AssemblyVersion>0.6.2</AssemblyVersion>
+    <FileVersion>0.6.2</FileVersion>
+    <InformationalVersion>0.6.2-beta</InformationalVersion>
     <PackageProjectUrl>https://github.com/PlayTazUO/TazUO</PackageProjectUrl>
   </PropertyGroup>
 
@@ -112,12 +113,29 @@
     <Exec Command="&quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\fxc.exe&quot; /T fx_2_0 /O3 /Fo &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fxc&quot; &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fx&quot;" />
   </Target>
 
+  <Target Name="CompileLinearWorldShader"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(OS)' == 'Windows_NT'"
+          Inputs="$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorld.fx"
+          Outputs="$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc">
+    <Exec Command="&quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\fxc.exe&quot; /T fx_2_0 /O3 /Fo &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc&quot; &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorld.fx&quot;" />
+  </Target>
+
+  <Target Name="CompileLinearCompositeShader"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(OS)' == 'Windows_NT'"
+          Inputs="$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fx"
+          Outputs="$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc">
+    <Exec Command="&quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\fxc.exe&quot; /T fx_2_0 /O3 /Fo &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc&quot; &quot;$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fx&quot;" />
+  </Target>
+
   <ItemGroup>
     <None Remove="Game\Managers\DefaultSpellIndicatorConfig.json" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Game\Managers\DefaultSpellIndicatorConfig.json" />
+    <EmbeddedResource Include="Resources\PremiumThemes\*.png" />
     <EmbeddedResource Include="Resources\WorldExplorer\classic-panel.png" />
     <EmbeddedResource Include="Resources\WorldExplorer\classic-button.png" />
     <EmbeddedResource Include="Resources\PaperdollSkins\stone.png" />
@@ -228,6 +246,8 @@
     <ItemGroup>
       <MonockickstartPath Include="$(ProjectDir)..\..\tools\monokickstart\*.*" />
       <WaterShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fxc')" />
+      <LinearShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc')" />
+      <LinearShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc')" />
     </ItemGroup>
 
     <Copy SourceFiles="@(DataFiles_iplib)" DestinationFiles="@(DataFiles_iplib -> '$(TargetDir)\iplib\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
@@ -236,6 +256,7 @@
     <Copy SourceFiles="@(DataFiles_osx)" DestinationFolder="$(TargetDir)\osx\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_vulkan)" DestinationFolder="$(TargetDir)\vulkan\icd.d\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(WaterShader)" DestinationFolder="$(TargetDir)\" SkipUnchangedFiles="true" Condition="'@(WaterShader)' != ''" />
+    <Copy SourceFiles="@(LinearShader)" DestinationFolder="$(TargetDir)\" SkipUnchangedFiles="true" Condition="'@(LinearShader)' != ''" />
 
     <Copy SourceFiles="@(MonockickstartPath)" DestinationFolder="$(TargetDir)\" SkipUnchangedFiles="true" Condition="$(TargetFramework.StartsWith('net4'))" />
   </Target>
@@ -248,6 +269,8 @@
     <ItemGroup>
       <MonockickstartPath Include="$(ProjectDir)..\..\tools\monokickstart\*.*" />
       <WaterShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\Water.fxc')" />
+      <LinearShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\IsometricWorldLinear.fxc')" />
+      <LinearShader Include="$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc" Condition="Exists('$(ProjectDir)..\ClassicUO.Renderer\shaders\LinearComposite.fxc')" />
     </ItemGroup>
 
     <Copy SourceFiles="@(DataFiles_iplib)" DestinationFiles="@(DataFiles_iplib -> '$(PublishDir)\iplib\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
@@ -256,6 +279,7 @@
     <Copy SourceFiles="@(DataFiles_osx)" DestinationFolder="$(PublishDir)\osx\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_vulkan)" DestinationFolder="$(PublishDir)\vulkan\icd.d\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(WaterShader)" DestinationFolder="$(PublishDir)\" SkipUnchangedFiles="true" Condition="'@(WaterShader)' != ''" />
+    <Copy SourceFiles="@(LinearShader)" DestinationFolder="$(PublishDir)\" SkipUnchangedFiles="true" Condition="'@(LinearShader)' != ''" />
 
     <Copy SourceFiles="@(MonockickstartPath)" DestinationFolder="$(PublishDir)\" SkipUnchangedFiles="true" Condition="$(TargetFramework.StartsWith('net4'))" />
   </Target>

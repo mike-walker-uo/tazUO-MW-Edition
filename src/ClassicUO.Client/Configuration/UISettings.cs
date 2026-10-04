@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
+using ClassicUO.Utility.Logging;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
@@ -48,14 +49,15 @@ namespace ClassicUO.Configuration
                 return null;
             }
 
-            var obj = JsonSerializer.Deserialize<T>(jsonData);
-
-            if (obj is UISettings settings)
+            try
             {
-                return settings;
+                return JsonSerializer.Deserialize<T>(jsonData) as UISettings;
             }
-
-            return null;
+            catch (JsonException ex)
+            {
+                Log.Warn($"Unable to load UI settings '{name}': {ex.Message}");
+                return null;
+            }
         }
 
         public static void Save<T>(string name, object settings)
@@ -64,7 +66,7 @@ namespace ClassicUO.Configuration
 
             try
             {
-                if (!File.Exists(savePath))
+                if (!Directory.Exists(savePath))
                 {
                     Directory.CreateDirectory(savePath);
                 }
@@ -102,30 +104,20 @@ namespace ClassicUO.Configuration
     {
         public override Color Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            Color color = new Color();
+            if (reader.TokenType != JsonTokenType.String && reader.TokenType != JsonTokenType.Null)
+                throw new JsonException("Color must be a string.");
             string value = reader.GetString();
-            if (!string.IsNullOrEmpty(value)) {
-                string[] parts = value.Split(':');
+            if (string.IsNullOrEmpty(value)) return default;
 
-                if (int.TryParse(parts[0], out int r))
-                {
-                    color.R = (byte)r;
-                }
-                if (int.TryParse(parts[1], out int g))
-                {
-                    color.G = (byte)g;
-                }
-                if (int.TryParse(parts[2], out int b))
-                {
-                    color.B = (byte)b;
-                }
-                if (int.TryParse(parts[3], out int a))
-                {
-                    color.A = (byte)a;
-                }
-            }
+            string[] parts = value.Split(':');
+            if (parts.Length != 4
+                || !byte.TryParse(parts[0], out byte r)
+                || !byte.TryParse(parts[1], out byte g)
+                || !byte.TryParse(parts[2], out byte b)
+                || !byte.TryParse(parts[3], out byte a))
+                throw new JsonException("Color must contain four byte values separated by colons.");
 
-            return color;
+            return new Color(r, g, b, a);
         }
 
         public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options) => writer.WriteStringValue($"{value.R}:{value.G}:{value.B}:{value.A}");

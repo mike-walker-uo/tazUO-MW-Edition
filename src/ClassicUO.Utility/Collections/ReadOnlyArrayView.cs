@@ -31,6 +31,7 @@
 #endregion
 
 using System.Collections;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -97,27 +98,36 @@ namespace ClassicUO.Utility.Collections
             public Enumerator(ReadOnlyArrayView<T> view)
             {
                 _view = view;
-                _currentIndex = (int) view._start;
+                _currentIndex = -1;
             }
 
-            public T Current => _view._items[_currentIndex];
+            public T Current
+            {
+                get
+                {
+                    if (_currentIndex < 0 || (uint)_currentIndex >= _view.Count)
+                        throw new InvalidOperationException();
+                    return _view[(uint)_currentIndex];
+                }
+            }
             object IEnumerator.Current => Current;
 
             public bool MoveNext()
             {
-                if (_currentIndex != _view._start + _view.Count - 1)
+                if (_currentIndex + 1 < _view.Count)
                 {
                     _currentIndex += 1;
 
                     return true;
                 }
 
+                _currentIndex = (int)_view.Count;
                 return false;
             }
 
             public void Reset()
             {
-                _currentIndex = (int) _view._start;
+                _currentIndex = -1;
             }
 
             public void Dispose()

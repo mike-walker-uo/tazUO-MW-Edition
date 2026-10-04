@@ -46,7 +46,7 @@ namespace ClassicUO.Game.UI
         // --- desert detection (cached per tile) ---------------------------
         private static bool _onSand;
 
-        private enum AmbientBiome : byte
+        internal enum AmbientBiome : byte
         {
             Plains,
             Forest,
@@ -77,11 +77,13 @@ namespace ClassicUO.Game.UI
         private static Texture2D _warmBlob;
 
         private static GameScene Scene => Client.Game.GetScene<GameScene>();
+        internal static AmbientBiome Biome => _biome;
         internal static bool ForestLike => _biome == AmbientBiome.Forest || _biome == AmbientBiome.Swamp;
         internal static bool TownLike => _biome == AmbientBiome.Town;
 
         public static void Configure(bool enabled)
         {
+            RegionalAmbience.Reset();
             Enabled = enabled;
             LightsEnabled = true;
             _lastTileX = int.MinValue;
@@ -115,7 +117,8 @@ namespace ClassicUO.Game.UI
                 || World.Season == Season.Winter && EnvironmentalShadowManager.Night > 0.35f;
 
             ScanEnvironment();
-            UpdateAmbientSound(w);
+            RegionalAmbience.Update(_biome);
+            if (VisualBudget.Settings?.RegionalSoundBeds != true) UpdateAmbientSound(w);
 
             // Keep movement-sensitive biome state current. Footstep decals are
             // handled independently by SceneryInteractionManager.
@@ -357,6 +360,7 @@ namespace ClassicUO.Game.UI
             }
             _darkBlob = new Texture2D(Client.Game.GraphicsDevice, S, S);
             _darkBlob.SetData(data);
+            OptionalTextureCache.Register(_darkBlob);
             return _darkBlob;
         }
 
@@ -385,6 +389,7 @@ namespace ClassicUO.Game.UI
             }
             _warmBlob = new Texture2D(Client.Game.GraphicsDevice, size, size);
             _warmBlob.SetData(data);
+            OptionalTextureCache.Register(_warmBlob);
             return _warmBlob;
         }
 
@@ -431,7 +436,7 @@ namespace ClassicUO.Game.UI
             // --- stars + moon (clear nights, outdoors) --------------------
             if (outdoors && night > 0.4f && !weatherActive)
             {
-                Texture2D star = SolidColorTextureCache.GetTexture(Color.White);
+                Texture2D star = AtmosphereTextures.GetSolid(Color.White);
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(45); i++)
                 {
                     int sx = (i * 7919) % w;
@@ -464,7 +469,7 @@ namespace ClassicUO.Game.UI
             // --- desert dust / heat shimmer --------------------------------
             if (outdoors && _onSand && night < 0.5f && !weatherActive)
             {
-                Texture2D dust = SolidColorTextureCache.GetTexture(new Color(200, 175, 120, 255));
+                Texture2D dust = AtmosphereTextures.GetSolid(new Color(200, 175, 120, 255));
                 float sandWind = SceneryInteractionManager.SharedWind;
                 float windSpeed = Math.Max(0.35f, Math.Abs(sandWind));
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(14); i++)
@@ -488,7 +493,7 @@ namespace ClassicUO.Game.UI
             // openings are, and over cave blackness they read as artifacts.)
             if (dungeon)
             {
-                Texture2D white = SolidColorTextureCache.GetTexture(new Color(235, 235, 220, 255));
+                Texture2D white = AtmosphereTextures.GetSolid(new Color(235, 235, 220, 255));
                 // Sparse dust motes drifting down near the player (screen
                 // center), where there's actual visible ground.
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(8); i++)
@@ -604,7 +609,7 @@ namespace ClassicUO.Game.UI
             // shoreline, making wetness visible without a full-screen gloss.
             if (weather.Wetness > 0.12f)
             {
-                Texture2D wet = SolidColorTextureCache.GetTexture(new Color(120, 155, 195, 255));
+                Texture2D wet = AtmosphereTextures.GetSolid(new Color(120, 155, 195, 255));
                 for (int i = 0; i < 8; i++)
                 {
                     int sx = bounds.X + (i * 317 + World.Player.X * 13) % Math.Max(1, bounds.Width);
@@ -651,6 +656,14 @@ namespace ClassicUO.Game.UI
             }
         }
 
+        internal static Color AutumnLeafColor(AmbientBiome biome, int map, int seed)
+        {
+            int variant = (seed + map) % 3;
+            if (biome == AmbientBiome.Swamp) return variant == 0 ? new Color(115, 120, 42) : new Color(174, 145, 48);
+            if (biome == AmbientBiome.Coast) return variant == 0 ? new Color(190, 148, 60) : new Color(150, 98, 48);
+            return variant == 0 ? new Color(150, 78, 35) : variant == 1 ? new Color(190, 122, 38) : new Color(115, 120, 42);
+        }
+
         private static void DrawSeasonalParticles(
             UltimaBatcher2D batcher,
             Rectangle bounds,
@@ -666,8 +679,9 @@ namespace ClassicUO.Game.UI
             if (severe || weather.Fog
                 || _biome == AmbientBiome.Town && !EnvironmentShowcaseManager.BeautifulEnabled) return;
 
+            if (VisualBudget.Settings?.SeasonalDetails == false) return;
             int count = SceneryInteractionManager.ScaleCount(
-                EnvironmentShowcaseManager.BeautifulEnabled ? 12 : 8);
+                (int)((EnvironmentShowcaseManager.BeautifulEnabled ? 12 : 8) * VisualBudget.MapDensity));
             float wind = SceneryInteractionManager.SharedWind;
             for (int i = 0; i < count; i++)
             {
@@ -698,9 +712,7 @@ namespace ClassicUO.Game.UI
                 }
                 else if (World.Season == Season.Fall && night < 0.60f)
                 {
-                    color = i % 3 == 0 ? new Color(150, 78, 35, 255)
-                        : i % 3 == 1 ? new Color(190, 122, 38, 255)
-                        : new Color(115, 120, 42, 255);
+                    color = AutumnLeafColor(_biome, World.MapIndex, i);
                     width = 3;
                     alpha = 0.52f * Math.Max(day, dusk) * ambience;
                 }
@@ -716,7 +728,7 @@ namespace ClassicUO.Game.UI
                     continue;
                 }
 
-                batcher.Draw(SolidColorTextureCache.GetTexture(color),
+                batcher.Draw(AtmosphereTextures.GetSolid(color),
                     new Rectangle(sx, sy, width, height),
                     ShaderHueTranslator.GetHueVector(0, false, alpha));
             }
@@ -739,7 +751,7 @@ namespace ClassicUO.Game.UI
             bool warmSeason = World.Season == Season.Spring || World.Season == Season.Summer;
             if (warmSeason && night > 0.30f)
             {
-                Texture2D fly = SolidColorTextureCache.GetTexture(new Color(255, 224, 112, 255));
+                Texture2D fly = AtmosphereTextures.GetSolid(new Color(255, 224, 112, 255));
                 int count = SceneryInteractionManager.ScaleCount(
                     EnvironmentShowcaseManager.BeautifulEnabled ? 16 : 10);
                 float t = Time.Ticks / 1000f;
@@ -768,7 +780,7 @@ namespace ClassicUO.Game.UI
             // screen points.
             if (night > 0.35f && _lightPointCount > 0)
             {
-                Texture2D moth = SolidColorTextureCache.GetTexture(new Color(238, 224, 180, 255));
+                Texture2D moth = AtmosphereTextures.GetSolid(new Color(238, 224, 180, 255));
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(_lightPointCount); i++)
                 {
                     Point p = PathPreview.TileToScreen(_lightPoints[i].X, _lightPoints[i].Y, _lightPoints[i].Z);
@@ -779,7 +791,7 @@ namespace ClassicUO.Game.UI
                     float light = SceneryInteractionManager.GetLightInfluence(
                         mx, my, out Color lightColor);
                     Texture2D litMoth = light > 0.03f
-                        ? SolidColorTextureCache.GetTexture(Color.Lerp(
+                        ? AtmosphereTextures.GetSolid(Color.Lerp(
                             new Color(238, 224, 180, 255), lightColor, Math.Min(0.45f, light)))
                         : moth;
                     batcher.Draw(litMoth, new Rectangle(mx, my, 2, 1),
@@ -792,7 +804,7 @@ namespace ClassicUO.Game.UI
             float batCycle = Time.Ticks % 42000 / 1000f;
             if (night > 0.65f && batCycle < 8f && _biome != AmbientBiome.Plains)
             {
-                Texture2D bat = SolidColorTextureCache.GetTexture(new Color(16, 18, 26, 255));
+                Texture2D bat = AtmosphereTextures.GetSolid(new Color(16, 18, 26, 255));
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(3); i++)
                 {
                     int bx = bounds.X + (int)((batCycle / 8f) * (bounds.Width + 80)) - 40 - i * 55;
@@ -809,7 +821,7 @@ namespace ClassicUO.Game.UI
             float birdCycle = Time.Ticks % 52000 / 1000f;
             if (day > 0.55f && birdCycle < 9f)
             {
-                Texture2D bird = SolidColorTextureCache.GetTexture(new Color(40, 44, 48, 255));
+                Texture2D bird = AtmosphereTextures.GetSolid(new Color(40, 44, 48, 255));
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(4); i++)
                 {
                     int bx = bounds.Right - (int)(birdCycle / 9f * (bounds.Width + 100)) + i * 34;

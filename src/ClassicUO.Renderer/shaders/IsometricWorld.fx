@@ -19,6 +19,7 @@ float4x4 MatrixTransform;
 float4x4 WorldMatrix;
 float2 Viewport;
 float Brightlight;
+float LinearLight;
 const float HuesPerTexture = 2048;
 
 
@@ -93,6 +94,13 @@ PS_INPUT VertexShaderFunction(VS_INPUT IN)
 	return OUT;
 }
 
+float4 CompositeColor(float4 color, float alpha)
+{
+    if (LinearLight > 0.5f && color.a > 0.0f)
+        color.rgb = lerp((color.rgb / color.a) / 12.92f, pow(max(0.0f, (color.rgb / color.a + 0.055f) / 1.055f), 2.4f), step(0.04045f, color.rgb / color.a)) * color.a;
+    return color * alpha;
+}
+
 float4 PixelShader_Hue(PS_INPUT IN) : COLOR0
 {	
 	float4 color = tex2D(DrawSampler, IN.TexCoord.xy);
@@ -105,7 +113,7 @@ float4 PixelShader_Hue(PS_INPUT IN) : COLOR0
 
 	if (mode == NONE)
 	{
-		return color * alpha;
+		return CompositeColor(color, alpha);
 	}
 
 	float hue = IN.Hue.x;
@@ -168,7 +176,7 @@ float4 PixelShader_Hue(PS_INPUT IN) : COLOR0
 		color.rgb = get_rgb(color.g, hue);
 	}
 
-	return color * alpha;
+	return CompositeColor(color, alpha);
 }
 
 technique HueTechnique
@@ -179,4 +187,3 @@ technique HueTechnique
 		PixelShader = compile ps_3_0 PixelShader_Hue();
 	}
 }
-

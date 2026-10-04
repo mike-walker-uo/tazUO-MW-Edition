@@ -114,7 +114,7 @@ namespace ClassicUO.Game.UI
 
         // Convert UO tile coords to screen-space using the same iso math
         // QuestArrowGump uses, then apply Camera.WorldToScreen.
-        internal static Point TileToScreen(int tx, int ty, int tz)
+        internal static Point TileToWorld(int tx, int ty, int tz)
         {
             var camera = Client.Game.Scene.Camera;
             int gox = World.Player.X - tx;
@@ -128,8 +128,13 @@ namespace ClassicUO.Game.UI
             y += World.Player.Z << 2;
             y -= tz << 2;
 
-            Point p = new Point(x, y);
-            p = camera.WorldToScreen(p);
+            return new Point(x, y);
+        }
+
+        internal static Point TileToScreen(int tx, int ty, int tz)
+        {
+            var camera = Client.Game.Scene.Camera;
+            Point p = camera.WorldToScreen(TileToWorld(tx, ty, tz));
             p.X += camera.Bounds.X;
             p.Y += camera.Bounds.Y;
             return p;

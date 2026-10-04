@@ -8,6 +8,7 @@ namespace ClassicUO.Renderer
 {
     public class TextureAtlas : IDisposable
     {
+        private const int SPRITE_PADDING = 2;
         private readonly int _width,
             _height;
         private readonly SurfaceFormat _format;
@@ -34,6 +35,13 @@ namespace ClassicUO.Renderer
             out Rectangle pr
         )
         {
+            if (width <= 0 || width > _width - SPRITE_PADDING)
+                throw new ArgumentOutOfRangeException(nameof(width), "Sprite width must fit the atlas.");
+            if (height <= 0 || height > _height - SPRITE_PADDING)
+                throw new ArgumentOutOfRangeException(nameof(height), "Sprite height must fit the atlas.");
+            if ((long)width * height > pixels.Length)
+                throw new ArgumentException("Sprite pixel data is incomplete.", nameof(pixels));
+
             var index = _textureList.Count - 1;
 
             if (index < 0)
@@ -42,7 +50,7 @@ namespace ClassicUO.Renderer
                 CreateNewTexture2D();
             }
 
-            while (!_packer.PackRect(width, height, out pr))
+            while (!_packer.PackRect(width, height, out pr, SPRITE_PADDING))
             {
                 CreateNewTexture2D();
                 index = _textureList.Count - 1;
@@ -91,7 +99,8 @@ namespace ClassicUO.Renderer
                 }
             }
 
-            _packer.Dispose();
+            _packer?.Dispose();
+            _packer = null;
             _textureList.Clear();
         }
     }

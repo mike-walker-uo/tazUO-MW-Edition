@@ -1,4 +1,4 @@
-﻿#region license
+#region license
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
@@ -58,6 +58,8 @@ namespace ClassicUO
         public static readonly bool IsUnix = !IsWindows;
 
         public static readonly Version Version = Assembly.GetExecutingAssembly().GetName().Version;
+        public static readonly string DisplayVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? Version.ToString(3);
         public static readonly string ExecutablePath = 
 #if NETFRAMEWORK
            Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);

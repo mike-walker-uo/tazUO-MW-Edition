@@ -216,6 +216,9 @@ namespace ClassicUO.Game.Scenes
 
         private bool DragSelectModifierActive()
         {
+            if (HealthBarDragSelect.TryGetOverride(ProfileManager.CurrentProfile, Keyboard.Ctrl, Keyboard.Shift, Keyboard.Alt, out _))
+                return true;
+
             // src: https://github.com/andreakarasho/ClassicUO/issues/621
             // drag-select should be disabled when using nameplates
             if ((Keyboard.Ctrl && Keyboard.Shift) && ProfileManager.CurrentProfile.DragSelect_NameplateModifier == 0)
@@ -252,6 +255,7 @@ namespace ClassicUO.Game.Scenes
             bool ctrl = Keyboard.Ctrl;
             bool shift = Keyboard.Shift;
             bool alt = Keyboard.Alt;
+            HealthBarDragSelect.TryGetOverride(ProfileManager.CurrentProfile, ctrl, shift, alt, out HealthBarDragFilter filter);
 
             if (_selectionStart.X > Mouse.Position.X)
             {
@@ -317,18 +321,7 @@ namespace ClassicUO.Game.Scenes
 
             foreach (Mobile mobile in World.Mobiles.Values)
             {
-                if ((
-                        (ProfileManager.CurrentProfile.DragSelect_PlayersModifier == 1 && ctrl) ||
-                        (ProfileManager.CurrentProfile.DragSelect_PlayersModifier == 2 && shift) ||
-                        (ProfileManager.CurrentProfile.DragSelect_PlayersModifier == 3 && alt)
-                    ) && !(mobile.IsHuman || mobile.IsGargoyle))
-                    continue;
-                if ((
-                        (ProfileManager.CurrentProfile.DragSelect_MonstersModifier == 1 && ctrl) ||
-                        (ProfileManager.CurrentProfile.DragSelect_MonstersModifier == 2 && shift) ||
-                        (ProfileManager.CurrentProfile.DragSelect_MonstersModifier == 3 && alt)
-                    ) && (mobile.IsHuman || mobile.IsGargoyle))
-                    continue;
+                if (!HealthBarDragSelect.Matches(filter, mobile.NotorietyFlag)) continue;
 
                 if (nameplateOnly && !_dragSelectNameplates.Contains(mobile.Serial))
                     continue;
@@ -483,7 +476,7 @@ namespace ClassicUO.Game.Scenes
         {
             if (
                 UIManager.PopupMenu != null
-                && !UIManager.PopupMenu.Bounds.Contains(Mouse.Position.X, Mouse.Position.Y)
+                && !UIManager.PopupMenu.Bounds.Contains(Mouse.InterfacePosition.X, Mouse.InterfacePosition.Y)
             )
             {
                 UIManager.ShowGamePopup(null);
@@ -540,7 +533,7 @@ namespace ClassicUO.Game.Scenes
         {
             if (
                 UIManager.PopupMenu != null
-                && !UIManager.PopupMenu.Bounds.Contains(Mouse.Position.X, Mouse.Position.Y)
+                && !UIManager.PopupMenu.Bounds.Contains(Mouse.InterfacePosition.X, Mouse.InterfacePosition.Y)
             )
             {
                 UIManager.ShowGamePopup(null);
@@ -1023,7 +1016,7 @@ namespace ClassicUO.Game.Scenes
         {
             if (
                 UIManager.PopupMenu != null
-                && !UIManager.PopupMenu.Bounds.Contains(Mouse.Position.X, Mouse.Position.Y)
+                && !UIManager.PopupMenu.Bounds.Contains(Mouse.InterfacePosition.X, Mouse.InterfacePosition.Y)
             )
             {
                 UIManager.ShowGamePopup(null);
@@ -1045,7 +1038,7 @@ namespace ClassicUO.Game.Scenes
         {
             if (
                 UIManager.PopupMenu != null
-                && !UIManager.PopupMenu.Bounds.Contains(Mouse.Position.X, Mouse.Position.Y)
+                && !UIManager.PopupMenu.Bounds.Contains(Mouse.InterfacePosition.X, Mouse.InterfacePosition.Y)
             )
             {
                 UIManager.ShowGamePopup(null);
@@ -1341,8 +1334,8 @@ namespace ClassicUO.Game.Scenes
                                 UIManager.Add(
                                     customgump = new HealthBarGumpCustom(obj)
                                     {
-                                        X = Mouse.LClickPosition.X - (rect.Width >> 1),
-                                        Y = Mouse.LClickPosition.Y - (rect.Height >> 1)
+                                        X = Mouse.InterfaceLClickPosition.X - (rect.Width >> 1),
+                                        Y = Mouse.InterfaceLClickPosition.Y - (rect.Height >> 1)
                                     }
                                 );
                             }
@@ -1353,8 +1346,8 @@ namespace ClassicUO.Game.Scenes
                                 UIManager.Add(
                                     customgump = new HealthBarGump(obj)
                                     {
-                                        X = Mouse.LClickPosition.X - (bounds.Width >> 1),
-                                        Y = Mouse.LClickPosition.Y - (bounds.Height >> 1)
+                                        X = Mouse.InterfaceLClickPosition.X - (bounds.Width >> 1),
+                                        Y = Mouse.InterfaceLClickPosition.Y - (bounds.Height >> 1)
                                     }
                                 );
                             }

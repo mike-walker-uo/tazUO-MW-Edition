@@ -783,6 +783,7 @@ namespace ClassicUO.Game.GameObjects
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.DeathRay);
             if (IsDestroyed)
             {
                 return false;
@@ -950,7 +951,7 @@ namespace ClassicUO.Game.GameObjects
 
             float travelPhase = (Time.Ticks * 0.0013f) % 1f;
 
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < EffectPresentation.Count(5); i++)
             {
                 float travel = (travelPhase + i * 0.2f) % 1f;
                 Vector2 node = Vector2.Lerp(caster, target, travel);
@@ -990,7 +991,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < EffectPresentation.Count(10); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 401));
                 float angle =
@@ -1104,6 +1105,7 @@ namespace ClassicUO.Game.GameObjects
                 size
             );
             texture.SetData(pixels);
+            OptionalTextureCache.Register(texture);
             return texture;
         }
 
@@ -1273,6 +1275,8 @@ namespace ClassicUO.Game.GameObjects
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
+            SpellAbilityEffectSettings.TryMap(_kind, out SpellAbilityEffectId detailId);
+
             if (IsDestroyed || _kind == EnhancedSpellVisualKind.None)
             {
                 return false;
@@ -1281,6 +1285,7 @@ namespace ClassicUO.Game.GameObjects
             float progress = Math.Min(1f, (Time.Ticks - _born) / (float)_visualDuration);
             float fade = SmoothFade(progress);
             GetCenters(posX, posY, out Vector2 body, out Vector2 ground);
+            using var presentation = EffectPresentation.For(detailId, groundY: ground.Y);
             depth = Source != null ? Source.CalculateDepthZ() + 1.04f : depth + 0.04f;
 
             switch (_kind)
@@ -1446,7 +1451,7 @@ namespace ClassicUO.Game.GameObjects
                     DrawEnergyBranch(batcher, origin, joint, end, depth);
                 }
 
-                for (int spark = 0; spark < 14; spark++)
+                for (int spark = 0; spark < EffectPresentation.Count(14); spark++)
                 {
                     float distance = 7f + spark * 7.2f;
                     float side =
@@ -1824,7 +1829,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int mote = 0; mote < 9; mote++)
+            for (int mote = 0; mote < EffectPresentation.Count(9); mote++)
             {
                 float t = (mote + 1f) / 10f;
                 float side =
@@ -2101,7 +2106,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 13; i++)
+            for (int i = 0; i < EffectPresentation.Count(13); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 193));
                 float angle = ((h & 1023u) / 1023f) * MathHelper.TwoPi;
@@ -2296,7 +2301,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int spark = 0; spark < 7; spark++)
+            for (int spark = 0; spark < EffectPresentation.Count(7); spark++)
             {
                 float angle =
                     variant * 1.73f
@@ -2732,7 +2737,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.AlphaBlend);
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < EffectPresentation.Count(14); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 313));
                 float x = ((h & 1023u) / 1023f - 0.5f) * 530f;
@@ -2919,7 +2924,7 @@ namespace ClassicUO.Game.GameObjects
                 );
             }
 
-            for (int spark = 0; spark < 48; spark++)
+            for (int spark = 0; spark < EffectPresentation.Count(48); spark++)
             {
                 uint h = Mix(_seed + (uint)(spark * 1597 + 71));
                 float angle =
@@ -3231,7 +3236,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.AlphaBlend);
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < EffectPresentation.Count(10); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 107));
                 float angle = ((h & 1023u) / 1023f) * MathHelper.TwoPi;
@@ -3254,7 +3259,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < EffectPresentation.Count(14); i++)
             {
                 uint h = Mix(_seed ^ (uint)(i * 251));
                 float angle = ((h & 1023u) / 1023f) * MathHelper.TwoPi;
@@ -3308,7 +3313,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < EffectPresentation.Count(12); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 269));
                 float angle =
@@ -3348,7 +3353,7 @@ namespace ClassicUO.Game.GameObjects
 
             if (smokePhase > 0f)
             {
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < EffectPresentation.Count(5); i++)
                 {
                     uint h = Mix(_seed ^ (uint)(i * 619));
                     float drift =
@@ -3408,7 +3413,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int i = 0; i < 18; i++)
+            for (int i = 0; i < EffectPresentation.Count(18); i++)
             {
                 uint h = Mix(_seed ^ (uint)(i * 431));
                 float angle =
@@ -3540,7 +3545,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < EffectPresentation.Count(14); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 283));
                 float angle =
@@ -3674,10 +3679,9 @@ namespace ClassicUO.Game.GameObjects
 
                 float a0 = rotation + i * MathHelper.TwoPi / segments;
                 float a1 = rotation + (i + 0.76f) * MathHelper.TwoPi / segments;
-                CombatVisualEffect.DrawLine(
+                CombatVisualEffect.DrawArc(
                     batcher,
-                    Ellipse(center, radiusX, radiusY, a0),
-                    Ellipse(center, radiusX, radiusY, a1),
+                    center, radiusX, radiusY, a0, a1,
                     color,
                     alpha,
                     width,
@@ -3709,6 +3713,11 @@ namespace ClassicUO.Game.GameObjects
             float alpha,
             float depth)
         {
+            if (texture == _smokeCloud || texture == _meteorSmokeCloud)
+            {
+                center.X += SceneryInteractionManager.SharedWind * height * 0.12f;
+                alpha *= SceneryInteractionManager.SoftIntersection(center.X, center.Y + height * 0.25f, EffectPresentation.GroundY);
+            }
             batcher.Draw(
                 texture,
                 center,
@@ -3780,6 +3789,7 @@ namespace ClassicUO.Game.GameObjects
 
             texture = new Texture2D(Client.Game.GraphicsDevice, size, size);
             texture.SetData(pixels);
+            OptionalTextureCache.Register(texture);
             return texture;
         }
 

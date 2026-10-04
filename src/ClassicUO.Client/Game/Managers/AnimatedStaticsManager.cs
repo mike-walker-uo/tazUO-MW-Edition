@@ -54,16 +54,15 @@ namespace ClassicUO.Game.Managers
             }
 
             long startAddr = file.StartAddress.ToInt64();
-            uint lastaddr = (uint) (startAddr + file.Length - sizeof(AnimDataFrame));
 
             for (int i = 0; i < TileDataLoader.Instance.StaticData.Length; i++)
             {
                 if (TileDataLoader.Instance.StaticData[i].IsAnimated)
                 {
-                    uint addr = (uint) (i * 68 + 4 * (i / 8 + 1));
-                    uint offset = (uint) (startAddr + addr);
+                    long offset = i * 68L + 4 * (i / 8 + 1);
 
-                    if (offset <= lastaddr)
+                    if (offset <= file.Length - sizeof(AnimDataFrame)
+                        && ((AnimDataFrame*) (startAddr + offset))->FrameCount <= 64)
                     {
                         _staticInfos.Add
                         (

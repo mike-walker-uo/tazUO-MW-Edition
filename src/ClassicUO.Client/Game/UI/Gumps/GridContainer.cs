@@ -2095,6 +2095,10 @@ namespace ClassicUO.Game.UI.Gumps
                         }
 
                         int finalY = y + child.Y - _scrollBar.Value + ScissorRectangle.Y;
+                        int clipTop = y + ScissorRectangle.Y;
+                        int clipBottom = clipTop + Height + ScissorRectangle.Height;
+                        if (child.IsDisposed || finalY + child.Height <= clipTop || finalY >= clipBottom)
+                            continue;
 
                         child.Draw(batcher, x + child.X, finalY);
                     }

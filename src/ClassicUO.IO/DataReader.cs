@@ -32,7 +32,6 @@
 
 using ClassicUO.Utility;
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -63,6 +62,10 @@ namespace ClassicUO.IO
             {
                 _handle.Free();
             }
+
+            _data = null;
+            Length = 0;
+            Position = 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,6 +81,10 @@ namespace ClassicUO.IO
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetData(byte[] data, long length)
         {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+            if (length < 0 || length > data.LongLength)
+                throw new ArgumentOutOfRangeException(nameof(length));
+
             //fixed (byte* d = data)
             //    SetData(d, length);
             ReleaseData();
@@ -251,17 +258,12 @@ namespace ClassicUO.IO
             return ss;
         }
 
-        [Conditional("DEBUG")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureSize(int size)
         {
-            if (Position + size > Length)
+            if (Position < 0 || Position > Length || size > Length - Position || size < -Position)
             {
-#if DEBUG
                 throw new IndexOutOfRangeException();
-#else
-                ClassicUO.Utility.Logging.Log.Error($"size out of range. {Position + size} > {Length}");
-#endif
             }
         }
 

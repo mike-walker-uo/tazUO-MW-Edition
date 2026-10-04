@@ -2,11 +2,11 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6.1](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.1)
+[Download version 0.6.2 beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta)
 
 It has many features, some of them are:
   - Custom weather and light effects
-  - Custom gump themes, including Gilded Grove, Aetherglass, Ornate, Chronicle, Arcane, Relic, Mariner, Runestone, Oak & Iron, Exodus, Blood Oath, Celestial, Heartwood Sanctuary, and Hildebrandt
+  - Illustrated gump themes, including Eternal Eclipse, Sovereign Gold, Lunar Silver, Dragon Ember, and 17 other premium styles; Minimal and TazUO remain available
   - Custom hit effects
   - Custom spell effects (Chiv, Magery, Myst, SW)
   - Custom mob size (Greater Dragons mean "greater")
@@ -32,6 +32,23 @@ It has many features, some of them are:
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6.2 beta highlights
+
+- **Healthbar selection:** permanent All, Players, Friendly Players, Guild, Hostile, Grey and Hostile, and Neutral filters, with individual modifier-key overrides using the configured notorieties. Removed the B button from healthbars.
+- **Generated themes:** 20 new illustrated themes plus Eternal Eclipse. Removed palette-only styles while retaining Minimal and TazUO. Added favorites, per-window overrides, reduced decoration, daily rotation, and corrected individual theme previews.
+- **Graphics controls:** adaptive optional particles, a bounded optional texture cache, softer particle contacts, optional linear-light compositing, selective bloom, coordinated lighting, refined contact shadows, and local replacement-art packs.
+- **Weather and ambience:** biome/season/time-aware ambient weather, gradual compatible transitions, world-anchored fog, shared wind, regional sound beds, seasonal details, and separate lightning, thunder and shake controls.
+- **Spell effects:** per-effect intensity, density and glow; distant-effect decluttering; local classic/enhanced comparison previews; smoother effect geometry.
+- **Interface:** independent scaling for supported UI, clearer resize/lock grips, settings search synonyms, and corrected scrollable Enhancements pages.
+- **Restocking:** preview planned moves and shortages; prevent overlapping rules from reserving the same stock twice.
+- **Chat and settings:** configurable local mention highlighting, saved settings history, and selective undo.
+- **Razor Enhanced:** choose the plugin from Options on Windows and save its path to settings.json while preserving other settings. Restart the client to load it.
+- **Reliability and performance:** two audit passes covering binary-reader bounds, packet writing, Huffman streaming, resource lifetimes, collection retention, animation/map validation, culture-safe item properties, and reduced repeated work and allocations.
+
+Open **Options → Enhancements** or type `-enhancements` for the new controls. Open `-gumpthemes` for previews, favorites and **Rotate themes daily**. Daily rotation advances to the next available theme once per local day while logged in, or on the next login; per-window overrides remain fixed. Select a permanent healthbar drag filter and its modifier overrides in **Options → General**.
+
+This is a beta release. Back up the existing client folder and profiles before upgrading.
 
 ## Version 0.6.1 highlights
 
@@ -104,9 +121,13 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.6 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6.2 beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
+
+## Razor Enhanced plugin setup
+
+On Windows, open **Options → General → Razor Enhanced** and choose the Razor Enhanced plugin DLL or compatible executable. The client validates its plugin entry point and writes the absolute path to `settings.json`, preserving other plugins and settings. Restart the client to load the selected plugin.
 
 ## Razor Enhanced script buttons
 
@@ -130,7 +151,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.1 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.1).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.

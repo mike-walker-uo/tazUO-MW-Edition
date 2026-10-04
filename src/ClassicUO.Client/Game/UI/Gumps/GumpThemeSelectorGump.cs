@@ -6,6 +6,7 @@ using System;
 using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
+using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
@@ -16,9 +17,12 @@ namespace ClassicUO.Game.UI.Gumps
         private const int H = 640;
         private const int PAD = 12;
         private const int CARD_W = 284;
-        private const int CARD_H = 37;
+        private const int CARD_H = 82;
         private int _lastX;
         private int _lastY;
+        private readonly ScrollArea _scroll;
+        private string _searchText;
+        internal string SearchText => _searchText;
 
         private static readonly string[] _names =
         {
@@ -75,7 +79,7 @@ namespace ClassicUO.Game.UI.Gumps
             "Jewel glass and dark lead"
         };
 
-        internal GumpThemeSelectorGump()
+        internal GumpThemeSelectorGump(string search = "")
             : base(0, 0)
         {
             Point position = ProfileManager.CurrentProfile?.GumpThemeSelectorPosition
@@ -113,15 +117,37 @@ namespace ClassicUO.Game.UI.Gumps
                 Y = 29
             });
 
-            var scroll = new ScrollArea(PAD, 48, W - PAD * 2, H - 100, true)
+            Add(new Label("Find:", true, CustomGumpThemeManager.TextHue, font: 1) { X = PAD, Y = 61 });
+            var searchBox = new StbTextBox(1, 64, W - PAD * 2 - 44, hue: CustomGumpThemeManager.TextHue)
+            {
+                X = PAD + 44, Y = 56, Width = W - PAD * 2 - 44, Height = 24, Multiline = false
+            };
+            var searchBackground = new AlphaBlendControl(0.8f) { Width = searchBox.Width, Height = searchBox.Height };
+            CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.8f);
+            searchBox.Add(searchBackground);
+            _searchText = search ?? string.Empty;
+            searchBox.SetText(_searchText);
+            searchBox.TextChanged += (sender, args) =>
+            {
+                _searchText = searchBox.Text;
+                RebuildCards();
+            };
+            Add(searchBox);
+            var dailyRotation = new Checkbox(0x00D2, 0x00D3, "Rotate themes daily", font: 1,
+                color: CustomGumpThemeManager.TextHue)
+            {
+                X = PAD, Y = 86,
+                IsChecked = ProfileManager.CurrentProfile?.RotateGumpThemesDaily == true
+            };
+            dailyRotation.SetTooltip("Switch to the next available theme each local calendar day, or on your next login. Per-window theme overrides stay active.");
+            dailyRotation.ValueChanged += (_, __) => CustomGumpThemeManager.SetDailyRotation(dailyRotation.IsChecked);
+            Add(dailyRotation);
+            _scroll = new ScrollArea(PAD, 114, W - PAD * 2, H - 166, true)
             {
                 ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways
             };
-            Add(scroll);
-            for (int i = 0; i < CustomGumpThemeManager.ThemeCount; i++)
-            {
-                AddThemeCard(scroll, (CustomGumpTheme)i, i);
-            }
+            Add(_scroll);
+            RebuildCards();
 
             Add(new Label(
                 "Applies to custom HUD, utility gumps, dialogs, containers, journal and modern chat.",
@@ -178,40 +204,105 @@ namespace ClassicUO.Game.UI.Gumps
             int column = index % 2;
             int row = index / 2;
             int x = column * (CARD_W + 12);
-            int y = row * 38;
+            int y = row * (CARD_H + 6);
             bool selected = theme == CustomGumpThemeManager.Current;
             ushort textHue = CustomGumpThemeManager.GetTextHue(theme);
+            using var preview = CustomGumpThemeManager.ForPreview(theme);
+            var card = new ThemePreviewCard(theme) { X = x, Y = y };
+            scroll.Add(card);
 
-            scroll.Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme, true)
+            card.Add(new ThemedGumpBackground(CARD_W, CARD_H, 0.90f, theme, true));
+            card.Add(new Label(DisplayName(theme), true, textHue, CARD_W - 90, font: 1)
             {
-                X = x,
-                Y = y
+                X = 10,
+                Y = 8
             });
-            scroll.Add(new Label(DisplayName(theme), true, textHue, font: 1)
+            card.Add(new Label(Description(theme), true, textHue, CARD_W - 58, font: 1)
             {
-                X = x + 10,
-                Y = y + 8
-            });
-            scroll.Add(new Label(_descriptions[index], true, textHue, 190, font: 1)
-            {
-                X = x + 10,
-                Y = y + 24
+                X = 10,
+                Y = 36
             });
             AddButton(
-                x + CARD_W - 76,
-                y + 9,
+                CARD_W - 76,
+                9,
                 66,
                 22,
                 selected ? "ACTIVE" : "Use",
                 () => SelectTheme(theme),
                 selected ? (ushort)0x44 : (ushort)0x35,
                 selected,
-                scroll
+                card
             );
+            AddButton(CARD_W - 34, 55, 24, 20,
+                IsFavorite(theme) ? "*" : "+", () => ToggleFavorite(theme), 0x35, false, card);
+        }
+
+        private sealed class ThemePreviewCard : Control
+        {
+            private readonly CustomGumpTheme _theme;
+
+            internal ThemePreviewCard(CustomGumpTheme theme)
+            {
+                _theme = theme;
+                Width = CARD_W;
+                Height = CARD_H;
+                WantUpdateSize = false;
+            }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                using (CustomGumpThemeManager.ForPreview(_theme))
+                    return base.Draw(batcher, x, y);
+            }
+        }
+
+        private void RebuildCards()
+        {
+            _scroll.Clear();
+            _scroll.ResetScrollbarPosition();
+            int index = 0;
+            for (int group = 0; group < 2; group++)
+            foreach (CustomGumpTheme theme in CustomGumpThemeManager.AvailableThemes)
+            {
+                if (IsFavorite(theme) != (group == 0)) continue;
+                if (MatchesSearch(theme, _searchText)) AddThemeCard(_scroll, theme, index++);
+            }
+            if (index == 0)
+                _scroll.Add(new Label("No matching themes.", true, CustomGumpThemeManager.TextHue, font: 1));
+        }
+
+        internal static bool MatchesSearch(CustomGumpTheme theme, string search)
+        {
+            string query = (search ?? string.Empty).Trim();
+            return DisplayName(theme).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
+                || Description(theme).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsFavorite(CustomGumpTheme theme) =>
+            ProfileManager.CurrentProfile?.FavoriteGumpThemes?.Contains((byte)theme) == true;
+
+        private void ToggleFavorite(CustomGumpTheme theme)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+            if (profile == null) return;
+            if (profile.FavoriteGumpThemes == null) profile.FavoriteGumpThemes = new System.Collections.Generic.List<byte>();
+            if (!profile.FavoriteGumpThemes.Remove((byte)theme)) profile.FavoriteGumpThemes.Add((byte)theme);
+            profile.Save(ProfileManager.ProfilePath, false);
+            RebuildCards();
+        }
+
+        private static string Description(CustomGumpTheme theme)
+        {
+            PremiumGumpTheme premium = PremiumGumpThemes.Get(theme);
+            int index = (int)theme;
+            return premium != null ? premium.Description
+                : (uint)index < _descriptions.Length ? _descriptions[index] : string.Empty;
         }
 
         internal static string DisplayName(CustomGumpTheme theme)
         {
+            PremiumGumpTheme premium = PremiumGumpThemes.Get(theme);
+            if (premium != null) return premium.Name;
             int index = (int)theme;
             return index >= 0 && index < _names.Length
                 ? _names[index]
@@ -233,7 +324,7 @@ namespace ClassicUO.Game.UI.Gumps
             Action action,
             ushort hue,
             bool disabled = false,
-            ScrollArea scroll = null)
+            Control parent = null)
         {
             var button = new NiceButton(
                 x,
@@ -262,10 +353,10 @@ namespace ClassicUO.Game.UI.Gumps
                 };
             }
 
-            if (scroll == null)
+            if (parent == null)
                 Add(button);
             else
-                scroll.Add(button);
+                parent.Add(button);
         }
     }
 }

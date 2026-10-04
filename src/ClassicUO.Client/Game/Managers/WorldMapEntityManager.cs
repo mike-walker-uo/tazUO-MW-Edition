@@ -73,6 +73,8 @@ namespace ClassicUO.Game.Managers
 
             return string.IsNullOrEmpty(Name) && !_mobileNameCache.TryGetValue(Serial, out Name) ? "<out of range>" : Name;
         }
+
+        internal static void ClearNameCache() => _mobileNameCache.Clear();
     }
 
     public class WorldMapEntityManager
@@ -286,6 +288,12 @@ namespace ClassicUO.Game.Managers
         public void Clear()
         {
             Entities.Clear();
+            WMapEntity.ClearNameCache();
+            _toRemove.Clear();
+            _corpse = null;
+            _lastUpdate = _lastPacketSend = _lastPacketRecv = 0;
+            _gumpCheckTime = 0;
+            _gumpPresent = false;
             _ackReceived = false;
             SetEnable(false);
         }

@@ -1,6 +1,7 @@
 // TazUO addition: fixed feature-specific artwork independent of the global gump theme.
 
 using System.IO;
+using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
@@ -44,9 +45,9 @@ namespace ClassicUO.Game.UI.Gumps
             return new FeatureGumpArtwork(width, height, kind, alpha);
         }
 
-        internal static ushort TitleHue(FeatureGumpArtworkKind kind) => 0xFFFF;
-        internal static ushort TextHue(FeatureGumpArtworkKind kind) => 0x0481;
-        internal static ushort DimHue(FeatureGumpArtworkKind kind) => 0x03B2;
+        internal static ushort TitleHue(FeatureGumpArtworkKind kind) => CustomGumpThemeManager.HasWindowOverride ? CustomGumpThemeManager.TitleHue : (ushort)0xFFFF;
+        internal static ushort TextHue(FeatureGumpArtworkKind kind) => CustomGumpThemeManager.HasWindowOverride ? CustomGumpThemeManager.TextHue : (ushort)0x0481;
+        internal static ushort DimHue(FeatureGumpArtworkKind kind) => CustomGumpThemeManager.HasWindowOverride ? CustomGumpThemeManager.DimHue : (ushort)0x03B2;
 
         internal static ushort AccentHue(FeatureGumpArtworkKind kind)
         {
@@ -78,7 +79,7 @@ namespace ClassicUO.Game.UI.Gumps
                 default: color = new Color(8, 13, 14); break;
             }
 
-            return new AlphaBlendControl(
+            var surface = new AlphaBlendControl(
                 MathHelper.Clamp(alpha * CustomGumpThemeManager.OpacityScale, 0f, 1f))
             {
                 X = x,
@@ -88,17 +89,38 @@ namespace ClassicUO.Game.UI.Gumps
                 BaseColor = color,
                 AcceptMouseInput = false
             };
+            if (CustomGumpThemeManager.HasWindowOverride) CustomGumpThemeManager.ApplyDataSurface(surface, surface.Alpha, false);
+            return surface;
         }
 
         internal static NiceButton CreateButton(
             int x, int y, int width, int height, string text, int id,
             FeatureGumpArtworkKind kind)
         {
-            return new FeatureButton(x, y, width, height, text, id, kind);
+            var button = new FeatureButton(x, y, width, height, text, id, kind);
+            if (CustomGumpThemeManager.HasWindowOverride) CustomGumpThemeManager.StyleDataButton(button);
+            return button;
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            if (CustomGumpThemeManager.HasWindowOverride)
+            {
+                var theme = CustomGumpThemeManager.Current;
+                if (CustomGumpThemeManager.IsArtTheme(theme)) CustomThemeArt.DrawPanel(batcher, x, y, Width, Height, theme, _alpha * CustomGumpThemeManager.OpacityScale);
+                else CustomThemeArt.DrawPlain(batcher, x, y, Width, Height, theme, _alpha * CustomGumpThemeManager.OpacityScale, false);
+                return true;
+            }
+            if (ProfileManager.CurrentProfile?.ReducedThemeDecoration == true)
+            {
+                Color surface = _kind == FeatureGumpArtworkKind.RestockAgent ? new Color(20, 13, 7)
+                    : _kind == FeatureGumpArtworkKind.AlertCenter ? new Color(20, 5, 8)
+                    : _kind == FeatureGumpArtworkKind.EquipmentGuru ? new Color(8, 18, 20) : new Color(8, 13, 14);
+                Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, _alpha * CustomGumpThemeManager.OpacityScale);
+                batcher.Draw(SolidColorTextureCache.GetTexture(surface), new Rectangle(x, y, Width, Height), hue);
+                batcher.DrawRectangle(SolidColorTextureCache.GetTexture(BorderColor(_kind)), x, y, Width, Height, hue);
+                return true;
+            }
             Texture2D texture = GetTexture(_kind);
 
             if (texture != null)
@@ -122,7 +144,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             int index = (int)kind;
 
-            if (_textures[index] != null)
+            if (_textures[index] != null && !_textures[index].IsDisposed)
             {
                 return _textures[index];
             }
@@ -152,6 +174,7 @@ namespace ClassicUO.Game.UI.Gumps
                 if (stream != null)
                 {
                     _textures[index] = Texture2D.FromStream(Client.Game.GraphicsDevice, stream);
+                    OptionalTextureCache.Register(_textures[index], () => _textures[index] = null);
                 }
             }
 
@@ -177,6 +200,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
+            if (CustomGumpThemeManager.HasWindowOverride) return base.Draw(batcher, x, y);
+            ArtStyle = false; AlwaysShowBackground = false; DisplayBorder = false;
             Color fill;
             Color inner;
 
@@ -207,7 +232,7 @@ namespace ClassicUO.Game.UI.Gumps
             batcher.DrawRectangle(SolidColorTextureCache.GetTexture(
                 FeatureGumpArtwork.BorderColor(_kind)), x, y, Width, Height, hue);
 
-            if (Width > 4 && Height > 4)
+            if (Width > 4 && Height > 4 && ProfileManager.CurrentProfile?.ReducedThemeDecoration != true)
             {
                 batcher.DrawRectangle(SolidColorTextureCache.GetTexture(inner),
                     x + 2, y + 2, Width - 4, Height - 4,

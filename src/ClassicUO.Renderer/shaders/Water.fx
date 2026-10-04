@@ -3,6 +3,9 @@ float4x4 WorldMatrix;
 float2 Viewport;
 float Time;
 float MotionAmount;
+float Wind;
+float LinearLight;
+float3 LightTint;
 
 sampler WaterSampler : register(s0);
 
@@ -48,9 +51,14 @@ float4 WaterPixel(PS_INPUT input) : COLOR0
     displacementB.x = (cos(phaseC) + sin(phaseD) * 0.32f) * MotionAmount * 0.72f;
     displacementB.y = (sin(phaseD) + cos(phaseC) * 0.28f) * MotionAmount * 0.43f;
 
+    displacementA.x *= Wind < 0.0f ? -1.0f : 1.0f;
+    displacementB.x *= Wind < 0.0f ? -1.0f : 1.0f;
+
     float4 broad = tex2D(WaterSampler, uv + displacementA);
     float4 detail = tex2D(WaterSampler, uvB + displacementB);
     float4 color = lerp(broad, detail, 0.28f);
+    color.rgb *= LightTint;
+    if (LinearLight > 0.5f && color.a > 0.0f) color.rgb = lerp((color.rgb / color.a) / 12.92f, pow(max(0.0f, (color.rgb / color.a + 0.055f) / 1.055f), 2.4f), step(0.04045f, color.rgb / color.a)) * color.a;
     return color * input.Alpha;
 }
 

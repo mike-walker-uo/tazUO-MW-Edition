@@ -82,6 +82,7 @@ namespace ClassicUO.Game.UI
 
         public static void DrawWorld(UltimaBatcher2D batcher)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.Onslaught);
             if (!SpellAbilityEffectSettings.CustomEffectsEnabled ||
                 _triggeredAt == 0 || World.Player == null || !World.InGame) return;
 
@@ -227,7 +228,7 @@ namespace ClassicUO.Game.UI
 
             DrawImpactRings(batcher, center, progress, flash, scale);
 
-            for (int i = 0; i < 18; i++)
+            for (int i = 0; i < EffectPresentation.Count(18); i++)
             {
                 float angle = i * MathHelper.TwoPi / 18f + progress * 1.4f;
                 Vector2 direction = new Vector2(
@@ -309,7 +310,7 @@ namespace ClassicUO.Game.UI
             Color steel = new Color(185, 211, 229);
             Color pale = new Color(255, 244, 202);
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < EffectPresentation.Count(14); i++)
             {
                 float side = (i & 1) == 0 ? -1f : 1f;
                 float x = side * (21f + i * 3.5f) * travel;

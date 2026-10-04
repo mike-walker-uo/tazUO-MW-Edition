@@ -277,8 +277,6 @@ namespace ClassicUO.Game.UI.Gumps
             base.Update();
             if (ProfileManager.CurrentProfile != null)
                 ProfileManager.CurrentProfile.ItemFinderPosition = Location;
-            ItemFinderManager.UpdateHighlights();
-
             if (_refreshAt != 0 && Time.Ticks >= _refreshAt)
             {
                 _refreshAt = 0;

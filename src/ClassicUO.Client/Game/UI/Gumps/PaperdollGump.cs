@@ -115,7 +115,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            PaperdollSkin skin = PaperdollSkinArt.Current;
+            PaperdollSkin skin = CustomGumpThemeManager.HasWindowOverride ? PaperdollSkin.FollowTheme : PaperdollSkinArt.Current;
             bool skinned = skin != PaperdollSkin.Classic && !IsMinimized && _picBase != null;
             float originalAlpha = _picBase?.Alpha ?? 1f;
             float backgroundAlpha = (ProfileManager.CurrentProfile?.PaperdollOpacity ?? 100) / 100f;
@@ -154,7 +154,8 @@ namespace ClassicUO.Game.UI.Gumps
                 _picBase.ContainsByBounds = skinned;
             if (_titleLabel != null)
             {
-                _titleLabel.Hue = skinned ? (ushort)0x0481 : settings.Hue_Title;
+                _titleLabel.Hue = skin == PaperdollSkin.FollowTheme && skinned ? CustomGumpThemeManager.TitleHue
+                    : skinned ? (ushort)0x0481 : settings.Hue_Title;
                 _titleLabel.SetFontStyle(skinned ? FontStyle.BlackBorder : FontStyle.None);
                 _titleLabel.Alpha = skin >= PaperdollSkin.Stone && skinned ? 0f : 1f;
             }
@@ -990,7 +991,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {
-                PaperdollSkin skin = PaperdollSkinArt.Current;
+                PaperdollSkin skin = CustomGumpThemeManager.HasWindowOverride ? PaperdollSkin.FollowTheme : PaperdollSkinArt.Current;
                 if (skin == PaperdollSkin.Classic || _owner.IsMinimized || _target.IsDisposed)
                     return true;
 
@@ -999,6 +1000,13 @@ namespace ClassicUO.Game.UI.Gumps
                     _text.Text = _owner._isWarMode ? "PEACE" : "WAR";
                     _hdText.Text = _owner._isWarMode ? "PEACE" : "WAR";
                     _hdText.Update();
+                }
+
+                ushort textHue = skin == PaperdollSkin.FollowTheme ? CustomGumpThemeManager.TextHue : (ushort)0x0481;
+                if (_text.Hue != textHue)
+                {
+                    _text.Hue = textHue;
+                    _text.CreateTexture();
                 }
 
                 if (_target != _owner._hitBox || skin == PaperdollSkin.FollowTheme)

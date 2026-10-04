@@ -22,7 +22,7 @@ namespace ClassicUO.Renderer
         public EffectParameter Time { get; }
         public EffectParameter MotionAmount { get; }
 
-        public void Configure(Matrix transform, float time, float motionAmount)
+        public void Configure(Matrix transform, float time, float motionAmount, bool linearLight = false, Vector3? lightTint = null, float wind = 1f)
         {
             Matrix.CreateOrthographicOffCenter(
                 0f,
@@ -39,6 +39,9 @@ namespace ClassicUO.Renderer
             Viewport.SetValue(new Vector2(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
             Time.SetValue(time);
             MotionAmount.SetValue(motionAmount);
+            Parameters["Wind"]?.SetValue(wind);
+            Parameters["LinearLight"]?.SetValue(linearLight ? 1f : 0f);
+            Parameters["LightTint"]?.SetValue(lightTint ?? Vector3.One);
         }
     }
 }

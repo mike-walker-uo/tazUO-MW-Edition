@@ -66,6 +66,7 @@ namespace ClassicUO.Game.UI
 
         public static void DrawWorld(UltimaBatcher2D batcher)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.ConsecrateWeapon);
             if (!SpellAbilityEffectSettings.CustomEffectsEnabled ||
                 _triggeredAt == 0 || World.Player == null || !World.InGame) return;
 
@@ -156,7 +157,7 @@ namespace ClassicUO.Game.UI
             float flash = Math.Max(0f, 1f - progress / 0.32f);
             float ringRadius = (27f + progress * 12f) * scale;
 
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < EffectPresentation.Count(20); i++)
             {
                 if (i % 5 == 3) continue;
                 float a0 = i * MathHelper.TwoPi / 20f + progress * 1.3f;
@@ -174,7 +175,7 @@ namespace ClassicUO.Game.UI
 
             if (flash <= 0.01f) return;
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < EffectPresentation.Count(8); i++)
             {
                 float angle = i * MathHelper.TwoPi / 8f;
                 Vector2 direction = new Vector2(
@@ -203,7 +204,7 @@ namespace ClassicUO.Game.UI
             Color blue = new Color(122, 177, 255);
             Color gold = new Color(255, 218, 112);
 
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < EffectPresentation.Count(12); i++)
             {
                 float phase = progress * 5.2f + i * 1.73f;
                 float radius = (24f + i % 4 * 7f) * scale;

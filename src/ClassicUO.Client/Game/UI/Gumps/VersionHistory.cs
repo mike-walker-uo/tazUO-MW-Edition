@@ -11,6 +11,22 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.2 beta]\n" +
+            """
+            - Added permanent healthbar drag filters and individual modifier overrides; removed the B button
+            - Added 21 illustrated premium themes, including Eternal Eclipse; retained Minimal and TazUO
+            - Added theme favorites, per-window themes, daily rotation and accurate picker previews
+            - Added graphics controls for optional particle budgets, texture caching, lighting, bloom, shadows and local art packs
+            - Enhanced ambient weather transitions, world-anchored fog, shared wind, seasonal details and regional audio
+            - Added per-effect detail controls, combat decluttering and classic/enhanced previews
+            - Added independent interface scaling, resize/lock grips and settings search synonyms
+            - Fixed Enhancements category layout and scrolling
+            - Added Restock move/shortage previews and prevented double-reserving stock
+            - Added chat mention highlighting and settings history with selective undo
+            - Added a Windows Razor Enhanced plugin picker that saves the selected path to settings.json
+            - Fixed parser bounds, packet fields, streaming, resource lifetimes, animation/map validation and culture-sensitive properties
+            - Reduced repeated work, allocations and retained collection references
+            """ + "\n",
             "[0.6.1]\n" +
             """
             1. Chat channels: Implemented the new UOAlive Chat channels including color code! View/Send selectors for Global, Trade, Events, Help, LFG, Guild and Party, with correct posting commands. All shows public channels.
@@ -225,7 +241,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(pos.Position(TextBox.GetOne(Language.Instance.TazuoVersionHistory, TrueTypeLoader.EMBEDDED_FONT, 22, titleColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
-            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.Version.ToString(3), TrueTypeLoader.EMBEDDED_FONT, 20, textColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
+            Add(pos.Position(TextBox.GetOne(Language.Instance.CurrentVersion + CUOEnviroment.DisplayVersion, TrueTypeLoader.EMBEDDED_FONT, 20, textColor, TextBox.RTLOptions.DefaultCentered(contentWidth))));
 
             int footerTop = Height - 43 - inset;
             _scrollArea = new ScrollArea(0, 0, contentWidth, System.Math.Max(1, footerTop - pos.Y - 6), true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };

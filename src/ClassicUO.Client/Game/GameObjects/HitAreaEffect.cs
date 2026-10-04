@@ -25,6 +25,7 @@ namespace ClassicUO.Game.GameObjects
     {
         private readonly uint _born;
         private readonly HitAreaElement _element;
+        private readonly bool _enhancedAdmitted;
         private readonly int _visualDuration;
 
         public HitAreaEffect(
@@ -53,6 +54,7 @@ namespace ClassicUO.Game.GameObjects
 
             _born = Time.Ticks;
             _element = element;
+            _enhancedAdmitted = EffectPresentation.Admit("HitArea:" + element, sourceSerial, sourceX, sourceY);
             _visualDuration = Math.Max(350, Math.Min(900, duration));
         }
 
@@ -101,8 +103,10 @@ namespace ClassicUO.Game.GameObjects
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
             bool drewOriginal = base.Draw(batcher, posX, posY, depth);
+            SpellAbilityEffectSettings.TryMap(_element, out SpellAbilityEffectId detailId);
+            using var presentation = EffectPresentation.For(detailId);
 
-            if (IsDestroyed || _element == HitAreaElement.None)
+            if (IsDestroyed || !_enhancedAdmitted || _element == HitAreaElement.None)
             {
                 return drewOriginal;
             }
@@ -179,8 +183,8 @@ namespace ClassicUO.Game.GameObjects
             Color coreColor,
             float depth)
         {
-            Texture2D glow = SolidColorTextureCache.GetTexture(glowColor);
-            Texture2D core = SolidColorTextureCache.GetTexture(coreColor);
+            Texture2D glow = AtmosphereTextures.GetSolid(glowColor);
+            Texture2D core = AtmosphereTextures.GetSolid(coreColor);
             Vector3 glowHue = ShaderHueTranslator.GetHueVector(0, false, fade * 0.42f);
             Vector3 coreHue = ShaderHueTranslator.GetHueVector(0, false, fade * 0.9f);
 
@@ -189,7 +193,7 @@ namespace ClassicUO.Game.GameObjects
             switch (_element)
             {
                 case HitAreaElement.Fire:
-                    for (int i = 0; i < 7; i++)
+                    for (int i = 0; i < EffectPresentation.Count(7); i++)
                     {
                         uint h = Mix(seed + (uint)(i * 71));
                         float x = centerX + ((h & 31u) - 15f);
@@ -217,7 +221,7 @@ namespace ClassicUO.Game.GameObjects
                     break;
 
                 case HitAreaElement.Cold:
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < EffectPresentation.Count(8); i++)
                     {
                         float angle = i * (float)(Math.PI * 2.0) / 8f + 0.16f;
                         Vector2 inner = EllipsePoint(centerX, centerY, radius * 0.62f, angle);
@@ -228,7 +232,7 @@ namespace ClassicUO.Game.GameObjects
                     break;
 
                 case HitAreaElement.Poison:
-                    for (int i = 0; i < 6; i++)
+                    for (int i = 0; i < EffectPresentation.Count(6); i++)
                     {
                         uint h = Mix(seed + (uint)(i * 97));
                         float x = centerX + ((h & 47u) - 23f);
@@ -249,7 +253,7 @@ namespace ClassicUO.Game.GameObjects
                     break;
 
                 case HitAreaElement.Energy:
-                    for (int i = 0; i < 6; i++)
+                    for (int i = 0; i < EffectPresentation.Count(6); i++)
                     {
                         float angle = i * (float)(Math.PI * 2.0) / 6f + progress * 0.7f;
                         Vector2 start = EllipsePoint(centerX, centerY, radius * 0.45f, angle);
@@ -281,8 +285,8 @@ namespace ClassicUO.Game.GameObjects
             float depth)
         {
             const int segments = 16;
-            Texture2D glow = SolidColorTextureCache.GetTexture(glowColor);
-            Texture2D core = SolidColorTextureCache.GetTexture(coreColor);
+            Texture2D glow = AtmosphereTextures.GetSolid(glowColor);
+            Texture2D core = AtmosphereTextures.GetSolid(coreColor);
             Vector3 glowHue = ShaderHueTranslator.GetHueVector(0, false, alpha * 0.34f);
             Vector3 coreHue = ShaderHueTranslator.GetHueVector(0, false, alpha * 0.82f);
 

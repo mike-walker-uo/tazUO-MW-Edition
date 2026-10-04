@@ -267,10 +267,10 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(pageLabel);
             }
             Add(new Label("//", true, Ink, font: 1) { X = Width - 24, Y = Height - 22 });
-            var resizeGrip = new HitBox(Width - 16, Height - 16, 16, 16, "Drag to resize World Explorer", 0.5f);
+            var resizeGrip = new ResizeGrip(Width - 16, Height - 16, 16, 16);
             resizeGrip.MouseDown += (sender, e) =>
             {
-                if (e.Button != MouseButtonType.Left)
+                if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked)
                     return;
                 _resizingCompact = true;
                 _resizeStartX = Mouse.Position.X;

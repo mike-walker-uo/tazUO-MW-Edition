@@ -99,8 +99,8 @@ namespace ClassicUO.Game.UI.Gumps
                 if (AnchorX != 0 || AnchorY != 0)
                 {
                     var camera = Client.Game.Scene?.Camera;
-                    int screenW = camera != null ? camera.Bounds.Right : 800;
-                    int screenH = camera != null ? camera.Bounds.Bottom : 600;
+                    int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
+                    int screenH = (int)((camera != null ? camera.Bounds.Bottom : 600) / UIManager.InterfaceScale);
                     AnchorX += screenW - ToastWidth - 12 - (screenW - ToastWidth) / 2;
                     AnchorY += screenH - 60 - DefaultTop;
                 }
@@ -281,7 +281,7 @@ namespace ClassicUO.Game.UI.Gumps
         private static ToastManager.Toast PersistentAt(int x, int y)
         {
             var camera = Client.Game.Scene?.Camera;
-            int screenW = camera != null ? camera.Bounds.Right : 800;
+            int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
             int tx = ToastManager.BaseX(screenW) + ToastManager.AnchorX;
             if (x < tx || x >= tx + ToastManager.ToastWidth) return null;
 
@@ -309,7 +309,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (toasts.Count == 0) return true;
 
             var camera = Client.Game.Scene?.Camera;
-            int screenW = camera != null ? camera.Bounds.Right : 800;
+            int screenW = (int)((camera != null ? camera.Bounds.Right : 800) / UIManager.InterfaceScale);
 
             Texture2D tex = SolidColorTextureCache.GetTexture(Color.White);
             if (_theme != CustomGumpThemeManager.Current)
