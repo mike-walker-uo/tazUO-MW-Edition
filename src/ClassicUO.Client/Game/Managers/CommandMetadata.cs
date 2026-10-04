@@ -95,6 +95,7 @@ namespace ClassicUO.Game.Managers
             { "hidetrash",       new Entry { Category="Loot", Description="Hide items matching trash filter.", Usage="on|off" } },
 
             // --- UI ---
+            { "magnifier",      new Entry { Category="UI", Description="Toggle a circular UO-style magnifying glass with a precise crosshair; choose 1x to 4x zoom.", Usage="[on|off|toggle|1|2|3|4|next|prev|status]" } },
             { "globalchat",     new Entry { Category="UI", Description="Open global chat.", Usage="" } },
             { "guildchat",      new Entry { Category="UI", Description="Open guild chat.", Usage="" } },
             { "nearbychat",     new Entry { Category="UI", Description="Toggle nearby chat. Use Clear in the window or -nearbychat clear to reset its history.", Usage="[clear]" } },

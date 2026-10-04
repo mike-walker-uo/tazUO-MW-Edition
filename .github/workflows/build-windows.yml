@@ -64,6 +64,12 @@ jobs:
             throw "Published client does not contain x64/FNA3D.dll"
           }
 
+          foreach ($shader in @("Magnifier.fxc", "WorldQuality.fxc")) {
+            if (!(Test-Path "bin/dist/$shader")) {
+              throw "Published client does not contain $shader"
+            }
+          }
+
       - name: Upload Windows client
         uses: actions/upload-artifact@v4
         with:

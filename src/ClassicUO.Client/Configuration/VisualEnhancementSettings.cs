@@ -15,6 +15,9 @@ namespace ClassicUO.Configuration
         public int TextureBudgetMB { get; set; } = 96;
         public bool SoftParticles { get; set; } = true;
         public bool LinearLight { get; set; }
+        public bool WorldAntiAliasing { get; set; }
+        public int WorldAntiAliasingStrength { get; set; } = 35;
+        public int PixelArtSharpness { get; set; } = 75;
         public bool SelectiveBloom { get; set; } = true;
         public int BloomStrength { get; set; } = 35;
         public bool UnifiedLightPalette { get; set; } = true;

@@ -276,6 +276,7 @@ namespace ClassicUO
             Settings.GlobalSettings.Save();
             Plugin.OnClosing();
 
+            MagnifierManager.Dispose();
             ArtLoader.Instance.Dispose();
             GumpsLoader.Instance.Dispose();
             TexmapsLoader.Instance.Dispose();
@@ -711,6 +712,8 @@ namespace ClassicUO
             Profiler.EnterContext("Draw-Tiles");
 
             _totalFrames++;
+            MagnifierManager.BeginFrame(GraphicsDevice);
+            IsMouseVisible = Settings.GlobalSettings.RunMouseInASeparateThread && !MagnifierManager.Active;
             GraphicsDevice.Clear(Color.Black);
 
             _uoSpriteBatch.Begin();
@@ -740,6 +743,8 @@ namespace ClassicUO
             _uoSpriteBatch.Begin();
             GameCursor.Draw(_uoSpriteBatch);
             _uoSpriteBatch.End();
+
+            MagnifierManager.Present(_uoSpriteBatch);
 
             MainThreadHangDiagnostics.Mark("Draw: framework present");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);
@@ -851,6 +856,9 @@ namespace ClassicUO
                     {
                         _ignoreNextTextInput = true;
                     }
+
+                    if ((SDL_Keycode)keyDownEvent.key == SDL_Keycode.SDLK_ESCAPE)
+                        MagnifierManager.Disable();
 
                     break;
 

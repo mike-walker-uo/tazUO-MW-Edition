@@ -238,6 +238,8 @@ namespace ClassicUO.Configuration
         public ushort TooltipTextHue { get; set; } = 0xFFFF;
         public int TooltipDelayBeforeDisplay { get; set; } = 250;
         public int TooltipDisplayZoom { get; set; } = 100;
+        public int MagnifierZoom { get; set; } = 2;
+        public bool MagnifierSmooth { get; set; } = true;
         public int TooltipBackgroundOpacity { get; set; } = 70;
         public byte TooltipFont { get; set; } = 1;
 
