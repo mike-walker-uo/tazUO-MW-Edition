@@ -233,8 +233,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             int inset = CustomThemeArt.ContentInset;
             int contentWidth = Width - 26 - inset * 2;
-            Color textColor = _theme == CustomGumpTheme.BritannianChronicle ? Color.Black : Color.Orange;
-            Color titleColor = _theme == CustomGumpTheme.BritannianChronicle || _theme == CustomGumpTheme.Classic
+            bool lightTheme = _theme == CustomGumpTheme.BritannianChronicle || _theme == CustomGumpTheme.HdMarble;
+            Color textColor = lightTheme ? Color.Black : Color.Orange;
+            Color titleColor = lightTheme || _theme == CustomGumpTheme.Classic
                 ? Color.Black : Color.White;
             Positioner pos = new(13 + inset, 13);
             pos.Y += inset;
@@ -255,7 +256,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(pos.Position(_scrollArea));
 
-            Color linkColor = _theme == CustomGumpTheme.BritannianChronicle ? new Color(95, 50, 20) : Color.Orange;
+            Color linkColor = lightTheme ? new Color(95, 50, 20) : Color.Orange;
             int linkY = Height - 22 - inset;
             Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUOWiki, "https://github.com/PlayTazUO/TazUO/wiki", linkColor, 15), 13 + inset, footerTop));
 

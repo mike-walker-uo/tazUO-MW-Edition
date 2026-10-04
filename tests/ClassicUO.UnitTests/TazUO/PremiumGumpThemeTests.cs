@@ -70,11 +70,11 @@ namespace ClassicUO.UnitTests.TazUO
         public void PreviewThemeIsRestoredWhenDrawingFails()
         {
             CustomGumpTheme original = CustomGumpThemeManager.Current;
-            Assert.Throws<InvalidOperationException>(() =>
+            Assert.Throws<InvalidOperationException>((Action)(() =>
             {
                 using (CustomGumpThemeManager.ForPreview(CustomGumpTheme.BritannianChronicle))
                     throw new InvalidOperationException();
-            });
+            }));
             Assert.Equal(original, CustomGumpThemeManager.Current);
         }
 
