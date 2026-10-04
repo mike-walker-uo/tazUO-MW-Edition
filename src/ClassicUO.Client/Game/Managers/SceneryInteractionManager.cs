@@ -79,16 +79,15 @@ namespace ClassicUO.Game.Managers
         private static readonly Dictionary<uint, uint> _nextWake = new Dictionary<uint, uint>();
         private static int _particleIndex;
         private static int _lightCount;
+        private static readonly Rectangle[] _particleContacts = new Rectangle[256];
+        private static int _contactCount;
         private static uint _nextShelterCheck;
         private static uint _nextWakeCheck;
         private static uint _lastUpdate;
         private static float _shelter;
         private static int _openSide = -1;
         private static Texture2D _softDark;
-        private static Texture2D _softLight;
-        private static Texture2D _softBlue;
-        private static Texture2D _softGreen;
-        private static Texture2D _softPale;
+        private static readonly Dictionary<uint, Texture2D> ColoredGlows = new Dictionary<uint, Texture2D>();
 
         private static Profile Profile => ProfileManager.CurrentProfile;
         public static int Quality
@@ -99,7 +98,7 @@ namespace ClassicUO.Game.Managers
                 return quality < QUALITY_LOW ? QUALITY_LOW : quality > QUALITY_HIGH ? QUALITY_HIGH : quality;
             }
         }
-        public static float Density => Quality == QUALITY_LOW ? 0.45f : Quality == QUALITY_MEDIUM ? 0.72f : 1f;
+        public static float Density => (Quality == QUALITY_LOW ? 0.45f : Quality == QUALITY_MEDIUM ? 0.72f : 1f) * VisualBudget.Factor;
         public static float Shelter => _shelter;
         public static float WeatherSoundScale => 1f - _shelter * 0.62f;
         public static float AcousticEcho => Math.Min(0.65f,
@@ -111,13 +110,13 @@ namespace ClassicUO.Game.Managers
             get
             {
                 Weather weather = Client.Game.GetScene<GameScene>()?.Weather;
-                if (weather?.IsActive == true) return weather.Wind;
+                if (weather?.IsActive == true) return weather.Wind * (0.75f + 0.25f * (float)Math.Sin(Time.Ticks / 4200f));
                 return 0.65f + 0.45f * (float)Math.Sin(Time.Ticks / 4200f);
             }
         }
 
         public static int ScaleCount(int count)
-            => Math.Max(1, (int)Math.Round(count * Density));
+            => count <= 0 || Density <= 0 ? 0 : Math.Max(1, (int)Math.Round(count * Density));
 
         public static void ResetSession()
         {
@@ -437,6 +436,29 @@ namespace ClassicUO.Game.Managers
         public static void BeginLightFrame()
         {
             _lightCount = 0;
+            _contactCount = 0;
+        }
+
+        internal static void RecordParticleContact(int x, int y, int width)
+        {
+            if (_contactCount < _particleContacts.Length)
+                _particleContacts[_contactCount++] = new Rectangle(x - Math.Min(60, width) / 2, y - 8, Math.Min(60, width), 16);
+        }
+
+        internal static float SoftIntersection(float x, float y, float groundY)
+        {
+            if (VisualBudget.Settings?.SoftParticles != true) return 1f;
+            float alpha = groundY > 0 ? Math.Min(1f, Math.Max(0f, (groundY - y) / 14f)) : 1f;
+            if (EffectPresentation.IsPreview) return alpha;
+            // Soften the contact band; do not hide particles over an object's full bounding box.
+            for (int i = 0; i < _contactCount; i++)
+            {
+                Rectangle r = _particleContacts[i];
+                if (x < r.Left || x > r.Right || y < r.Top - 8 || y > r.Bottom + 8) continue;
+                float edge = Math.Max(Math.Abs(x - r.Center.X) / Math.Max(1f, r.Width / 2f), Math.Abs(y - r.Center.Y) / 16f);
+                alpha = Math.Min(alpha, 0.35f + 0.65f * Math.Min(1f, edge));
+            }
+            return alpha;
         }
 
         public static void RecordLight(int x, int y, ushort graphic, ushort hue)
@@ -460,6 +482,7 @@ namespace ClassicUO.Game.Managers
             {
                 light.Color = new Color(255, 158, 62, 255);
             }
+            light.Color = SceneLightPalette.Grade(light.Color);
         }
 
         public static void RecordTransientLight(
@@ -469,12 +492,14 @@ namespace ClassicUO.Game.Managers
             float radius,
             float strength)
         {
+            if (EffectPresentation.IsPreview) return;
+            strength *= EffectPresentation.Glow * EffectPresentation.Intensity;
             if (_lightCount >= ScaleCount(MAX_LIGHTS) || strength <= 0f) return;
 
             ref AtmosphericLight light = ref _lights[_lightCount++];
             light.X = x;
             light.Y = y;
-            light.Color = color;
+            light.Color = SceneLightPalette.Grade(color);
             light.Radius = Math.Max(16f, radius);
             light.Strength = Math.Min(1f, strength);
             light.Transient = true;
@@ -499,6 +524,24 @@ namespace ClassicUO.Game.Managers
             return Math.Max(0f, best);
         }
 
+        internal static void DrawSelectiveBloom(UltimaBatcher2D batcher, Rectangle bounds)
+        {
+            if (VisualBudget.Settings?.SelectiveBloom != true || CUOEnviroment.SafeGraphicsMode) return;
+            float gain = VisualBudget.Percent(VisualBudget.Settings.BloomStrength);
+            if (gain <= 0) return;
+            batcher.SetBlendState(BlendState.Additive);
+            for (int i = 0; i < _lightCount; i++)
+            {
+                ref AtmosphericLight light = ref _lights[i];
+                int radius = (int)(light.Radius * 1.1f);
+                if (!bounds.Intersects(new Rectangle(light.X - radius, light.Y - radius, radius * 2, radius * 2))) continue;
+                // Analytic soft halo from emissive sources only; world art and text never enter a bloom threshold.
+                batcher.Draw(GetColoredSoftLight(light.Color), new Rectangle(light.X - radius, light.Y - radius, radius * 2, radius * 2),
+                    ShaderHueTranslator.GetHueVector(0, false, gain * light.Strength * 0.24f));
+            }
+            batcher.SetBlendState(null);
+        }
+
         public static bool DrawColoredLights(UltimaBatcher2D batcher, Rectangle bounds, float strength)
         {
             if (_lightCount == 0) return false;
@@ -515,7 +558,7 @@ namespace ClassicUO.Game.Managers
                 if (_lights[i].X < bounds.X - size || _lights[i].X > bounds.Right + size
                     || _lights[i].Y < bounds.Y - size || _lights[i].Y > bounds.Bottom + size) continue;
                 drew = true;
-                batcher.Draw(SolidColorTextureCache.GetTexture(_lights[i].Color),
+                batcher.Draw(AtmosphereTextures.GetSolid(_lights[i].Color),
                     new Rectangle(_lights[i].X - 2, _lights[i].Y - 2, 4, 4),
                     ShaderHueTranslator.GetHueVector(
                         0,
@@ -571,7 +614,6 @@ namespace ClassicUO.Game.Managers
             }
             if (AmbienceOverlay.Enabled)
             {
-                DrawContactShadows(batcher, bounds);
                 DrawCanopySunbeams(batcher, bounds);
             }
         }
@@ -583,16 +625,44 @@ namespace ClassicUO.Game.Managers
             DrawRareAtmosphere(batcher, bounds);
         }
 
-        private static void DrawContactShadows(UltimaBatcher2D batcher, Rectangle bounds)
+        internal static void DrawFrostEdges(UltimaBatcher2D batcher, Weather weather)
         {
+            if (VisualBudget.Settings?.SeasonalDetails != true || VisualBudget.MapDensity <= 0
+                || (World.Season != Season.Winter && weather.Coldness < 0.2f)
+                || AmbienceOverlay.Biome == AmbienceOverlay.AmbientBiome.Desert && weather.Coldness < 0.2f) return;
+            var texture = AtmosphereTextures.GetSolid(SceneLightPalette.Grade(new Color(188, 221, 242)));
+            Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, Math.Min(0.24f, 0.12f * VisualBudget.MapDensity));
+            int limit = Math.Min(_contactCount, ScaleCount(48));
+            for (int i = 0; i < limit; i++)
+            {
+                Rectangle edge = _particleContacts[i];
+                for (int j = 0; j < 3; j++)
+                {
+                    int x = edge.Left + (edge.Width - 4) * j / 2;
+                    batcher.Draw(texture, new Rectangle(x, edge.Center.Y - 1, 4, 1), hue);
+                    batcher.Draw(texture, new Rectangle(x, edge.Center.Y - 3, 1, 2), hue);
+                }
+            }
+        }
+
+        internal static void DrawContactShadows(UltimaBatcher2D batcher, Rectangle bounds)
+        {
+            if (VisualBudget.Settings?.ContactShadows != true || World.Player == null) return;
             float alpha = 0.16f * EnvironmentalShadowManager.AmbienceStrength;
             Texture2D shadow = GetSoftDark();
+            for (int i = 0; i < _contactCount; i++)
+            {
+                Rectangle r = _particleContacts[i];
+                batcher.Draw(shadow, new Rectangle(r.X, r.Center.Y - 3, r.Width, 6),
+                    ShaderHueTranslator.GetHueVector(0, false, alpha * 0.45f));
+            }
             int limit = ScaleCount(45), count = 0;
             foreach (Mobile mobile in MobileCache.All)
             {
                 if (mobile == null || mobile.IsDestroyed || mobile.IsDead || mobile.IsHidden || mobile.Distance > 18) continue;
                 if (count++ >= limit) break;
-                Point p = PathPreview.TileToScreen(mobile.X, mobile.Y, mobile.Z);
+                Point p = new Point((int)(mobile.RealScreenPosition.X + 22 + mobile.Offset.X),
+                    (int)(mobile.RealScreenPosition.Y + 22 + mobile.Offset.Y - mobile.Offset.Z));
                 if (!bounds.Contains(p)) continue;
                 int width = mobile == World.Player ? 32 : 26;
                 batcher.Draw(shadow, new Rectangle(p.X - width / 2, p.Y - 5, width, 10),
@@ -605,7 +675,7 @@ namespace ClassicUO.Game.Managers
                 if (item == null || item.IsDestroyed || !item.OnGround || item.IsCorpse || item.Distance > 14
                     || item.ItemData.IsWet || item.ItemData.IsBackground) continue;
                 if (items++ >= itemLimit) break;
-                Point p = PathPreview.TileToScreen(item.X, item.Y, item.Z);
+                Point p = new Point(item.RealScreenPosition.X + 22, item.RealScreenPosition.Y + 22);
                 if (!bounds.Contains(p)) continue;
                 batcher.Draw(shadow, new Rectangle(p.X - 9, p.Y - 3, 18, 6),
                     ShaderHueTranslator.GetHueVector(0, false, alpha * 0.65f));
@@ -644,7 +714,7 @@ namespace ClassicUO.Game.Managers
                     case ParticleKind.WoodDust: color = new Color(175, 145, 100, 255); break;
                     default: color = new Color(155, 125, 88, 255); break;
                 }
-                Texture2D texture = SolidColorTextureCache.GetTexture(color);
+                Texture2D texture = AtmosphereTextures.GetSolid(color);
 
                 if (particle.Kind == ParticleKind.Water || particle.Kind == ParticleKind.Wake)
                 {
@@ -679,7 +749,7 @@ namespace ClassicUO.Game.Managers
             Weather weather = Client.Game.GetScene<GameScene>()?.Weather;
             if (weather?.IsActive == true || weather?.Fog == true) return;
 
-            Texture2D light = SolidColorTextureCache.GetTexture(new Color(255, 228, 166, 255));
+            Texture2D light = AtmosphereTextures.GetSolid(new Color(255, 228, 166, 255));
             int beams = ScaleCount(4);
             for (int i = 0; i < beams; i++)
             {
@@ -714,7 +784,7 @@ namespace ClassicUO.Game.Managers
                     float t = starCycle / 1.2f;
                     int sx = bounds.X + bounds.Width / 5 + (int)(bounds.Width * 0.55f * t);
                     int sy = bounds.Y + 45 + (int)(bounds.Height * 0.18f * t);
-                    Texture2D star = SolidColorTextureCache.GetTexture(new Color(225, 235, 255, 255));
+                    Texture2D star = AtmosphereTextures.GetSolid(new Color(225, 235, 255, 255));
                     batcher.DrawLine(star, new Vector2(sx - 30, sy - 14), new Vector2(sx, sy),
                         ShaderHueTranslator.GetHueVector(0, false, 0.65f * (1f - t)), 2);
                 }
@@ -725,7 +795,7 @@ namespace ClassicUO.Game.Managers
                     float t = meteorCycle / 1.6f;
                     int mx = bounds.Right - 80 - (int)(bounds.Width * 0.65f * t);
                     int my = bounds.Y + 30 + (int)(bounds.Height * 0.32f * t);
-                    Texture2D meteor = SolidColorTextureCache.GetTexture(new Color(255, 184, 96, 255));
+                    Texture2D meteor = AtmosphereTextures.GetSolid(new Color(255, 184, 96, 255));
                     batcher.DrawLine(meteor, new Vector2(mx + 55, my - 25), new Vector2(mx, my),
                         ShaderHueTranslator.GetHueVector(0, false, 0.75f * (1f - t)), 3);
                 }
@@ -739,7 +809,7 @@ namespace ClassicUO.Game.Managers
                         Color[] colors = { new Color(80, 220, 170, 255), new Color(90, 145, 235, 255), new Color(175, 95, 225, 255) };
                         for (int band = 0; band < ScaleCount(3); band++)
                         {
-                            Texture2D aurora = SolidColorTextureCache.GetTexture(colors[band]);
+                            Texture2D aurora = AtmosphereTextures.GetSolid(colors[band]);
                             Vector2 previous = new Vector2(bounds.X, bounds.Y + 45 + band * 18);
                             for (int segment = 1; segment <= 12; segment++)
                             {
@@ -760,7 +830,7 @@ namespace ClassicUO.Game.Managers
                 || EnvironmentControlManager.IsDawn;
             if (clear && dawn && day > 0.20f)
             {
-                Texture2D dew = SolidColorTextureCache.GetTexture(new Color(225, 245, 255, 255));
+                Texture2D dew = AtmosphereTextures.GetSolid(new Color(225, 245, 255, 255));
                 for (int i = 0; i < ScaleCount(18); i++)
                 {
                     int x = bounds.X + (i * 431 + World.Player.X * 17) % Math.Max(1, bounds.Width);
@@ -774,37 +844,21 @@ namespace ClassicUO.Game.Managers
 
         private static Texture2D GetSoftDark()
         {
-            if (_softDark == null || _softDark.IsDisposed) _softDark = BuildBlob(new Color(8, 10, 14, 255));
+            if (_softDark == null || _softDark.IsDisposed) { _softDark = BuildBlob(new Color(8, 10, 14, 255)); OptionalTextureCache.Register(_softDark); }
             return _softDark;
         }
 
-        private static Texture2D GetSoftLight()
+        internal static Texture2D GetColoredSoftLight(Color color)
         {
-            if (_softLight == null || _softLight.IsDisposed) _softLight = BuildBlob(new Color(255, 176, 76, 255));
-            return _softLight;
-        }
-
-        private static Texture2D GetColoredSoftLight(Color color)
-        {
-            if (color.G > color.R * 1.12f && color.G > color.B * 1.05f)
+            color.R = (byte)((color.R >> 4) * 17); color.G = (byte)((color.G >> 4) * 17); color.B = (byte)((color.B >> 4) * 17); color.A = 255;
+            uint key = color.PackedValue;
+            if (!ColoredGlows.TryGetValue(key, out Texture2D texture) || texture.IsDisposed)
             {
-                if (_softGreen == null || _softGreen.IsDisposed)
-                    _softGreen = BuildBlob(new Color(105, 235, 135, 255));
-                return _softGreen;
+                texture = BuildBlob(color);
+                ColoredGlows[key] = texture;
+                OptionalTextureCache.Register(texture, () => ColoredGlows.Remove(key));
             }
-            if (color.B > color.R * 1.08f)
-            {
-                if (_softBlue == null || _softBlue.IsDisposed)
-                    _softBlue = BuildBlob(new Color(105, 155, 255, 255));
-                return _softBlue;
-            }
-            if (Math.Abs(color.R - color.B) < 35 && Math.Abs(color.R - color.G) < 35)
-            {
-                if (_softPale == null || _softPale.IsDisposed)
-                    _softPale = BuildBlob(new Color(240, 225, 190, 255));
-                return _softPale;
-            }
-            return GetSoftLight();
+            return texture;
         }
 
         private static Texture2D BuildBlob(Color color)

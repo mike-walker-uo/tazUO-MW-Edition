@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using ClassicUO.Configuration;
 using ClassicUO.Game.GameObjects;
@@ -344,9 +345,11 @@ namespace ClassicUO.Game.Managers
 
                 if (matches.Count > 0)
                 {
-                    double.TryParse(matches[0].Value, out FirstValue);
+                    if (double.TryParse(matches[0].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double first))
+                        FirstValue = first;
                     if (matches.Count > 1)
-                        double.TryParse(matches[1].Value, out SecondValue);
+                        if (double.TryParse(matches[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double second))
+                            SecondValue = second;
                 }
 
                 // Remove all numbers and symbols from the cleaned string to isolate the name

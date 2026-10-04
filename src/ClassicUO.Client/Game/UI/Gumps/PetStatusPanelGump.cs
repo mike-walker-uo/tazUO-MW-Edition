@@ -104,9 +104,10 @@ namespace ClassicUO.Game.UI.Gumps
             Add(_btnStop = new NiceButton(x0 + (btnW + 4) * 3, btnY, btnW, 18, ButtonAction.Activate, "Stop") { ButtonParameter = 4, IsSelectable = false });
             Add(_btnKill = new NiceButton(x0 + (btnW + 4) * 4, btnY, btnW, 18, ButtonAction.Activate, "Kill") { ButtonParameter = 5, IsSelectable = false });
 
-            _resizeGrip = new HitBox(Width - 12, Height - 12, 12, 12, "Drag to resize", 0.5f);
+            _resizeGrip = new ResizeGrip(Width - 12, Height - 12, 12, 12);
             _resizeGrip.MouseDown += (s, e) =>
             {
+                if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked) return;
                 _resizing = true;
                 _resizeStartX = Mouse.Position.X;
                 _resizeStartY = Mouse.Position.Y;

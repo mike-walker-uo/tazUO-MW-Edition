@@ -93,7 +93,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(scrollArea);
 
-            Add(resizeDrag = new HitBox(Width / 2 - 10, Height - 10, 20, 10, "Drag to resize", 0.50f));
+            Add(resizeDrag = new ResizeGrip(Width / 2 - 10, Height - 14, 20, 14));
             resizeDrag.Add(new AlphaBlendControl(0.4f) { Width = 20, Height = 10, BaseColor = Color.White });
             resizeDrag.MouseDown += ResizeDrag_MouseDown;
             resizeDrag.MouseUp += ResizeDrag_MouseUp;
@@ -108,6 +108,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ResizeDrag_MouseDown(object sender, Input.MouseEventArgs e)
         {
+            if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked) return;
             dragStartH = Height;
             dragging = true;
         }

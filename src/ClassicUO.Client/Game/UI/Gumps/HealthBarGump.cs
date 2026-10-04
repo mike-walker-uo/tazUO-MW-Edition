@@ -50,7 +50,6 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal abstract class BaseHealthBarGump : AnchorableGump
     {
-        private const int BOSS_PIN_BUTTON = 10000;
         private bool _targetBroke;
 
         public bool IsLastAttackBar { get; set; } = false;
@@ -143,28 +142,6 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         protected abstract void BuildGump();
-
-        protected void AddBossPinButton()
-        {
-            if (!(World.Get(LocalSerial) is Mobile mobile) || mobile == World.Player || mobile.IsPlayer)
-                return;
-
-            var button = new NiceButton(Width - 18, 2, 16, 15, ButtonAction.Activate, "B", unicode: false, font: 1)
-            {
-                ButtonParameter = BOSS_PIN_BUTTON,
-                IsSelectable = false
-            };
-            button.SetTooltip("Pin or unpin boss health bar");
-            Add(button);
-        }
-
-        public override void OnButtonClick(int buttonID)
-        {
-            if (buttonID == BOSS_PIN_BUTTON)
-                BossHealthBarGump.Toggle(LocalSerial);
-            else
-                base.OnButtonClick(buttonID);
-        }
 
         //public override void AfterDispose()
         //{
@@ -1433,8 +1410,6 @@ namespace ClassicUO.Game.UI.Gumps
             _textBox.MouseUp += TextBoxOnMouseUp;
             _textBox.SetText(_name);
 
-            AddBossPinButton();
-
             if (entity == null)
             {
                 _textBox.Hue = _background.Hue = 912;
@@ -1883,7 +1858,6 @@ namespace ClassicUO.Game.UI.Gumps
                 _textBox.SetText(_name);
             }
 
-            AddBossPinButton();
         }
 
         public override void Update()

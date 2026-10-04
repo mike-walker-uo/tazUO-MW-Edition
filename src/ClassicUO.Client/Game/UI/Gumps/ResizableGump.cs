@@ -42,7 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
     public abstract class ResizableGump : AnchorableGump
     {
         private readonly BorderControl _borderControl;
-        private readonly Button _button;
+        private readonly Control _button;
         private bool _clicked;
         private Point _lastSize, _savedSize;
         private readonly int _minH;
@@ -76,14 +76,14 @@ namespace ClassicUO.Game.UI.Gumps
             };
 
             Add(_borderControl);
-            _button = new Button(0, 0x837, 0x838, 0x838);
+            _button = new ResizeGrip(0, 0, 16, 16);
             Add(_button);
 
-            _button.MouseDown += (sender, e) => { _clicked = true; };
+            _button.MouseDown += (sender, e) => { _clicked = e.Button == MouseButtonType.Left && !Keyboard.Alt && !IsLocked; };
 
             _button.MouseUp += (sender, e) =>
             {
-                ResizeWindow(_lastSize);
+                if (_clicked && !IsLocked) ResizeWindow(_lastSize);
                 _clicked = false;
             };
 
@@ -104,7 +104,7 @@ namespace ClassicUO.Game.UI.Gumps
         public bool ShowBorder
         {
             get => _borderControl.IsVisible;
-            set => _borderControl.IsVisible = _button.IsVisible = value;
+            set { _borderControl.IsVisible = value; _button.IsVisible = true; }
         }
 
 
@@ -138,7 +138,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             _lastSize = _savedSize;
 
-            if (_clicked && offset != Point.Zero)
+            if (_clicked && !IsLocked && offset != Point.Zero)
             {
                 int w = _lastSize.X + offset.X;
                 int h = _lastSize.Y + offset.Y;
@@ -186,6 +186,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             SetLockStatus(IsLocked);
         }
+
+        internal void ToggleResizeLock() => SetLockStatus(!IsLocked);
 
         protected virtual void SetLockStatus(bool locked)
         {

@@ -7,6 +7,8 @@
 #endregion
 
 using ClassicUO.Configuration;
+using ClassicUO.Game.Data;
+using ClassicUO.Game.UI;
 using ClassicUO.Utility;
 
 namespace ClassicUO.Game.Managers
@@ -86,6 +88,20 @@ namespace ClassicUO.Game.Managers
             if (w.IsActive || w.Fog) return;
 
             int roll = RandomHelper.GetValue(0, 99);
+            if (VisualBudget.Settings?.BiomeWeather == true)
+            {
+                string kind = Choose(AmbienceOverlay.Biome, World.Season, EnvironmentalShadowManager.Night, World.MapIndex, roll);
+                if (kind == "snowarc") StartArc(w, SnowArc);
+                else if (kind == "stormarc") StartArc(w, StormArc);
+                else if (kind == "fog")
+                {
+                    w.SetFog(WeatherSource.Ambient);
+                    _ambientFog = true;
+                    _fogOffAt = (long)Time.Ticks + RandomHelper.GetValue(FOG_MIN_S, FOG_MAX_S) * 1000L;
+                }
+                else if (kind != "clear") ApplyKind(w, kind);
+                return;
+            }
             if      (roll < 22) ApplyKind(w, "rain");
             else if (roll < 34) ApplyKind(w, "snow");
             else if (roll < 40) ApplyKind(w, "heavysnow");
@@ -102,6 +118,21 @@ namespace ClassicUO.Game.Managers
                 _fogOffAt = (long)Time.Ticks + RandomHelper.GetValue(FOG_MIN_S, FOG_MAX_S) * 1000L;
             }
             // else: clear skies this roll.
+        }
+
+        internal static string Choose(AmbienceOverlay.AmbientBiome biome, Season season, float night, int map, int roll)
+        {
+            if (biome == AmbienceOverlay.AmbientBiome.Dungeon || season == Season.Desolation) return "clear";
+            bool arid = biome == AmbienceOverlay.AmbientBiome.Desert || map == 5;
+            int snow = season == Season.Winter && !arid ? 36 : 0;
+            int rain = arid ? 7 : biome == AmbienceOverlay.AmbientBiome.Swamp ? 35 : season == Season.Summer ? 18 : 28;
+            int storm = arid ? 4 : biome == AmbienceOverlay.AmbientBiome.Coast ? 22 : 13;
+            int fog = arid ? 2 : (night > 0.4f ? 14 : 6) + (biome == AmbienceOverlay.AmbientBiome.Swamp ? 7 : 0);
+            if (roll < snow) return roll % 3 == 0 ? "snowarc" : "snow";
+            if ((roll -= snow) < rain) return "rain";
+            if ((roll -= rain) < storm) return "stormarc";
+            if ((roll -= storm) < fog) return "fog";
+            return "clear";
         }
 
         private static void StartArc(Weather w, string[] arc)

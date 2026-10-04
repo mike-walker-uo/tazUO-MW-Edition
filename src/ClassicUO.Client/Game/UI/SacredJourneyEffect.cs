@@ -97,6 +97,7 @@ namespace ClassicUO.Game.UI
 
         public static void DrawWorld(UltimaBatcher2D batcher)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.SacredJourney);
             if (!SpellAbilityEffectSettings.CustomEffectsEnabled ||
                 _triggeredAt == 0 || World.Player == null || !World.InGame) return;
 
@@ -183,7 +184,7 @@ namespace ClassicUO.Game.UI
             Color blue = new Color(117, 177, 255);
             float burst = Math.Max(0f, 1f - progress / 0.34f) * fade;
 
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < EffectPresentation.Count(12); i++)
             {
                 float angle = i * MathHelper.TwoPi / 12f + progress * 1.5f;
                 Vector2 direction = new Vector2(
@@ -215,7 +216,7 @@ namespace ClassicUO.Game.UI
             Color gold = new Color(255, 196, 78);
             Color blue = new Color(105, 169, 255);
 
-            for (int i = 0; i < 18; i++)
+            for (int i = 0; i < EffectPresentation.Count(18); i++)
             {
                 float phase = progress * 13f + i * 1.71f;
                 float travel = (progress * 1.8f + i * 0.131f) % 1f;

@@ -36,7 +36,7 @@ namespace ClassicUO.IO
             get => (IntPtr)((byte*)Unsafe.AsPointer(ref GetPinnableReference()) + Position);
         }
 
-        public byte this[int index] => _data[0];
+        public byte this[int index] => _data[index];
 
         public ReadOnlySpan<byte> Buffer => _data;
 

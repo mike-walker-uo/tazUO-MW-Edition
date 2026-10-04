@@ -14,7 +14,7 @@ namespace ClassicUO.Game.Managers
         internal const int MinimumFreeItems = 5;
         internal const int MinimumFreeWeight = 10;
 
-        internal static ReadinessSnapshot Evaluate()
+        internal static ReadinessSnapshot Evaluate(RestockCountSnapshot counts = null)
         {
             var result = new ReadinessSnapshot();
 
@@ -27,7 +27,9 @@ namespace ClassicUO.Game.Managers
 
                 result.ActiveSupplyTargets++;
 
-                if (RestockAgentManager.CountInTarget(entry) >= entry.DesiredAmount)
+                int count = counts != null && counts.Target.TryGetValue(entry, out int targetCount)
+                    ? targetCount : RestockAgentManager.CountInTarget(entry);
+                if (count >= entry.DesiredAmount)
                 {
                     result.ReadySupplyTargets++;
                 }

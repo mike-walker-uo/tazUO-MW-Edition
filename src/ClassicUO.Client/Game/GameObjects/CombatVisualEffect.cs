@@ -182,7 +182,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int flame = 0; flame < 5; flame++)
+            for (int flame = 0; flame < EffectPresentation.Count(5); flame++)
             {
                 float t = flame / 4f;
                 float curl =
@@ -243,7 +243,7 @@ namespace ClassicUO.Game.GameObjects
                 );
             }
 
-            for (int ember = 0; ember < 11; ember++)
+            for (int ember = 0; ember < EffectPresentation.Count(11); ember++)
             {
                 float distance = 15f + ember * 6.4f;
                 float side =
@@ -393,6 +393,11 @@ namespace ClassicUO.Game.GameObjects
             float alpha,
             float depth)
         {
+            if (texture == _fireballSmoke)
+            {
+                center.X += SceneryInteractionManager.SharedWind * height * 0.12f;
+                alpha *= SceneryInteractionManager.SoftIntersection(center.X, center.Y + height * 0.25f, EffectPresentation.GroundY);
+            }
             batcher.Draw(
                 texture,
                 center,
@@ -467,6 +472,7 @@ namespace ClassicUO.Game.GameObjects
                 size
             );
             texture.SetData(pixels);
+            OptionalTextureCache.Register(texture);
             return texture;
         }
 
@@ -510,6 +516,7 @@ namespace ClassicUO.Game.GameObjects
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
+            SpellAbilityEffectSettings.TryMap(_kind, out SpellAbilityEffectId detailId);
             if (IsDestroyed || _kind == CombatVisualKind.None)
             {
                 return false;
@@ -524,6 +531,7 @@ namespace ClassicUO.Game.GameObjects
             }
 
             GetCenters(posX, posY, out Vector2 body, out Vector2 ground);
+            using var presentation = EffectPresentation.For(detailId, groundY: ground.Y);
             depth = Source != null ? Source.CalculateDepthZ() + 1.02f : depth + 0.02f;
 
             switch (_kind)
@@ -573,7 +581,7 @@ namespace ClassicUO.Game.GameObjects
             float radius = 8f + progress * 37f;
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < EffectPresentation.Count(8); i++)
             {
                 float angle = i * MathHelper.TwoPi / 8f + progress * 0.6f;
                 Vector2 start = Ellipse(center, 4f, 4f, angle);
@@ -643,7 +651,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int lobe = 0; lobe < 12; lobe++)
+            for (int lobe = 0; lobe < EffectPresentation.Count(12); lobe++)
             {
                 uint h =
                     Mix(
@@ -785,7 +793,7 @@ namespace ClassicUO.Game.GameObjects
             DrawRing(batcher, center, radius, 12, violet, fade * 0.42f, 5f, depth);
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < EffectPresentation.Count(8); i++)
             {
                 float angle = i * MathHelper.TwoPi / 8f + progress * 0.8f;
                 Vector2 outer = Ellipse(center, radius, radius * 0.55f, angle);
@@ -811,7 +819,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < EffectPresentation.Count(3); i++)
             {
                 float x = center.X + (i - 1) * 13f;
                 float y = center.Y - 37f + drop + i * 4f;
@@ -840,7 +848,7 @@ namespace ClassicUO.Game.GameObjects
             Color violet = new Color(182, 75, 255);
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < EffectPresentation.Count(12); i++)
             {
                 float t = i / 11f;
                 float angle = t * MathHelper.TwoPi * 2.2f + progress * 5f;
@@ -886,7 +894,7 @@ namespace ClassicUO.Game.GameObjects
             Color amber = new Color(255, 174, 72);
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < EffectPresentation.Count(8); i++)
             {
                 float angle = i * MathHelper.TwoPi / 8f + progress;
                 Vector2 start = Ellipse(body, 13f, 9f, angle);
@@ -917,7 +925,7 @@ namespace ClassicUO.Game.GameObjects
 
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 11; i++)
+            for (int i = 0; i < EffectPresentation.Count(11); i++)
             {
                 uint h = Mix((uint)(i * 131) ^ (uint)X ^ ((uint)Y << 16));
                 float angle = i * MathHelper.TwoPi / 11f + progress * 1.6f;
@@ -977,7 +985,7 @@ namespace ClassicUO.Game.GameObjects
             DrawRing(batcher, ground, radius, 15, violet, fade * 0.62f, 7f, depth);
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 7; i++)
+            for (int i = 0; i < EffectPresentation.Count(7); i++)
             {
                 float angle = i * MathHelper.TwoPi / 7f - progress * 2f;
                 Vector2 outer = Ellipse(ground, radius, radius * 0.45f, angle);
@@ -1012,7 +1020,7 @@ namespace ClassicUO.Game.GameObjects
             DrawLine(batcher, left, center, teal, fade * 0.7f, 2f, depth);
             DrawLine(batcher, right, center, violet, fade * 0.7f, 2f, depth);
 
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < EffectPresentation.Count(6); i++)
             {
                 float angle = i * MathHelper.TwoPi / 6f + progress * 3f;
                 DrawPoint(
@@ -1041,7 +1049,7 @@ namespace ClassicUO.Game.GameObjects
             float radius = 10f + progress * 38f;
             batcher.SetBlendState(BlendState.Additive);
 
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < EffectPresentation.Count(9); i++)
             {
                 float angle = i * MathHelper.TwoPi / 9f + progress * 1.2f;
                 Vector2 inner = Ellipse(body, 5f, 4f, angle);
@@ -1126,15 +1134,30 @@ namespace ClassicUO.Game.GameObjects
 
                 float a0 = i * MathHelper.TwoPi / segments;
                 float a1 = (i + 0.72f) * MathHelper.TwoPi / segments;
-                DrawLine(
+                DrawArc(
                     batcher,
-                    Ellipse(center, radius, radius * 0.46f, a0),
-                    Ellipse(center, radius, radius * 0.46f, a1),
+                    center, radius, radius * 0.46f, a0, a1,
                     color,
                     alpha,
                     width,
                     depth
                 );
+            }
+        }
+
+        internal static void DrawArc(UltimaBatcher2D batcher, Vector2 center,
+            float radiusX, float radiusY, float startAngle, float endAngle,
+            Color color, float alpha, float width, float depth)
+        {
+            if (alpha <= 0f) return;
+            int steps = Math.Max(radiusX, radiusY) < 20f ? 1 : SceneryInteractionManager.Quality + 1;
+            Vector2 previous = Ellipse(center, radiusX, radiusY, startAngle);
+            for (int i = 1; i <= steps; i++)
+            {
+                float angle = MathHelper.Lerp(startAngle, endAngle, i / (float)steps);
+                Vector2 point = Ellipse(center, radiusX, radiusY, angle);
+                DrawLine(batcher, previous, point, color, alpha, width, depth);
+                previous = point;
             }
         }
 
@@ -1168,7 +1191,7 @@ namespace ClassicUO.Game.GameObjects
                 return;
             }
 
-            Texture2D texture = SolidColorTextureCache.GetTexture(color);
+            Texture2D texture = AtmosphereTextures.GetSolid(color);
             batcher.Draw(
                 texture,
                 start,
@@ -1190,7 +1213,7 @@ namespace ClassicUO.Game.GameObjects
             float size,
             float depth)
         {
-            Texture2D texture = SolidColorTextureCache.GetTexture(color);
+            Texture2D texture = AtmosphereTextures.GetSolid(color);
             batcher.Draw(
                 texture,
                 position - new Vector2(size * 0.5f),

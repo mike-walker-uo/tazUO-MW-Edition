@@ -49,7 +49,7 @@ namespace ClassicUO.Game.GameObjects
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
             if (
-                !_forceEnhanced
+                !_enhancedAdmitted || !_forceEnhanced
                 && !SpellAbilityEffectSettings.IsEnabled(
                     SpellAbilityEffectId.Lightning
                 )
@@ -57,6 +57,8 @@ namespace ClassicUO.Game.GameObjects
             {
                 return DrawClassic(batcher, posX, posY, depth);
             }
+
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.Lightning);
 
             int visibleHeight = 0;
             int impactLightX = posX + 22;
@@ -471,7 +473,7 @@ namespace ClassicUO.Game.GameObjects
             Vector3 groundCore =
                 ShaderHueTranslator.GetHueVector(0, false, alpha * 0.74f);
 
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < EffectPresentation.Count(3); i++)
             {
                 uint mixed = Mix(seed ^ (uint)(0x51ED + i * 0x9E37));
                 float angle =

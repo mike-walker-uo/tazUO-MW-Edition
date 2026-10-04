@@ -55,6 +55,16 @@ namespace ClassicUO.Game.Managers
         private static bool _needSort;
 
         public static float ContainerScale { get; set; } = 1f;
+        internal static float InterfaceScale => World.InGame && ProfileManager.CurrentProfile?.InterfaceScaling == true
+            ? Math.Max(0.75f, Math.Min(2f, ProfileManager.CurrentProfile.InterfaceScale)) : 1f;
+        internal static float InterfaceRenderScale => InterfaceScale * (World.InGame && ProfileManager.CurrentProfile?.GlobalScaling == true
+            ? ProfileManager.CurrentProfile.GlobalScale : 1f);
+
+        internal static bool IsWorldOverlay(Control control)
+        {
+            Control root = control?.RootParent ?? control;
+            return root is WorldViewportGump || root is NameOverheadGump || root is QuestArrowGump;
+        }
 
         public static AnchorManager AnchorManager { get; } = new AnchorManager();
 
@@ -68,7 +78,7 @@ namespace ClassicUO.Game.Managers
         {
             get
             {
-                Point mouse = Mouse.Position;
+                Point mouse = Mouse.WorldPosition;
                 Profile profile = ProfileManager.CurrentProfile;
 
                 return profile != null &&
@@ -160,6 +170,7 @@ namespace ClassicUO.Game.Managers
 
         public static void OnMouseDragging()
         {
+            using var coordinates = Mouse.ForInterface();
             HandleMouseInput();
 
             if (_mouseDownControls[(int)MouseButtonType.Left] != null)
@@ -178,6 +189,7 @@ namespace ClassicUO.Game.Managers
 
         public static void OnMouseButtonDown(MouseButtonType button)
         {
+            using var coordinates = Mouse.ForInterface();
             HandleMouseInput();
 
             if (MouseOverControl != null)
@@ -193,7 +205,8 @@ namespace ClassicUO.Game.Managers
                 }
 
                 MakeTopMostGump(MouseOverControl);
-                MouseOverControl.InvokeMouseDown(Mouse.Position, button);
+                using (Mouse.ForControl(MouseOverControl))
+                using (CustomGumpThemeManager.ForControl(MouseOverControl)) MouseOverControl.InvokeMouseDown(Mouse.Position, button);
 
                 if (MouseOverControl.AcceptKeyboardInput)
                 {
@@ -222,7 +235,8 @@ namespace ClassicUO.Game.Managers
 
         public static void OnMouseButtonUp(MouseButtonType button)
         {
-            EndDragControl(Mouse.Position);
+            using var coordinates = Mouse.ForInterface();
+            using (Mouse.ForControl(DraggingControl)) EndDragControl(Mouse.Position);
             HandleMouseInput();
 
             int index = (int)button;
@@ -231,19 +245,22 @@ namespace ClassicUO.Game.Managers
             {
                 if (_mouseDownControls[index] != null && MouseOverControl == _mouseDownControls[index] || Client.Game.GameCursor.ItemHold.Enabled)
                 {
-                    MouseOverControl.InvokeMouseUp(Mouse.Position, button);
+                    using (Mouse.ForControl(MouseOverControl))
+                    using (CustomGumpThemeManager.ForControl(MouseOverControl)) MouseOverControl.InvokeMouseUp(Mouse.Position, button);
                 }
                 else if (_mouseDownControls[index] != null && MouseOverControl != _mouseDownControls[index])
                 {
                     if (!_mouseDownControls[index].IsDisposed)
                     {
-                        _mouseDownControls[index].InvokeMouseUp(Mouse.Position, button);
+                        using (Mouse.ForControl(_mouseDownControls[index]))
+                        using (CustomGumpThemeManager.ForControl(_mouseDownControls[index])) _mouseDownControls[index].InvokeMouseUp(Mouse.Position, button);
                     }
                 }
             }
             else if (_mouseDownControls[index] != null && !_mouseDownControls[index].IsDisposed)
             {
-                _mouseDownControls[index].InvokeMouseUp(Mouse.Position, button);
+                using (Mouse.ForControl(_mouseDownControls[index]))
+                using (CustomGumpThemeManager.ForControl(_mouseDownControls[index])) _mouseDownControls[index].InvokeMouseUp(Mouse.Position, button);
             }
 
             if (button == MouseButtonType.Right)
@@ -261,10 +278,12 @@ namespace ClassicUO.Game.Managers
 
         public static bool OnMouseDoubleClick(MouseButtonType button)
         {
+            using var coordinates = Mouse.ForInterface();
             HandleMouseInput();
 
             if (MouseOverControl != null)
             {
+                using var controlCoordinates = Mouse.ForControl(MouseOverControl);
                 if (MouseOverControl.InvokeMouseDoubleClick(Mouse.Position, button))
                 {
                     if (button == MouseButtonType.Left)
@@ -281,6 +300,7 @@ namespace ClassicUO.Game.Managers
 
         public static void OnMouseWheel(bool isup)
         {
+            using var coordinates = Mouse.ForInterface();
             if (MouseOverControl != null && MouseOverControl.AcceptMouseInput)
             {
                 MouseEventType delta = isup ? MouseEventType.WheelScrollUp : MouseEventType.WheelScrollDown;
@@ -294,7 +314,7 @@ namespace ClassicUO.Game.Managers
                     return;
                 }
 
-                MouseOverControl.InvokeMouseWheel(delta);
+                using (Mouse.ForControl(MouseOverControl)) MouseOverControl.InvokeMouseWheel(delta);
             }
         }
 
@@ -407,6 +427,7 @@ namespace ClassicUO.Game.Managers
 
         public static void Update()
         {
+            using var coordinates = Mouse.ForInterface();
             SortControlsByInfo();
 
             LinkedListNode<Gump> first = Gumps.First;
@@ -416,6 +437,8 @@ namespace ClassicUO.Game.Managers
                 LinkedListNode<Gump> next = first.Next;
 
                 Control g = first.Value;
+                using var windowCoordinates = Mouse.ForControl(g);
+                using var windowTheme = CustomGumpThemeManager.ForControl(g);
                 if (updateTimerEnabled)
                 {
                     updateTimer.Restart();
@@ -449,6 +472,8 @@ namespace ClassicUO.Game.Managers
 
         public static void SlowUpdate()
         {
+            CustomGumpThemeManager.UpdateDailyRotation();
+            using var coordinates = Mouse.ForInterface();
             SortControlsByInfo();
 
             LinkedListNode<Gump> first = Gumps.First;
@@ -459,7 +484,8 @@ namespace ClassicUO.Game.Managers
 
                 Control g = first.Value;
 
-                g.SlowUpdate();
+                using (Mouse.ForControl(g))
+                using (CustomGumpThemeManager.ForControl(g)) g.SlowUpdate();
 
                 if (g.IsDisposed)
                 {
@@ -472,16 +498,19 @@ namespace ClassicUO.Game.Managers
 
         public static void Draw(UltimaBatcher2D batcher)
         {
+            using var coordinates = Mouse.ForInterface();
             SortControlsByInfo();
-            if (World.InGame && ProfileManager.CurrentProfile.GlobalScaling)
-                batcher.Begin(null, Matrix.CreateScale(ProfileManager.CurrentProfile.GlobalScale));
-            else
-                batcher.Begin();
+            float renderScale = InterfaceRenderScale;
+            batcher.Begin(null, Matrix.CreateScale(renderScale));
 
             for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
             {
                 Control g = last.Value;
-                g.Draw(batcher, g.X, g.Y);
+                float windowScale = IsWorldOverlay(g) ? renderScale / InterfaceScale : renderScale;
+                if (windowScale != renderScale) { batcher.End(); batcher.Begin(null, Matrix.CreateScale(windowScale)); }
+                using (Mouse.ForControl(g))
+                using (CustomGumpThemeManager.ForWindow(last.Value)) g.Draw(batcher, g.X, g.Y);
+                if (windowScale != renderScale) { batcher.End(); batcher.Begin(null, Matrix.CreateScale(renderScale)); }
             }
 
             batcher.End();
@@ -491,6 +520,7 @@ namespace ClassicUO.Game.Managers
         {
             if (!gump.IsDisposed)
             {
+                CustomGumpThemeManager.ApplyWindowTheme(gump);
                 if (front)
                 {
                     Gumps.AddFirst(gump);
@@ -551,17 +581,17 @@ namespace ClassicUO.Game.Managers
 
         private static void HandleMouseInput()
         {
-            Control gump = GetMouseOverControl(Mouse.Position);
+            Control gump = GetMouseOverControl();
 
             if (MouseOverControl != null && gump != MouseOverControl)
             {
-                MouseOverControl.InvokeMouseExit(Mouse.Position);
+                using (Mouse.ForControl(MouseOverControl)) MouseOverControl.InvokeMouseExit(Mouse.Position);
 
                 if (MouseOverControl.RootParent != null)
                 {
                     if (gump == null || gump.RootParent != MouseOverControl.RootParent)
                     {
-                        MouseOverControl.RootParent.InvokeMouseExit(Mouse.Position);
+                        using (Mouse.ForControl(MouseOverControl.RootParent)) MouseOverControl.RootParent.InvokeMouseExit(Mouse.Position);
                     }
                 }
             }
@@ -570,18 +600,18 @@ namespace ClassicUO.Game.Managers
             {
                 if (gump != MouseOverControl)
                 {
-                    gump.InvokeMouseEnter(Mouse.Position);
+                    using (Mouse.ForControl(gump)) gump.InvokeMouseEnter(Mouse.Position);
 
                     if (gump.RootParent != null)
                     {
                         if (MouseOverControl == null || gump.RootParent != MouseOverControl.RootParent)
                         {
-                            gump.RootParent.InvokeMouseEnter(Mouse.Position);
+                            using (Mouse.ForControl(gump.RootParent)) gump.RootParent.InvokeMouseEnter(Mouse.Position);
                         }
                     }
                 }
 
-                gump.InvokeMouseOver(Mouse.Position);
+                using (Mouse.ForControl(gump)) gump.InvokeMouseOver(Mouse.Position);
             }
 
             MouseOverControl = gump;
@@ -595,7 +625,7 @@ namespace ClassicUO.Game.Managers
             //}
         }
 
-        private static Control GetMouseOverControl(Point position)
+        private static Control GetMouseOverControl()
         {
             if (_isDraggingControl)
             {
@@ -615,7 +645,7 @@ namespace ClassicUO.Game.Managers
                     continue;
                 }
 
-                c.HitTest(position, ref control);
+                using (Mouse.ForControl(c)) c.HitTest(Mouse.Position, ref control);
 
                 if (control != null)
                 {
@@ -708,11 +738,13 @@ namespace ClassicUO.Game.Managers
 
         public static void AttemptDragControl(Control control, bool attemptAlwaysSuccessful = false)
         {
+            using var coordinates = Mouse.ForInterface();
             if ((_isDraggingControl && !attemptAlwaysSuccessful) || Client.Game.GameCursor.ItemHold.Enabled && !Client.Game.GameCursor.ItemHold.IsFixedPosition)
             {
                 return;
             }
 
+            using var dragCoordinates = Mouse.ForControl(control);
             Control dragTarget = control;
 
             if (!dragTarget.CanMove)
@@ -750,6 +782,7 @@ namespace ClassicUO.Game.Managers
 
         private static void DoDragControl()
         {
+            using var coordinates = Mouse.ForControl(DraggingControl);
             if (DraggingControl == null)
             {
                 return;

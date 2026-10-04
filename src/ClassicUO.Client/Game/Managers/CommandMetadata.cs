@@ -6,6 +6,7 @@
 #endregion
 
 using System;
+using ClassicUO.Game.UI.Gumps;
 using System.Collections.Generic;
 
 namespace ClassicUO.Game.Managers
@@ -127,7 +128,9 @@ namespace ClassicUO.Game.Managers
             { "spellbook",      new Entry { Category="UI", Description="Open spellbook.", Usage="" } },
             { "musicmode",      new Entry { Category="UI", Description="Choose original/new/mixed music, or scan Music/Digital for newly added MP3s.", Usage="original|new|mixed|rescan" } },
             { "musicplayer",    new Entry { Category="UI", Description="Open or close the auto-started music/radio player with playlist favorites; login starts in mini layout.", Usage="" } },
-            { "gumptheme",      new Entry { Category="UI", Description="Theme supported utility, HUD, tracker, grid-container, journal and modern chat gumps.", Usage="[minimal|classic|runestone|oakandiron|dark|royal|forest|dungeon|water|snow|heartwoodsanctuary|termur|kotl|tazuo|britannia|trinsic|minoc|blackthorn|obsidian|doom|midnight|necro|ornate|chronicle|arcane|relic|mariner|gildedgrove|aetherglass|celestial|exodus|blood|hildebrandt|hdstone|hdwood|hdmetal|hdmarble|hdglass|hdstainedglass|next]" } },
+            { "alerts",         new Entry { Category="Alerts", Description="Alias for -alertcenter: open alert history, filters and severity settings.", Usage="" } },
+            { "speechhistory",  new Entry { Category="UI", Description="Alias for -nearbychat: open Nearby Speech history.", Usage="[clear]" } },
+            { "gumptheme",      new Entry { Category="UI", Description="Theme supported utility, HUD, tracker, grid-container, journal and modern chat gumps.", Usage=CustomGumpThemeManager.CommandUsage } },
             { "gumpopacity",    new Entry { Category="UI", Description="Set a gump opacity option. All: 0-100 (custom min 20; grid borders and hover unchanged).", Usage="<all|custom|paperdoll|durability|container|corpse|gridborder|journal|buff|slayer|hovermin> <percent> | <altscroll|hoverboost> [on|off|toggle]" } },
             { "gumpopacityall",        new Entry { Category="UI", Description="Set supported gump opacity values; custom min 20, grid borders and hover unchanged.", Usage="<0-100>" } },
             { "gumpopacitycustom",     new Entry { Category="UI", Description="Gump opacity: themed windows, main menu, and map border.", Usage="<20-100>" } },
@@ -174,6 +177,7 @@ namespace ClassicUO.Game.Managers
             { "environment",    new Entry { Category="Visual", Description="Open clickable weather, season, ambience, light and scenery controls.", Usage="" } },
             { "spelleffects",   new Entry { Category="Visual", Description="Open per-effect spell/ability toggles and local previews.", Usage="" } },
             { "gumpthemes",     new Entry { Category="Visual", Description="Open the visual selector for all shared custom gump themes.", Usage="" } },
+            { "enhancements",   new Entry { Category="Visual", Description="Graphics, weather, interface themes, chat mentions and settings history.", Usage="" } },
             { "visualsilence",  new Entry { Category="Visual", Description="Hide original and custom spell/combat effect graphics without muting audio.", Usage="on|off|status" } },
             { "classiceffects",  new Entry { Category="Visual", Description="Hide TazUO combat enhancements while retaining original UO effects.", Usage="on|off|status" } },
             { "netherblaststyle", new Entry { Category="Visual", Description="Select the original Nether Blast art or one of six enhanced vortex styles.", Usage="off|1|2|3|4|5|6|status" } },

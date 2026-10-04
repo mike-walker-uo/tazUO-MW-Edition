@@ -40,7 +40,8 @@ namespace ClassicUO.Utility.Logging
 
         public static void Start(LogTypes logTypes, LogFile logFile = null)
         {
-            _logger = _logger ?? new Logger
+            _logger?.Stop();
+            _logger = new Logger
             {
                 LogTypes = logTypes
             };

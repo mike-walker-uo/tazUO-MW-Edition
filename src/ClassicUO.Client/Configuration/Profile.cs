@@ -110,6 +110,14 @@ namespace ClassicUO.Configuration
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
         public byte CustomGumpTheme { get; set; } = (byte)ClassicUO.Game.UI.Gumps.CustomGumpTheme.HdWood;
+        public bool RotateGumpThemesDaily { get; set; }
+        public int LastGumpThemeRotationDay { get; set; }
+        public List<byte> FavoriteGumpThemes { get; set; } = new List<byte>();
+        public Dictionary<string, byte> GumpThemeOverrides { get; set; } = new Dictionary<string, byte>();
+        public bool ReducedThemeDecoration { get; set; }
+        public bool ChatMentionsEnabled { get; set; } = true;
+        public string ChatMentionWords { get; set; } = string.Empty;
+        public string ChatMentionGuildTag { get; set; } = string.Empty;
         public byte CustomGumpOpacity { get; set; } = 100;
         public byte PaperdollOpacity { get; set; } = 100;
         public byte PaperdollSkin { get; set; } = (byte)ClassicUO.Game.UI.Gumps.PaperdollSkin.Marble;
@@ -324,8 +332,8 @@ namespace ClassicUO.Configuration
         public bool DisableAutoMove { get; set; }
         public bool EnableDragSelect { get; set; }
         public int DragSelectModifierKey { get; set; } // 0 = none, 1 = control, 2 = shift, 3 = alt
-        public int DragSelect_PlayersModifier { get; set; } = 0;
-        public int DragSelect_MonstersModifier { get; set; } = 0;
+        public HealthBarDragFilter DragSelectFilter { get; set; } = HealthBarDragFilter.AllMobiles;
+        public int[] DragSelectFilterModifiers { get; set; } = new int[7];
         public int DragSelect_NameplateModifier { get; set; } = 0;
         public bool OverrideContainerLocation { get; set; }
 
@@ -508,7 +516,11 @@ namespace ClassicUO.Configuration
         {
             get
             {
-                return Condition_Hue.Count;
+                int count = Condition_Hue?.Count ?? 0;
+                count = Math.Min(count, Condition_Label?.Count ?? 0);
+                count = Math.Min(count, Condition_Duration?.Count ?? 0);
+                count = Math.Min(count, Condition_Trigger?.Count ?? 0);
+                return Math.Min(count, Condition_Type?.Count ?? 0);
             }
             set { }
         }
@@ -733,6 +745,8 @@ namespace ClassicUO.Configuration
         public bool NearbyLootOpensHumanCorpses { get; set; }
         public bool GlobalScaling { get; set; } = false;
         public float GlobalScale { get; set; } = 1.5f;
+        public bool InterfaceScaling { get; set; }
+        public float InterfaceScale { get; set; } = 1.25f;
         public ushort TurnDelay { get; set; } = 100;
         public bool SellAgentEnabled { get; set; }
         public int SellAgentMaxUniques { get; set; } = 50;
@@ -756,6 +770,8 @@ namespace ClassicUO.Configuration
         public ushort PostProcessingType { get; set; }
         public bool DisableHotkeys { get; set; }
 
+        public VisualEnhancementSettings VisualEnhancements { get; set; } = new VisualEnhancementSettings();
+
         private long lastSave;
         public void Save(string path, bool saveGumps = true, bool force = false)
         {
@@ -764,6 +780,8 @@ namespace ClassicUO.Configuration
 
             Log.Trace($"Saving path:\t\t{path}");
             var filePath = Path.Combine(path, "profile.json");
+
+            SettingsHistory.Record(this, filePath);
 
             // Create backup rotation before saving
             CreateBackupRotation(filePath);

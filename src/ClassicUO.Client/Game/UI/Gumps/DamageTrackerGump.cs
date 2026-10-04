@@ -152,9 +152,10 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(_rowHits[i]);
             }
 
-            _resizeGrip = new HitBox(Width - 12, Height - 12, 12, 12, "Drag to resize", 0.5f);
+            _resizeGrip = new ResizeGrip(Width - 12, Height - 12, 12, 12);
             _resizeGrip.MouseDown += (s, e) =>
             {
+                if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked) return;
                 _resizing = true;
                 _resizeStartX = Mouse.Position.X;
                 _resizeStartY = Mouse.Position.Y;

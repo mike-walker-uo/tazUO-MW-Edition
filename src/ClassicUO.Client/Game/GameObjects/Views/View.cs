@@ -138,6 +138,7 @@ namespace ClassicUO.Game.GameObjects
             bool isWet = false
         )
         {
+            if (!isWet && LocalArtPack.Draw(batcher, graphic, x, y, hue, depth + 0.5f)) return;
             ref readonly var artInfo = ref Client.Game.Arts.GetArt(graphic);
 
             if (artInfo.Texture != null)
@@ -268,6 +269,7 @@ namespace ClassicUO.Game.GameObjects
 
             graphic = (ushort)(graphic + index.AnimOffset);
 
+            if (!isWet && terrainSurface == 0 && LocalArtPack.Draw(batcher, graphic, x, y, hue, depth + 0.5f)) return;
             ref readonly var artInfo = ref Client.Game.Arts.GetArt(graphic);
 
             if (artInfo.Texture != null)

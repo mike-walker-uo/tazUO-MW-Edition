@@ -657,6 +657,7 @@ namespace ClassicUO.Game.GameObjects
             { 0x3EE0, 0x0677 }, // Horse_Elemental_Fire
             { 0x3EE1, 0x0678 }, // Horse_Elemental_Water
             { 0x3EE2, 0x0679 }, // Horse_Elemental_Air
+            { 0x3EE4, 0x06C1 }, // Horse_True_Britannia
         };
 
         public override ushort GetGraphicForAnimation()

@@ -50,9 +50,14 @@ namespace ClassicUO.Game.Managers
             GameActions.Print("--- chat commands ---", 0x35);
             foreach (var n in names)
             {
+                CommandMetadata.Entry entry = CommandMetadata.Get(n);
+                string description = entry?.Description ?? string.Empty;
                 if (!string.IsNullOrEmpty(filter) &&
-                    n.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) < 0) continue;
-                GameActions.Print("  -" + n, 0x44);
+                    n.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) < 0 &&
+                    description.IndexOf(filter, System.StringComparison.OrdinalIgnoreCase) < 0) continue;
+                GameActions.Print("  -" + n + (description.Length > 0 ? " — " + description : string.Empty), 0x44);
+                if (string.Equals(n, filter, System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(entry?.Usage))
+                    GameActions.Print("    Usage: -" + n + " " + entry.Usage, 0x35);
                 shown++;
             }
             GameActions.Print($"--- {shown} command(s) ---", 0x35);

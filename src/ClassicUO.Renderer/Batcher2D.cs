@@ -52,6 +52,17 @@ namespace ClassicUO.Renderer
         private const int MAX_VERTICES = MAX_SPRITES * 4;
         private const int MAX_INDICES = MAX_SPRITES * 6;
         private BlendState _blendState;
+        public static float OptionalEffectOpacity { get; set; } = 1f;
+        public static float OptionalEffectGlow { get; set; } = 1f;
+
+        private void ApplyEffectDetail(ref PositionNormalTextureColor4 sprite)
+        {
+            float alpha = OptionalEffectOpacity;
+            if (_blendState == BlendState.Additive) alpha *= OptionalEffectGlow;
+            if (alpha == 1f) return;
+            sprite.Hue0.Z *= alpha; sprite.Hue1.Z *= alpha;
+            sprite.Hue2.Z *= alpha; sprite.Hue3.Z *= alpha;
+        }
         private int _currentBufferPosition;
 
         private Effect _customEffect;
@@ -145,6 +156,16 @@ namespace ClassicUO.Renderer
             _indexBuffer.Dispose();
         }
 
+
+        public bool SupportsLinearLight => _basicUOEffect.LinearLight != null;
+        public bool LinearLight { get; private set; }
+        public void SetLinearLight(bool enabled)
+        {
+            if (LinearLight == enabled) return;
+            Flush();
+            LinearLight = enabled && SupportsLinearLight;
+            _basicUOEffect.LinearLight?.SetValue(LinearLight ? 1f : 0f);
+        }
 
         public void SetBrightlight(float f)
         {
@@ -240,6 +261,8 @@ namespace ClassicUO.Renderer
             sprite.Normal3.Y = g;
             sprite.Normal3.Z = b;
 
+            ApplyEffectDetail(ref _vertexInfo[_numSprites]);
+            OptionalTextureCache.Touch(texture);
             _textureInfo[_numSprites] = texture;
             ++_numSprites;
         }
@@ -1152,6 +1175,8 @@ namespace ClassicUO.Renderer
                 depth, effects
             );
 
+            ApplyEffectDetail(ref _vertexInfo[_numSprites]);
+            OptionalTextureCache.Touch(texture);
             _textureInfo[_numSprites] = texture;
             ++_numSprites;
         }
@@ -1302,6 +1327,8 @@ namespace ClassicUO.Renderer
             }
 
             EnsureSize();
+            ApplyEffectDetail(ref _vertexInfo[_numSprites]);
+            OptionalTextureCache.Touch(texture);
             _textureInfo[_numSprites++] = texture;
 
             return true;

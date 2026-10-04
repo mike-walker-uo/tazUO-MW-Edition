@@ -71,7 +71,7 @@ namespace ClassicUO.Game.UI.Gumps
         private GumpPic _sortOrderIndicator;
         private double _totalReal, _totalValue;
         private bool _updateSkillsNeeded;
-        private Button resizeDrag;
+        private Control resizeDrag;
         private Area BottomArea;
         private int dragStartH;
         private Label real, value;
@@ -260,11 +260,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_sortOrderIndicator = new GumpPic(0, 0, 0x985, 0));
 
-            Add(resizeDrag = new Button(0, 0x837, 0x838, 0x838));
+            Add(resizeDrag = new ResizeGrip(0, 0, 16, 16));
             resizeDrag.MouseDown += ResizeDrag_MouseDown;
             resizeDrag.MouseUp += ResizeDrag_MouseUp;
-            resizeDrag.X = Width - 10;
-            resizeDrag.Y = Height - 10;
+            resizeDrag.X = Width - 16;
+            resizeDrag.Y = Height - 16;
 
             if(X == 0)
                 X = last_x;
@@ -539,6 +539,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void ResizeDrag_MouseDown(object sender, Input.MouseEventArgs e)
         {
+            if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked) return;
             dragStartH = Height;
             Dragging = true;
         }
@@ -575,7 +576,7 @@ namespace ClassicUO.Game.UI.Gumps
                 area.Height = Height - 60;
                 background.Height = Height - 1;
                 _databox.WantUpdateSize = true;
-                resizeDrag.Y = Height - 11;
+                resizeDrag.Y = Height - 16;
                 real.Y = Height - 20;
                 value.Y = Height - 20;
                 BottomArea.Y = area.Height + area.Y - 1;

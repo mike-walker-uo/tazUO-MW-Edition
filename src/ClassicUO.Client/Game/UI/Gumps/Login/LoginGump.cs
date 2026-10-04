@@ -117,8 +117,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 Add(uoVersion);
 
                 Control editionVersion = asianLanguage
-                    ? (Control)new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", true, 0xFFFF, font: 1)
-                    : TextBox.GetOne($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", "avadonian", 14,
+                    ? (Control)new Label($"TazUO MW Edition Version {CUOEnviroment.DisplayVersion}", true, 0xFFFF, font: 1)
+                    : TextBox.GetOne($"TazUO MW Edition Version {CUOEnviroment.DisplayVersion}", "avadonian", 14,
                         new Color(228, 217, 198), TextBox.RTLOptions.Default());
                 editionVersion.X = 365 - editionVersion.Width / 2;
                 editionVersion.Y = 452;
@@ -237,7 +237,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", false, 0x034E, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.DisplayVersion}", false, 0x034E, font: 9)
                     {
                         X = 266,
                         Y = 465
@@ -338,7 +338,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label($"TazUO MW Edition Version {CUOEnviroment.Version.ToString(3)}", false, 0x0481, font: 9)
+                    new Label($"TazUO MW Edition Version {CUOEnviroment.DisplayVersion}", false, 0x0481, font: 9)
                     {
                         X = 266,
                         Y = 465

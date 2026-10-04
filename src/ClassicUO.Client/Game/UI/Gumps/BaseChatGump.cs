@@ -191,9 +191,10 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(_input);
             }
 
-            _resizeGrip = new HitBox(Width - 12, Height - 12, 12, 12, "Drag to resize", 0.5f);
+            _resizeGrip = new ResizeGrip(Width - 12, Height - 12, 12, 12);
             _resizeGrip.MouseDown += (s, e) =>
             {
+                if (e.Button != MouseButtonType.Left || Keyboard.Alt || IsLocked) return;
                 _resizing = true;
                 _resizeStartX = Mouse.Position.X;
                 _resizeStartY = Mouse.Position.Y;
@@ -435,6 +436,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         private sealed class ChatLine
         {
+            public bool Mention;
+            public string Message;
+            public int MentionVersion;
             public TextBox Time;
             public TextBox ChannelBox;
             public TextBox NameBox; // null for system messages (no Name)
@@ -562,7 +566,8 @@ namespace ClassicUO.Game.UI.Gumps
                 TextBox messageBox = TextBox.GetOne(text, font, size, messageColor,
                     new TextBox.RTLOptions { Width = remaining, IgnoreColorCommands = channelBox != null });
 
-                _lines.AddToBack(new ChatLine { Box = messageBox, Time = time, ChannelBox = channelBox, NameBox = nameBox });
+                _lines.AddToBack(new ChatLine { Box = messageBox, Time = time, ChannelBox = channelBox, NameBox = nameBox,
+                    Message = text, Mention = ChatMentions.IsMention(text), MentionVersion = ChatMentions.Version });
             }
 
             public void DisposeBoxes()
@@ -624,6 +629,11 @@ namespace ClassicUO.Game.UI.Gumps
                     if (my > Height) break;
 
                     int relY = y + my;
+                    if (l.Message != null && l.MentionVersion != ChatMentions.Version)
+                    { l.Mention = ChatMentions.IsMention(l.Message); l.MentionVersion = ChatMentions.Version; }
+                    if (l.Mention && ProfileManager.CurrentProfile?.ChatMentionsEnabled == true)
+                        batcher.Draw(SolidColorTextureCache.GetTexture(new Color(215, 172, 77)),
+                            new Rectangle(x, relY, Width, h), ShaderHueTranslator.GetHueVector(0, false, 0.13f));
                     int cx = x;
                     l.Time?.Draw(batcher, cx, relY);
                     if (l.Time != null) cx += l.Time.Width + 4;

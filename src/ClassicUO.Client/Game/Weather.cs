@@ -34,6 +34,7 @@ using System;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
@@ -106,6 +107,7 @@ namespace ClassicUO.Game
         private float _wetness;
         private float _coldness;
         private float _visualIntensity;
+        private float _particleCount;
         private float _snowCover;
         private bool _frontFromLeft;
         private float _frontCoverage;
@@ -204,9 +206,9 @@ namespace ClassicUO.Game
         {
             if (_lightningAt == 0 || Time.Ticks < _lightningAt) return 0f;
             uint age = Time.Ticks - _lightningAt;
-            if (age < 70) return _lightningPeak;
-            if (age < 130) return _lightningPeak * 0.18f;
-            if (age < 230) return _lightningPeak * 0.64f * (1f - (age - 130) / 100f);
+            if (age < 70) return _lightningPeak * VisualBudget.Percent(VisualBudget.Settings?.LightningFlash ?? 100);
+            if (age < 130) return _lightningPeak * 0.18f * VisualBudget.Percent(VisualBudget.Settings?.LightningFlash ?? 100);
+            if (age < 230) return _lightningPeak * 0.64f * (1f - (age - 130) / 100f) * VisualBudget.Percent(VisualBudget.Settings?.LightningFlash ?? 100);
             return -1f; // expired
         }
 
@@ -271,6 +273,10 @@ namespace ClassicUO.Game
             float intensityTau = intensityTarget > _visualIntensity ? 2800f : 9000f;
             float intensityBlend = 1f - (float)Math.Exp(-elapsed / intensityTau);
             _visualIntensity += (intensityTarget - _visualIntensity) * intensityBlend;
+            int particleMultiplier = IsRainFamily(Type) && Type != WeatherType.WT_RAIN ? 3 : 2;
+            float particleTarget = SceneryInteractionManager.ScaleCount(Math.Min(MAX_WEATHER_EFFECT, Count * particleMultiplier));
+            _particleCount += (particleTarget - _particleCount) * (1f - (float)Math.Exp(-elapsed / 1800f));
+            if (active && CurrentCount < particleTarget) EnsureParticles((int)Math.Ceiling(particleTarget));
 
             float frontBlend = 1f - (float)Math.Exp(-elapsed / (intensityTarget > _frontCoverage ? 8500f : 4500f));
             _frontCoverage += (intensityTarget - _frontCoverage) * frontBlend;
@@ -315,9 +321,16 @@ namespace ClassicUO.Game
             bool announce = count > 0
                 && (!IsActive || CurrentWeather != type || Source != source);
 
+            bool preserve = VisualBudget.Settings?.WeatherCrossfade == true && IsActive && count > 0
+                && (IsRainFamily(Type) && IsRainFamily(type) || Type == WeatherType.WT_SNOW && type == WeatherType.WT_SNOW);
+            ushort previousCount = CurrentCount;
+            float previousParticles = _particleCount;
+            sbyte previousWind = Wind;
+            float previousFront = _frontCoverage;
+            bool previousSide = _frontFromLeft;
             Reset();
-
-            _frontFromLeft = RandomHelper.RandomBool();
+            if (preserve) { CurrentCount = previousCount; Wind = previousWind; _frontCoverage = previousFront; }
+            _frontFromLeft = preserve ? previousSide : RandomHelper.RandomBool();
 
             Type = type;
             Count = (byte) Math.Min(MAX_WEATHER_EFFECT, (int) count);
@@ -414,6 +427,12 @@ namespace ClassicUO.Game
             int mult = type == WeatherType.WT_STORM_APPROACH || type == WeatherType.WT_STORM_BREWING ? 3 : 2;
             int target = SceneryInteractionManager.ScaleCount(Math.Min(MAX_WEATHER_EFFECT, Count * mult));
 
+            _particleCount = preserve ? previousParticles : target;
+            EnsureParticles(target);
+        }
+
+        private void EnsureParticles(int target)
+        {
             while (CurrentCount < target)
             {
                 ref WeatherEffect effect = ref _effects[CurrentCount++];
@@ -429,6 +448,9 @@ namespace ClassicUO.Game
             }
         }
 
+        private static bool IsRainFamily(WeatherType type) => type == WeatherType.WT_RAIN
+            || type == WeatherType.WT_STORM_APPROACH || type == WeatherType.WT_STORM_BREWING;
+
         private void PlayWind()
         {
             PlaySound(RandomHelper.RandomList(0x014, 0x015, 0x016));
@@ -437,7 +459,7 @@ namespace ClassicUO.Game
         private void PlayThunder()
         {
             int sound = RandomHelper.RandomList(0x028, 0x206);
-            PlaySound(sound);
+            PlaySound(sound, VisualBudget.Percent(VisualBudget.Settings?.ThunderVolume ?? 100));
             if (SceneryInteractionManager.AcousticEcho > 0.05f)
             {
                 _thunderEchoSound = sound;
@@ -463,11 +485,12 @@ namespace ClassicUO.Game
 
             // Only near strikes rattle the screen.
             if (dist < 0.35f && basePeak >= 0.55f
-                && !(ProfileManager.CurrentProfile?.ReduceWeatherMotion ?? false))
+                && !(ProfileManager.CurrentProfile?.ReduceWeatherMotion ?? false)
+                && (VisualBudget.Settings?.WeatherShake ?? 100) > 0)
             {
                 try
                 {
-                    Client.Game.Scene.Camera.Shake(7f * _lightningPeak, 240);
+                    Client.Game.Scene.Camera.Shake(7f * _lightningPeak * VisualBudget.Percent(VisualBudget.Settings?.WeatherShake ?? 100), 240);
                 }
                 catch { }
             }
@@ -559,7 +582,7 @@ namespace ClassicUO.Game
             for (int i = 0; i < CurrentCount; i++)
             {
                 ref WeatherEffect effect = ref _effects[i];
-                if (effect.ScaleRatio >= 0.34f
+                if (i >= _particleCount || effect.ScaleRatio >= 0.34f
                     || !IsInsideWeatherFront(effect.X, size.X, effect.ID)
                     || !SceneryInteractionManager.IsWeatherVisibleAt(effect.X, effect.Y, size.X, size.Y, effect.ID)) continue;
 
@@ -572,12 +595,12 @@ namespace ClassicUO.Game
 
                 if (Type == WeatherType.WT_SNOW)
                 {
-                    batcher.Draw(SolidColorTextureCache.GetTexture(Color.Lerp(Color.White, color, 0.25f)),
+                    batcher.Draw(AtmosphereTextures.GetSolid(Color.Lerp(Color.White, color, 0.25f)),
                         new Rectangle(x + (int)effect.X, y + (int)effect.Y, 1, 1), hue);
                 }
                 else
                 {
-                    batcher.DrawLine(SolidColorTextureCache.GetTexture(color),
+                    batcher.DrawLine(AtmosphereTextures.GetSolid(color),
                         new Vector2(x + effect.X + 2, y + effect.Y - 3),
                         new Vector2(x + effect.X, y + effect.Y), hue, 1);
                 }
@@ -598,7 +621,7 @@ namespace ClassicUO.Game
                 float alpha = Math.Abs(_lightAtten);
                 Color grade = darken ? new Color(8, 12, 22, 255) : Color.White;
                 batcher.Draw(
-                    SolidColorTextureCache.GetTexture(grade),
+                    AtmosphereTextures.GetSolid(grade),
                     new Rectangle(x, y, winsize.X, winsize.Y),
                     ShaderHueTranslator.GetHueVector(0, false, alpha)
                 );
@@ -621,7 +644,7 @@ namespace ClassicUO.Game
             {
                 _thunderEchoAt = 0;
                 if (World.Player != null)
-                    PlaySound(_thunderEchoSound, SceneryInteractionManager.AcousticEcho * 0.45f);
+                    PlaySound(_thunderEchoSound, SceneryInteractionManager.AcousticEcho * 0.45f * VisualBudget.Percent(VisualBudget.Settings?.ThunderVolume ?? 100));
             }
 
             // Rainbow: rolled once when rain expires, shown ~30s. Drawn
@@ -656,11 +679,8 @@ namespace ClassicUO.Game
 
             uint passed = Time.Ticks - _lastTick;
 
-            if (passed > 7000)
-            {
-                _lastTick = Time.Ticks;
-                passed = 25;
-            }
+            // Resuming after a stall must not launch precipitation across the viewport.
+            if (passed > 250) passed = 250;
 
             bool windChanged = false;
 
@@ -737,7 +757,7 @@ namespace ClassicUO.Game
             {
                 float tint = (Tempest ? 0.11f : 0.07f) * _visualIntensity;
                 Vector3 tintHue = ShaderHueTranslator.GetHueVector(0, false, tint);
-                batcher.Draw(SolidColorTextureCache.GetTexture(new Color(25, 30, 45, 255)),
+                batcher.Draw(AtmosphereTextures.GetSolid(new Color(25, 30, 45, 255)),
                     new Rectangle(x, y, winsize.X, winsize.Y), tintHue);
             }
 
@@ -751,7 +771,7 @@ namespace ClassicUO.Game
                     : 0.05f;
                 haze *= _visualIntensity;
                 Vector3 hazeHue = ShaderHueTranslator.GetHueVector(0, false, haze);
-                batcher.Draw(SolidColorTextureCache.GetTexture(new Color(225, 230, 240, 255)),
+                batcher.Draw(AtmosphereTextures.GetSolid(new Color(225, 230, 240, 255)),
                     new Rectangle(x, y, winsize.X, winsize.Y), hazeHue);
             }
 
@@ -770,7 +790,7 @@ namespace ClassicUO.Game
                 else if (flash > 0f)
                 {
                     Vector3 flashHue = ShaderHueTranslator.GetHueVector(0, false, flash * 0.5f);
-                    batcher.Draw(SolidColorTextureCache.GetTexture(new Color(235, 240, 255, 255)),
+                    batcher.Draw(AtmosphereTextures.GetSolid(new Color(235, 240, 255, 255)),
                         new Rectangle(x, y, winsize.X, winsize.Y), flashHue);
 
                     uint boltAge = Time.Ticks - _lightningAt;
@@ -778,7 +798,7 @@ namespace ClassicUO.Game
                     {
                         float boltAlpha = Math.Min(0.9f, flash * 1.5f);
                         Vector3 boltHue = ShaderHueTranslator.GetHueVector(0, false, boltAlpha);
-                        Texture2D boltTex = SolidColorTextureCache.GetTexture(new Color(220, 230, 255, 255));
+                        Texture2D boltTex = AtmosphereTextures.GetSolid(new Color(220, 230, 255, 255));
                         for (int i = 1; i < _boltCount; i++)
                         {
                             batcher.DrawLine(boltTex,
@@ -807,7 +827,7 @@ namespace ClassicUO.Game
             {
                 Texture2D vBlob = GetFogBlob();
                 int vs = (int)(winsize.Y * 0.9f);
-                float vAlpha = 0.20f + 0.05f * (float) Math.Sin(Time.Ticks / 800f);
+                float vAlpha = (0.20f + 0.05f * (float) Math.Sin(Time.Ticks / 800f)) * _visualIntensity;
                 Vector3 vHue = ShaderHueTranslator.GetHueVector(0, false, vAlpha);
                 // Corners + edge midpoints, centered slightly off-screen.
                 for (int i = 0; i < 8; i++)
@@ -824,7 +844,7 @@ namespace ClassicUO.Game
             // across with the gust direction. Stateless (clock-derived).
             if ((Tempest || Blizzard) && !removeEffects)
             {
-                Texture2D dTex = SolidColorTextureCache.GetTexture(
+                Texture2D dTex = AtmosphereTextures.GetSolid(
                     Tempest ? new Color(95, 85, 65, 255) : new Color(200, 205, 215, 255));
                 bool leftward = Wind < 0;
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(22); i++)
@@ -844,6 +864,7 @@ namespace ClassicUO.Game
             }
 
             Rectangle snowRect = new Rectangle(0, 0, 2, 2);
+            float sharedWind = SceneryInteractionManager.SharedWind;
 
             for (int i = 0; i < CurrentCount; i++)
             {
@@ -876,13 +897,13 @@ namespace ClassicUO.Game
                         // Depth-scaled speed: near drops (ScaleRatio→1) fall
                         // visibly faster than far ones.
                         float scaleRation = effect.ScaleRatio;
-                        effect.SpeedX = -4.5f - scaleRation * 2.0f;
+                        effect.SpeedX = sharedWind * (1.5f + scaleRation * 0.7f);
                         effect.SpeedY = 5.0f + scaleRation * 4.0f;
 
                         break;
 
                     case WeatherType.WT_STORM_BREWING:
-                        effect.SpeedX = Wind * 1.5f;
+                        effect.SpeedX = sharedWind * 1.5f;
                         effect.SpeedY = 1.5f;
 
                         break;
@@ -903,7 +924,7 @@ namespace ClassicUO.Game
                             {
                                 effect.SpeedY += 0.30f * passed / (1000f / 60f);
                             }
-                            effect.SpeedX = Wind * 0.5f;
+                            effect.SpeedX = sharedWind * 0.5f;
                             break;
                         }
 
@@ -913,7 +934,7 @@ namespace ClassicUO.Game
                             {
                                 // Driving diagonal snow: strong consistent
                                 // lateral push + fast, depth-varied fall.
-                                float gale = Wind == 0 ? 4f : Wind * 3f;
+                                float gale = Wind == 0 ? 4f : sharedWind * 3f;
                                 effect.SpeedX = gale;
                                 effect.SpeedY = 3.5f + effect.ScaleRatio * 3f;
                             }
@@ -921,24 +942,24 @@ namespace ClassicUO.Game
                             {
                                 // Massive but calm: heavy flakes drop faster
                                 // than a flurry, little lateral drift.
-                                effect.SpeedX = Wind * 1.5f;
+                                effect.SpeedX = sharedWind * 1.5f;
                                 effect.SpeedY = 1.8f + effect.ScaleRatio * 1.4f;
                             }
                             else
                             {
-                                effect.SpeedX = Wind;
+                                effect.SpeedX = sharedWind;
                                 effect.SpeedY = 1.0f;
                             }
                         }
                         else if (Tempest)
                         {
                             // Torrential: violent lateral gusts + fast fall.
-                            effect.SpeedX = Wind == 0 ? 3f : Wind * 2.5f;
+                            effect.SpeedX = Wind == 0 ? 3f : sharedWind * 2.5f;
                             effect.SpeedY = 8.0f + effect.ScaleRatio * 3f;
                         }
                         else
                         {
-                            effect.SpeedX = Wind;
+                            effect.SpeedX = sharedWind;
                             effect.SpeedY = 6.0f;
                         }
 
@@ -946,7 +967,7 @@ namespace ClassicUO.Game
                         {
                             effect.SpeedAngle = MathHelper.ToDegrees((float) Math.Atan2(effect.SpeedX, effect.SpeedY));
 
-                            effect.SpeedMagnitude = (float) Math.Sqrt(Math.Pow(effect.SpeedX, 2) + Math.Pow(effect.SpeedY, 2));
+                            effect.SpeedMagnitude = (float) Math.Sqrt(effect.SpeedX * effect.SpeedX + effect.SpeedY * effect.SpeedY);
                         }
 
                         float speedAngle = effect.SpeedAngle;
@@ -964,7 +985,7 @@ namespace ClassicUO.Game
                 }
 
                 float speedOffset = passed / SIMULATION_TIME;
-                bool drawForeground = effect.ScaleRatio >= 0.34f
+                bool drawForeground = i < _particleCount && effect.ScaleRatio >= 0.34f
                     && IsInsideWeatherFront(effect.X, winsize.X, effect.ID)
                     && SceneryInteractionManager.IsWeatherVisibleAt(
                         effect.X, effect.Y, winsize.X, winsize.Y, effect.ID);
@@ -990,7 +1011,7 @@ namespace ClassicUO.Game
                         {
                             Color sleetColor = Color.Lerp(
                                 new Color(225, 230, 240, 255), rainLightColor, Math.Min(0.65f, rainLight));
-                            batcher.Draw(SolidColorTextureCache.GetTexture(sleetColor),
+                            batcher.Draw(AtmosphereTextures.GetSolid(sleetColor),
                                 new Rectangle(x + (int) effect.X, y + (int) effect.Y, 2, 2),
                                 ShaderHueTranslator.GetHueVector(0, false, Math.Min(1f, 0.7f + rainLight * 0.25f)));
                             break;
@@ -1010,14 +1031,15 @@ namespace ClassicUO.Game
                         float tailX = effect.X - effect.SpeedX / mag * len;
                         float tailY = effect.Y - effect.SpeedY / mag * len;
 
-                        float rainAlpha = Math.Min(1f, 0.30f + depth * 0.45f + rainLight * 0.22f);
+                        float rainAlpha = Math.Min(1f, 0.30f + depth * 0.45f + rainLight * 0.22f)
+                            * SceneryInteractionManager.SoftIntersection(effect.X, effect.Y, effect.GroundY);
                         Vector3 rainHue = ShaderHueTranslator.GetHueVector(0, false, rainAlpha);
                         Color rainColor = Color.Lerp(
                             new Color(170, 195, 230, 255), rainLightColor, Math.Min(0.72f, rainLight));
 
                         batcher.DrawLine
                         (
-                           SolidColorTextureCache.GetTexture(rainColor),
+                           AtmosphereTextures.GetSolid(rainColor),
                            new Vector2(x + tailX, y + tailY),
                            new Vector2(x + effect.X, y + effect.Y),
                            rainHue,
@@ -1059,7 +1081,7 @@ namespace ClassicUO.Game
                             {
                                 float hailLight = SceneryInteractionManager.GetLightInfluence(
                                     effect.X, effect.Y, out Color hailLightColor);
-                                batcher.Draw(SolidColorTextureCache.GetTexture(
+                                batcher.Draw(AtmosphereTextures.GetSolid(
                                         Color.Lerp(Color.White, hailLightColor, Math.Min(0.55f, hailLight))),
                                     snowRect, ShaderHueTranslator.GetHueVector(0, false,
                                         Math.Min(1f, 0.9f + hailLight * 0.10f)));
@@ -1097,11 +1119,12 @@ namespace ClassicUO.Game
                             effect.X, effect.Y, out Color snowLightColor);
                         float shimmer = 0.65f + 0.35f * (float) Math.Sin((Time.Ticks + effect.ID * 13) / 280f);
                         shimmer = Math.Min(1f, shimmer + snowLight * 0.18f);
-                        Vector3 snowHue = ShaderHueTranslator.GetHueVector(0, false, shimmer);
+                        Vector3 snowHue = ShaderHueTranslator.GetHueVector(0, false, shimmer
+                            * SceneryInteractionManager.SoftIntersection(effect.X, effect.Y, effect.GroundY));
 
                         batcher.Draw
                         (
-                            SolidColorTextureCache.GetTexture(
+                            AtmosphereTextures.GetSolid(
                                 Color.Lerp(Color.White, snowLightColor, Math.Min(0.48f, snowLight))),
                             snowRect,
                             snowHue
@@ -1175,6 +1198,7 @@ namespace ClassicUO.Game
 
             _fogBlob = new Texture2D(Client.Game.GraphicsDevice, S, S);
             _fogBlob.SetData(data);
+            OptionalTextureCache.Register(_fogBlob);
             return _fogBlob;
         }
 
@@ -1211,6 +1235,7 @@ namespace ClassicUO.Game
             }
             var texture = new Texture2D(Client.Game.GraphicsDevice, size, size);
             texture.SetData(data);
+            OptionalTextureCache.Register(texture);
             return texture;
         }
 
@@ -1231,7 +1256,7 @@ namespace ClassicUO.Game
             if (foreground)
             {
                 float wash = 0.08f * _frontCoverage * (1f - SceneryInteractionManager.Shelter * 0.72f);
-                batcher.Draw(SolidColorTextureCache.GetTexture(new Color(210, 215, 222, 255)),
+                batcher.Draw(AtmosphereTextures.GetSolid(new Color(210, 215, 222, 255)),
                     new Rectangle(x, y, w, h),
                     ShaderHueTranslator.GetHueVector(0, false, wash));
             }
@@ -1248,6 +1273,15 @@ namespace ClassicUO.Game
                 int span = w + bw;
                 int bx = (int)((Time.Ticks * speed + i * 331) % span) - bw;
                 int by = (i * 149) % Math.Max(1, h - bh / 2) - bh / 4;
+                if (VisualBudget.Settings?.WorldAnchoredFog == true)
+                {
+                    // Fixed world lattice: camera movement shifts banks with terrain, not the screen.
+                    int tileX = (World.Player.X / 12) * 12 + (i % 5 - 2) * 12;
+                    int tileY = (World.Player.Y / 12) * 12 + (i / 5 - 1) * 12;
+                    Point anchor = PathPreview.TileToWorld(tileX, tileY, World.Player.Z);
+                    bx = anchor.X - bw / 2 + (int)(Math.Sin(Time.Ticks / 14000f + tileX * 0.7f + tileY) * 60f * SceneryInteractionManager.SharedWind);
+                    by = anchor.Y - bh / 2;
+                }
                 int cx = bx + bw / 2;
                 int cy = by + bh / 2;
                 uint seed = (uint)(i * 733 + 17);
@@ -1255,11 +1289,13 @@ namespace ClassicUO.Game
                     || !SceneryInteractionManager.IsWeatherVisibleAt(cx, cy, w, h, seed)) continue;
 
                 // Gentle per-blob alpha breathing.
-                float alpha = (foreground ? 0.30f : 0.17f)
-                    + 0.08f * (float)Math.Sin(Time.Ticks / 1100f + i * 1.7f);
+                float alpha = ((foreground ? 0.30f : 0.17f)
+                    + 0.08f * (float)Math.Sin(Time.Ticks / 1100f + i * 1.7f))
+                    * _visualIntensity * (1f - SceneryInteractionManager.Shelter * 0.72f);
+                alpha *= SceneryInteractionManager.SoftIntersection(cx, cy, -1);
                 Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
                 float light = SceneryInteractionManager.GetLightInfluence(cx, cy, out Color lightColor);
-                Texture2D texture = light > 0.03f ? GetIlluminatedFogBlob(lightColor) : blob;
+                Texture2D texture = light > 0.03f ? SceneryInteractionManager.GetColoredSoftLight(lightColor) : blob;
                 if (light > 0.03f) hue = ShaderHueTranslator.GetHueVector(0, false, alpha * (0.35f + light * 0.65f));
                 batcher.Draw(texture, new Rectangle(x + bx, y + by, bw, bh), hue);
             }
@@ -1299,7 +1335,7 @@ namespace ClassicUO.Game
             for (int b = 0; b < _rainbowColors.Length; b++)
             {
                 float r = radius - b * 5f;
-                Texture2D tex = SolidColorTextureCache.GetTexture(_rainbowColors[b]);
+                Texture2D tex = AtmosphereTextures.GetSolid(_rainbowColors[b]);
                 Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, 0.13f * fade);
 
                 float prevX = cxr + r * (float)Math.Cos(START);
@@ -1320,7 +1356,7 @@ namespace ClassicUO.Game
 
         private void DrawSplashes(UltimaBatcher2D batcher)
         {
-            Texture2D tex = SolidColorTextureCache.GetTexture(new Color(190, 210, 235, 255));
+            Texture2D tex = AtmosphereTextures.GetSolid(new Color(190, 210, 235, 255));
             uint now = Time.Ticks;
             for (int i = 0; i < MAX_SPLASHES; i++)
             {

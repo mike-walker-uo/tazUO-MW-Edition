@@ -93,7 +93,7 @@ namespace ClassicUO.IO
                 try
                 {
                     _accessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
-                    SetData(ptr, (long)_accessor.SafeMemoryMappedViewHandle.ByteLength);
+                    SetData(ptr, size);
                 }
                 catch
                 {
@@ -116,10 +116,16 @@ namespace ClassicUO.IO
         public virtual void Dispose()
         {
 #if USE_MMF
-            _accessor.SafeMemoryMappedViewHandle.ReleasePointer();
-            _accessor.Dispose();
-            _file.Dispose();
+            if (_accessor != null)
+            {
+                _accessor.SafeMemoryMappedViewHandle.ReleasePointer();
+                _accessor.Dispose();
+                _accessor = null;
+            }
+            _file?.Dispose();
+            _file = null;
 #endif
+            ReleaseData();
             Log.Trace($"Unloaded:\t\t{FilePath}");
         }
     }

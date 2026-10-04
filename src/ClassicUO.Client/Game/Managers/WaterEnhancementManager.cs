@@ -779,7 +779,8 @@ namespace ClassicUO.Game.Managers
                     transform,
                     Time.Ticks / 1000f,
                     CalculateMotionPixels(quality) * Math.Min(1.35f, motionScale)
-                        / artwork.Width
+                        / artwork.Width,
+                    batcher.LinearLight, SceneLightPalette.Grade(Color.White).ToVector3(), SceneryInteractionManager.SharedWind
                 );
             }
 

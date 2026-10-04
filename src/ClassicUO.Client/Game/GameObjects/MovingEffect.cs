@@ -195,6 +195,9 @@ namespace ClassicUO.Game.GameObjects
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
             bool drewOriginal = base.Draw(batcher, posX, posY, depth);
+            SpellAbilityEffectId detailId;
+            if (!SpellAbilityEffectSettings.TryMap(CombatVisual, out detailId)) SpellAbilityEffectSettings.TryMap(EnhancedSpellVisual, out detailId);
+            using var presentation = EffectPresentation.For(detailId);
 
             bool hasCombatTrail =
                 CombatVisual == CombatVisualKind.MagicArrow

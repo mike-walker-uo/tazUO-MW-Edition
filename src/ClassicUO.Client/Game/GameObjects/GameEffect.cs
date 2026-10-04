@@ -223,7 +223,8 @@ namespace ClassicUO.Game.GameObjects
         {
             Source = null;
 
-            SetInWorldTile(x, y,z);
+            if (EffectPresentation.IsPreview) { X = x; Y = y; Z = z; }
+            else SetInWorldTile(x, y,z);
         }
 
         protected (ushort x, ushort y, sbyte z) GetTarget()

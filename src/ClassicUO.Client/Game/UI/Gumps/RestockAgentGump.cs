@@ -217,7 +217,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(_durabilityCheck = CreateReadinessValue(540));
             Add(_packCheck = CreateReadinessValue(708));
 
-            Add(CreateButton(LEFT_X, 557, 126, 30, "RESTOCK NOW", 1));
+            Add(CreateButton(LEFT_X, 557, 126, 30, "PREVIEW", 1));
             Add(CreateButton(LEFT_X + 134, 557, 104, 30, "CHECK NOW", 6));
             Add(CreateButton(LEFT_X + 246, 557, 146, 30, "SET GEAR BASELINE", 7));
             Add(CreateButton(LEFT_X + 400, 557, 74, 30, "Clear", 5));
@@ -249,10 +249,8 @@ namespace ClassicUO.Game.UI.Gumps
                     return;
                 }
 
-                bool queued = RestockAgentManager.Run();
-                _status.Text = queued
-                    ? "Restock queued. Readiness updates as item moves complete."
-                    : "No item moves were queued.";
+                UIManager.GetGump<RestockPreviewGump>()?.Dispose();
+                UIManager.Add(new RestockPreviewGump());
             }
             else if (buttonID == 2)
             {
@@ -336,7 +334,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
 
                 UpdateListTitle();
-                RefreshReadiness(false);
+                RefreshReadiness(false, counts);
             }
 
             if (_sourceScanActive)
@@ -571,7 +569,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             _sourceName.Text = RestockAgentManager.SourceDescription();
-            RefreshReadiness(false);
+            RefreshReadiness(false, counts);
         }
 
         private static bool IsSourceGumpOpen(uint serial)
@@ -657,9 +655,9 @@ namespace ClassicUO.Game.UI.Gumps
             _status.Text = "Restock target removed.";
         }
 
-        private void RefreshReadiness(bool announce)
+        private void RefreshReadiness(bool announce, RestockCountSnapshot counts = null)
         {
-            ReadinessSnapshot snapshot = ReadinessCheckManager.Evaluate();
+            ReadinessSnapshot snapshot = ReadinessCheckManager.Evaluate(counts);
             _readyBadge.Text = snapshot.IsReady ? "READY" : "NOT READY";
             _readyBadge.Hue = snapshot.IsReady
                 ? FeatureGumpArtwork.AccentHue(FeatureGumpArtworkKind.RestockAgent)

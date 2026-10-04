@@ -49,9 +49,10 @@ namespace ClassicUO.Assets
 
             if (GraphicsDevice != null && File.Exists(fullImagePath))
             {
-                FileStream titleStream = File.OpenRead(fullImagePath);
-                texture = Texture2D.FromStream(GraphicsDevice, titleStream);
-                titleStream.Close();
+                using (FileStream titleStream = File.OpenRead(fullImagePath))
+                {
+                    texture = Texture2D.FromStream(GraphicsDevice, titleStream);
+                }
                 Color[] buffer = new Color[texture.Width * texture.Height];
                 texture.GetData(buffer);
                 for (int i = 0; i < buffer.Length; i++)
@@ -85,9 +86,11 @@ namespace ClassicUO.Assets
 
                 if (File.Exists(fullImagePath))
                 {
-                    FileStream titleStream = File.OpenRead(fullImagePath);
-                    Texture2D tempTexture = Texture2D.FromStream(GraphicsDevice, titleStream);
-                    titleStream.Close();
+                    Texture2D tempTexture;
+                    using (FileStream titleStream = File.OpenRead(fullImagePath))
+                    {
+                        tempTexture = Texture2D.FromStream(GraphicsDevice, titleStream);
+                    }
                     FixPNGAlpha(ref tempTexture);
 
                     uint[] pixels = GetPixels(tempTexture);

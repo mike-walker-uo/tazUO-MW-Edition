@@ -91,7 +91,7 @@ namespace ClassicUO
 
             Window.ClientSizeChanged += WindowOnClientSizeChanged;
             Window.AllowUserResizing = true;
-            Window.Title = $"TazUO MW Edition {CUOEnviroment.Version.ToString(3)}";
+            Window.Title = $"TazUO MW Edition {CUOEnviroment.DisplayVersion}";
             IsMouseVisible = Settings.GlobalSettings.RunMouseInASeparateThread;
 
             IsFixedTimeStep = false; // Settings.GlobalSettings.FixedTimeStep;
@@ -402,12 +402,12 @@ namespace ClassicUO
 
 #if DEV_BUILD
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(3)}"
-                : $"{left} - TazUO MW Edition [dev] {CUOEnviroment.Version.ToString(3)}";
+                ? $"TazUO MW Edition [dev] {CUOEnviroment.DisplayVersion}"
+                : $"{left} - TazUO MW Edition [dev] {CUOEnviroment.DisplayVersion}";
 #else
             string newTitle = string.IsNullOrEmpty(left)
-                ? $"TazUO MW Edition {CUOEnviroment.Version.ToString(3)}"
-                : $"{left} - TazUO MW Edition {CUOEnviroment.Version.ToString(3)}";
+                ? $"TazUO MW Edition {CUOEnviroment.DisplayVersion}"
+                : $"{left} - TazUO MW Edition {CUOEnviroment.DisplayVersion}";
 #endif
 
             if (newTitle != _lastTitleString)
@@ -701,6 +701,8 @@ namespace ClassicUO
         protected override void Draw(GameTime gameTime)
         {
             MainThreadHangDiagnostics.BeginFrame("draw");
+            long visualFrameStart = Stopwatch.GetTimestamp();
+            OptionalTextureCache.BeginFrame();
             MainThreadHangDiagnostics.Mark("Draw: background");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);
             Profiler.EndFrame();
@@ -746,6 +748,8 @@ namespace ClassicUO
             MainThreadHangDiagnostics.Mark("Draw: plugin commands");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Razor);
             Plugin.ProcessDrawCmdList(GraphicsDevice);
+            OptionalTextureCache.EndFrame(VisualBudget.Settings?.TextureBudgetMB ?? 96);
+            VisualBudget.Frame(Math.Max(gameTime.ElapsedGameTime.TotalMilliseconds, (Stopwatch.GetTimestamp() - visualFrameStart) * 1000.0 / Stopwatch.Frequency), Settings.GlobalSettings.FPS);
             MainThreadHangDiagnostics.Mark("Draw: complete");
             MainThreadHangDiagnostics.EndFrame();
         }

@@ -240,6 +240,8 @@ namespace ClassicUO.Game.UI
                 return;
             }
 
+            SpellAbilityEffectSettings.TryMap(_kind, out SpellAbilityEffectId detailId);
+            using var presentation = EffectPresentation.For(detailId);
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.13f);
             float fade = progress < 0.7f
@@ -270,7 +272,7 @@ namespace ClassicUO.Game.UI
             batcher.SetBlendState(BlendState.AlphaBlend);
         }
 
-        private static void DrawSymbol(
+        internal static void DrawSymbol(
             UltimaBatcher2D batcher,
             Vector2 center,
             float progress,
@@ -433,7 +435,7 @@ namespace ClassicUO.Game.UI
                 (float)Math.Sin(progress * MathHelper.TwoPi * 2.6f)
                 * 5f
                 * scale;
-            Vector2[] outerFlame =
+            ReadOnlySpan<Vector2> outerFlame = stackalloc Vector2[]
             {
                 S(0, 53, scale), S(-30, 40, scale), S(-43, 12, scale),
                 S(-29, -14, scale), S(-18, -49, scale),
@@ -453,7 +455,7 @@ namespace ClassicUO.Game.UI
                 scale
             );
 
-            Vector2[] innerFlame =
+            ReadOnlySpan<Vector2> innerFlame = stackalloc Vector2[]
             {
                 S(0, 39, scale), S(-18, 24, scale), S(-13, 1, scale),
                 S(2, -27, scale), S(10, -4, scale),
@@ -487,7 +489,7 @@ namespace ClassicUO.Game.UI
                 scale
             );
 
-            for (int emberIndex = 0; emberIndex < 9; emberIndex++)
+            for (int emberIndex = 0; emberIndex < EffectPresentation.Count(9); emberIndex++)
             {
                 float rise =
                     (progress * 1.8f + emberIndex * 0.117f) % 1f;
@@ -545,7 +547,7 @@ namespace ClassicUO.Game.UI
                 scale * 0.8f
             );
 
-            Vector2[] heart =
+            ReadOnlySpan<Vector2> heart = stackalloc Vector2[]
             {
                 S(0, 48, scale),
                 S(-16, 34, scale),
@@ -582,7 +584,7 @@ namespace ClassicUO.Game.UI
                 Math.Max(1f, 1.8f * scale)
             );
 
-            Vector2[] closingSeam =
+            ReadOnlySpan<Vector2> closingSeam = stackalloc Vector2[]
             {
                 S(0, -25, scale),
                 S(-6, -14, scale),
@@ -601,7 +603,7 @@ namespace ClassicUO.Game.UI
                 scale * 0.72f
             );
 
-            for (int stitch = 0; stitch < 5; stitch++)
+            for (int stitch = 0; stitch < EffectPresentation.Count(5); stitch++)
             {
                 float y = -17f + stitch * 11f;
                 float close = 1f - progress * 0.55f;
@@ -701,7 +703,7 @@ namespace ClassicUO.Game.UI
                 scale
             );
 
-            for (int shard = 0; shard < 10; shard++)
+            for (int shard = 0; shard < EffectPresentation.Count(10); shard++)
             {
                 float angle =
                     shard * MathHelper.TwoPi / 10f + progress * 0.7f;
@@ -764,7 +766,7 @@ namespace ClassicUO.Game.UI
                 scale * 0.72f
             );
 
-            for (int i = 0; i < 11; i++)
+            for (int i = 0; i < EffectPresentation.Count(11); i++)
             {
                 float angle =
                     MathHelper.Pi
@@ -785,7 +787,7 @@ namespace ClassicUO.Game.UI
                 );
             }
 
-            Vector2[] mountain =
+            ReadOnlySpan<Vector2> mountain = stackalloc Vector2[]
             {
                 S(-38, 28, scale),
                 S(-18, 4, scale),
@@ -849,7 +851,7 @@ namespace ClassicUO.Game.UI
                             y + feather * 5f,
                             scale
                         );
-                    Vector2[] featherPath =
+                    ReadOnlySpan<Vector2> featherPath = stackalloc Vector2[]
                     {
                         root,
                         elbow,
@@ -983,7 +985,7 @@ namespace ClassicUO.Game.UI
                         ),
                         3
                     );
-            Vector2[] bolt =
+            ReadOnlySpan<Vector2> bolt = stackalloc Vector2[]
             {
                 S(-14, -103, scale), S(14, -66, scale),
                 S(-7, -39, scale), S(20, -17, scale),
@@ -1086,13 +1088,13 @@ namespace ClassicUO.Game.UI
                 scale
             );
 
-            Vector2[] goldSlash =
+            ReadOnlySpan<Vector2> goldSlash = stackalloc Vector2[]
             {
                 S(-58, -38, scale),
                 S(-15, -8, scale),
                 S(54, 34, scale)
             };
-            Vector2[] tealSlash =
+            ReadOnlySpan<Vector2> tealSlash = stackalloc Vector2[]
             {
                 S(-58, 38, scale),
                 S(15, 8, scale),
@@ -1308,7 +1310,7 @@ namespace ClassicUO.Game.UI
         private static void DrawLayeredPath(
             UltimaBatcher2D batcher,
             Vector2 center,
-            Vector2[] points,
+            ReadOnlySpan<Vector2> points,
             Color body,
             Color highlight,
             float alpha,
@@ -1353,7 +1355,7 @@ namespace ClassicUO.Game.UI
             Color highlight)
         {
             const int SEGMENTS = 18;
-            Vector2[] points = new Vector2[SEGMENTS + 1];
+            Span<Vector2> points = stackalloc Vector2[SEGMENTS + 1];
             float sin = (float)Math.Sin(rotation);
             float cos = (float)Math.Cos(rotation);
 
@@ -1391,7 +1393,7 @@ namespace ClassicUO.Game.UI
             Color coreColor)
         {
             float burst = Math.Max(0f, 1f - progress / 0.36f) * fade;
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < EffectPresentation.Count(10); i++)
             {
                 float angle = i * MathHelper.TwoPi / 10f + progress;
                 Vector2 d = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
@@ -1415,7 +1417,7 @@ namespace ClassicUO.Game.UI
             Color first,
             Color second)
         {
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < EffectPresentation.Count(14); i++)
             {
                 float phase = progress * 10f + i * 1.83f;
                 float travel = (progress * 1.6f + i * 0.143f) % 1f;
@@ -1458,7 +1460,7 @@ namespace ClassicUO.Game.UI
         private static void DrawPath(
             UltimaBatcher2D batcher,
             Vector2 center,
-            Vector2[] points,
+            ReadOnlySpan<Vector2> points,
             Color color,
             float alpha,
             float width)

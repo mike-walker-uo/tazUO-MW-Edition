@@ -346,8 +346,8 @@ namespace ClassicUO.Game.UI.Gumps
                     UIManager.Add(
                         gump = new HealthBarGumpCustom(entity)
                         {
-                            X = Mouse.Position.X - (rect.Width >> 1),
-                            Y = Mouse.Position.Y - (rect.Height >> 1)
+                            X = Mouse.InterfacePosition.X - (rect.Width >> 1),
+                            Y = Mouse.InterfacePosition.Y - (rect.Height >> 1)
                         }
                     );
                 }

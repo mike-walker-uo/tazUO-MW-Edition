@@ -3360,7 +3360,7 @@ namespace ClassicUO.Network
 
                     if (t.Length > 0)
                     {
-                        byte[] buffer = ArrayPool<byte>.Shared.Rent(t.Length * 2);//we have to assume we are using all two byte chars
+                        byte[] buffer = ArrayPool<byte>.Shared.Rent(Encoding.UTF8.GetByteCount(t));
 
                         try
                         {

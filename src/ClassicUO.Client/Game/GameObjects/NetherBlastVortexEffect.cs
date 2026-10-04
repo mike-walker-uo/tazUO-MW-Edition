@@ -381,6 +381,7 @@ namespace ClassicUO.Game.GameObjects
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
+            using var presentation = EffectPresentation.For(SpellAbilityEffectId.NetherBlast);
             if (IsDestroyed || NetherBlastVortexManager.Style == 0)
             {
                 return false;
@@ -699,7 +700,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int spark = 0; spark < 7; spark++)
+            for (int spark = 0; spark < EffectPresentation.Count(7); spark++)
             {
                 float angle = seconds * 4.1f + spark * MathHelper.TwoPi / 7f;
                 Vector2 position =
@@ -801,7 +802,7 @@ namespace ClassicUO.Game.GameObjects
                 depth
             );
 
-            for (int spark = 0; spark < 10; spark++)
+            for (int spark = 0; spark < EffectPresentation.Count(10); spark++)
             {
                 float angle = seconds * 4.4f + spark * MathHelper.TwoPi / 10f;
                 Vector2 position = Ellipse(
@@ -990,7 +991,7 @@ namespace ClassicUO.Game.GameObjects
                 );
             }
 
-            for (int mote = 0; mote < 8; mote++)
+            for (int mote = 0; mote < EffectPresentation.Count(8); mote++)
             {
                 float angle =
                     mote * MathHelper.TwoPi / 8f
@@ -1185,7 +1186,7 @@ namespace ClassicUO.Game.GameObjects
                 );
             }
 
-            for (int star = 0; star < 14; star++)
+            for (int star = 0; star < EffectPresentation.Count(14); star++)
             {
                 float angle =
                     rotation * (star % 2 == 0 ? 0.72f : -0.54f)

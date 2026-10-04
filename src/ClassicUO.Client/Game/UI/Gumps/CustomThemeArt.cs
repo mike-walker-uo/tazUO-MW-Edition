@@ -8,8 +8,10 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal static class CustomThemeArt
     {
-        private static readonly Texture2D[] _panels = new Texture2D[CustomGumpThemeManager.ThemeCount];
-        private static readonly Texture2D[] _buttons = new Texture2D[CustomGumpThemeManager.ThemeCount];
+        private static readonly Texture2D[] _panels = new Texture2D[CustomGumpThemeManager.ThemeSlotCount];
+        private static readonly Texture2D[] _buttons = new Texture2D[CustomGumpThemeManager.ThemeSlotCount];
+        private static readonly bool[] _panelLoaded = new bool[CustomGumpThemeManager.ThemeSlotCount];
+        private static readonly bool[] _buttonLoaded = new bool[CustomGumpThemeManager.ThemeSlotCount];
 
         private static bool UsesSheet(CustomGumpTheme theme) =>
             theme == CustomGumpTheme.Stone || theme == CustomGumpTheme.Wood
@@ -28,6 +30,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static int SheetSplit(CustomGumpTheme theme, int height)
         {
+            PremiumGumpTheme premium = PremiumGumpThemes.Get(theme);
+            if (premium != null) return height * premium.SheetSplit / 1024;
             int row;
             switch (theme)
             {
@@ -80,8 +84,14 @@ namespace ClassicUO.Game.UI.Gumps
         private static Texture2D GetPanel(CustomGumpTheme theme)
         {
             int index = (int)theme;
-            string name = UsesSheet(theme) ? "sheet.png" : "panel.png";
-            return _panels[index] ?? (_panels[index] = Load($"ClassicUO.Resources.{ResourceFolder(theme)}.{name}"));
+            if (_panelLoaded[index] && _panels[index]?.IsDisposed != true) return _panels[index];
+            string name = PremiumGumpThemes.Get(theme) != null
+                ? $"ClassicUO.Resources.PremiumThemes.{theme}.png"
+                : $"ClassicUO.Resources.{ResourceFolder(theme)}.{(UsesSheet(theme) ? "sheet.png" : "panel.png")}";
+            _panels[index] = Load(name);
+            OptionalTextureCache.Register(_panels[index], () => { _panels[index] = null; _panelLoaded[index] = false; });
+            _panelLoaded[index] = true;
+            return _panels[index];
         }
 
         private static Texture2D GetButton(CustomGumpTheme theme)
@@ -89,10 +99,14 @@ namespace ClassicUO.Game.UI.Gumps
             if (UsesSheet(theme))
                 return GetPanel(theme);
             int index = (int)theme;
+            if (_buttonLoaded[index] && _buttons[index]?.IsDisposed != true) return _buttons[index];
             string name = theme == CustomGumpTheme.Ornate
                 ? "ClassicUO.Resources.WorldExplorer.classic-button.png"
                 : $"ClassicUO.Resources.{ResourceFolder(theme)}.button.png";
-            return _buttons[index] ?? (_buttons[index] = Load(name));
+            _buttons[index] = Load(name);
+            OptionalTextureCache.Register(_buttons[index], () => { _buttons[index] = null; _buttonLoaded[index] = false; });
+            _buttonLoaded[index] = true;
+            return _buttons[index];
         }
 
         private static Texture2D Load(string name)
@@ -104,14 +118,17 @@ namespace ClassicUO.Game.UI.Gumps
         internal static void DrawPanel(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha = 1f)
         {
+            if (ReducedDecoration) { DrawPlain(batcher, x, y, width, height, theme, alpha, false); return; }
             Texture2D texture = GetPanel(theme);
             if (texture == null)
                 return;
             bool largeBorder = UsesLargeBorder(theme);
-            int edge = largeBorder
-                ? Math.Min(56, Math.Max(12, Math.Min(width, height) / 7))
+            int edge = PremiumGumpThemes.Get(theme) != null
+                ? Math.Min(12, Math.Max(4, Math.Min(width, height) / 8))
+                : largeBorder ? Math.Min(56, Math.Max(12, Math.Min(width, height) / 7))
                 : Math.Min(18, Math.Max(6, Math.Min(width, height) / 8));
-            int sourceEdge = largeBorder ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
+            int sourceEdge = PremiumGumpThemes.Get(theme) != null ? texture.Width * PremiumGumpThemes.Get(theme).PanelEdge / 1536
+                : largeBorder ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
             Rectangle source = new Rectangle(0, 0, texture.Width,
                 UsesSheet(theme) ? SheetSplit(theme, texture.Height) : texture.Height);
             DrawSlices(batcher, texture, source, x, y, width, height, sourceEdge, edge, false, alpha);
@@ -123,12 +140,14 @@ namespace ClassicUO.Game.UI.Gumps
         internal static bool DrawNameplateFill(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha)
         {
+            if (ReducedDecoration) { DrawPlain(batcher, x, y, width, height, theme, alpha, false); return true; }
             Texture2D texture = GetPanel(theme);
             if (texture == null || width < 1 || height < 1)
                 return false;
 
             int panelHeight = UsesSheet(theme) ? SheetSplit(theme, texture.Height) : texture.Height;
-            int edge = UsesLargeBorder(theme) ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
+            int edge = PremiumGumpThemes.Get(theme) != null ? texture.Width * PremiumGumpThemes.Get(theme).PanelEdge / 1536
+                : UsesLargeBorder(theme) ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
             int sourceWidth = Math.Min(width * 2, texture.Width - edge * 2);
             int sourceHeight = Math.Min(height * 2, panelHeight - edge * 2);
             if (sourceWidth < 1 || sourceHeight < 1)
@@ -144,14 +163,17 @@ namespace ClassicUO.Game.UI.Gumps
         internal static void DrawFrame(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha = 1f, int maxEdge = 56)
         {
+            if (ReducedDecoration) { DrawPlain(batcher, x, y, width, height, theme, alpha, true); return; }
             Texture2D texture = GetPanel(theme);
             if (texture == null)
                 return;
             bool largeBorder = UsesLargeBorder(theme);
-            int edge = Math.Min(maxEdge, largeBorder
-                ? Math.Min(56, Math.Max(12, Math.Min(width, height) / 7))
+            int edge = Math.Min(maxEdge, PremiumGumpThemes.Get(theme) != null
+                ? Math.Min(12, Math.Max(4, Math.Min(width, height) / 8))
+                : largeBorder ? Math.Min(56, Math.Max(12, Math.Min(width, height) / 7))
                 : Math.Min(18, Math.Max(6, Math.Min(width, height) / 8)));
-            int sourceEdge = largeBorder ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
+            int sourceEdge = PremiumGumpThemes.Get(theme) != null ? texture.Width * PremiumGumpThemes.Get(theme).PanelEdge / 1536
+                : largeBorder ? 260 : theme == CustomGumpTheme.Ornate ? 96 : 160;
             Rectangle source = new Rectangle(0, 0, texture.Width,
                 UsesSheet(theme) ? SheetSplit(theme, texture.Height) : texture.Height);
             DrawSlices(batcher, texture, source, x, y, width, height, sourceEdge, edge, true, alpha);
@@ -163,6 +185,7 @@ namespace ClassicUO.Game.UI.Gumps
         internal static void DrawButton(UltimaBatcher2D batcher, int x, int y, int width, int height,
             CustomGumpTheme theme, float alpha = 1f)
         {
+            if (ReducedDecoration) { DrawPlain(batcher, x, y, width, height, theme, alpha, false); return; }
             Texture2D texture = GetButton(theme);
             if (texture == null || width < 8 || height < 8)
                 return;
@@ -176,18 +199,21 @@ namespace ClassicUO.Game.UI.Gumps
                 : theme == CustomGumpTheme.BritannianChronicle
                 ? new Rectangle(0, 160, texture.Width, 360)
                 : new Rectangle(0, texture.Height / 7, texture.Width, texture.Height * 5 / 7);
-            int sourceEdge = Math.Min(sheet ? 300 : theme == CustomGumpTheme.Ornate ? 190 : 400,
-                source.Width / 3);
+            bool premium = PremiumGumpThemes.Get(theme) != null;
+            int sourceEdge = Math.Min(premium ? texture.Width * 220 / 1536
+                : sheet ? 300 : theme == CustomGumpTheme.Ornate ? 190 : 400, source.Width / 3);
             int edge = Math.Min(14, width / 3);
             Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
             for (int col = 0; col < 3; col++)
             {
-                int sx = col == 0 ? source.X : col == 1 && sheet
+                int sx = col == 0 ? source.X : col == 1 && premium
+                    ? source.X + sourceEdge : col == 1 && sheet
                     ? source.X + 450 : col == 1
                     ? source.X + sourceEdge + (theme == CustomGumpTheme.BritannianChronicle ? 100 : 0)
                     : source.Right - sourceEdge;
                 int sw = col == 1
-                    ? sheet ? 250 : theme == CustomGumpTheme.BritannianChronicle ? 400 : source.Width - sourceEdge * 2
+                    ? premium ? source.Width - sourceEdge * 2
+                    : sheet ? 250 : theme == CustomGumpTheme.BritannianChronicle ? 400 : source.Width - sourceEdge * 2
                     : sourceEdge;
                 int dx = col == 0 ? x : col == 1 ? x + edge : x + width - edge;
                 int dw = col == 1 ? width - edge * 2 : edge;
@@ -228,6 +254,24 @@ namespace ClassicUO.Game.UI.Gumps
                         new Rectangle(sx, sy, sw, sh), hue);
                 }
             }
+        }
+
+        private static bool ReducedDecoration => ClassicUO.Configuration.ProfileManager.CurrentProfile?.ReducedThemeDecoration == true;
+
+        internal static void DrawPlain(UltimaBatcher2D batcher, int x, int y, int width, int height,
+            CustomGumpTheme theme, float alpha, bool frameOnly)
+        {
+            if (width < 2 || height < 2) return;
+            PremiumGumpTheme premium = PremiumGumpThemes.Get(theme);
+            Color surface = premium?.Surface ?? CustomGumpThemeManager.GetOptionsSurfaceColor(theme);
+            Color accent = premium?.Accent ?? CustomGumpThemeManager.GetCompactBorderColor(theme);
+            Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
+            if (!frameOnly) batcher.Draw(SolidColorTextureCache.GetTexture(surface), new Rectangle(x, y, width, height), hue);
+            Texture2D edge = SolidColorTextureCache.GetTexture(accent);
+            batcher.Draw(edge, new Rectangle(x, y, width, 1), hue);
+            batcher.Draw(edge, new Rectangle(x, y + height - 1, width, 1), hue);
+            batcher.Draw(edge, new Rectangle(x, y, 1, height), hue);
+            batcher.Draw(edge, new Rectangle(x + width - 1, y, 1, height), hue);
         }
     }
 }

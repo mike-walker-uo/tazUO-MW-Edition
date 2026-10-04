@@ -12,6 +12,18 @@ namespace ClassicUO.UnitTests.IO
 {
     public class StackDataReaderTest
     {
+        [Fact]
+        public void Indexer_reads_requested_byte_without_moving_position()
+        {
+            var reader = new StackDataReader(new byte[] { 10, 20, 30 });
+            reader.Skip(1);
+
+            Assert.Equal((byte)10, reader[0]);
+            Assert.Equal((byte)20, reader[1]);
+            Assert.Equal((byte)30, reader[2]);
+            Assert.Equal(1, reader.Position);
+        }
+
         [Theory]
         [InlineData("ClassicUO", "ClassicUO")]
         [InlineData("ClassicUO\0", "ClassicUO")]

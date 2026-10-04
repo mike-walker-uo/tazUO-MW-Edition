@@ -253,14 +253,14 @@ public class BaseOptionsGump : Gump
         public static ushort BLACK { get; set; } = 0;
         public static Color DROPDOWN_OPTION_NORMAL_HUE => TEXT_FONT_COLOR;
         public static Color DROPDOWN_OPTION_HOVER_HUE =>
-            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+            CustomGumpThemeManager.GetTextHue(CustomGumpThemeManager.Current) == 0
                 ? new Color(102, 66, 31) : Color.AntiqueWhite;
         public static Color DROPDOWN_OPTION_SELECTED_HUE =>
-            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+            CustomGumpThemeManager.GetTextHue(CustomGumpThemeManager.Current) == 0
                 ? new Color(57, 80, 112) : Color.CadetBlue;
         public static Color BUTTON_FONT_COLOR => TEXT_FONT_COLOR;
         public static Color TEXT_FONT_COLOR =>
-            CustomGumpThemeManager.Current == CustomGumpTheme.BritannianChronicle
+            CustomGumpThemeManager.GetTextHue(CustomGumpThemeManager.Current) == 0
                 ? new Color(61, 43, 30) : Color.White;
         public static string FONT {
             get
@@ -1916,7 +1916,7 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            return TextLabel.Text.ToLower().Contains(text.ToLower());
+            return OptionsSearch.Matches(TextLabel.Text, text);
         }
 
         public void OnSearchMatch()
@@ -2223,7 +2223,7 @@ public class BaseOptionsGump : Gump
         }
     }
 
-    protected class ComboBoxWithLabel : Control, SearchableOption
+    protected internal class ComboBoxWithLabel : Control, SearchableOption
     {
         private TextBox _label;
         private Combobox _comboBox;
@@ -2282,14 +2282,14 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            if (_label.Text.ToLower().Contains(text.ToLower()))
+            if (OptionsSearch.Matches(_label.Text, text))
             {
                 return true;
             }
 
             foreach (string o in options)
             {
-                if (o.ToLower().Contains(text.ToLower()))
+                if (OptionsSearch.Matches(o, text))
                 {
                     return true;
                 }
@@ -2303,7 +2303,11 @@ public class BaseOptionsGump : Gump
             _label.Alpha = 1f;
         }
 
-        public int SelectedIndex => _comboBox.SelectedIndex;
+        public int SelectedIndex
+        {
+            get => _comboBox.SelectedIndex;
+            set => _comboBox.SelectedIndex = value;
+        }
 
         private class Combobox : Control
         {
@@ -2646,7 +2650,7 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            if (_label.Text.ToLower().Contains(text.ToLower()))
+            if (OptionsSearch.Matches(_label.Text, text))
             {
                 return true;
             }
@@ -2719,7 +2723,7 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            return _label.Text.ToLower().Contains(text.ToLower());
+            return OptionsSearch.Matches(_label.Text, text);
         }
 
         public void OnSearchMatch()
@@ -2847,7 +2851,7 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            return _text.Text.ToLower().Contains(text.ToLower());
+            return OptionsSearch.Matches(_text.Text, text);
         }
 
         public void OnSearchMatch()
@@ -2917,7 +2921,7 @@ public class BaseOptionsGump : Gump
 
         public bool Search(string text)
         {
-            return _label.Text.ToLower().Contains(text.ToLower());
+            return OptionsSearch.Matches(_label.Text, text);
         }
 
         public void OnSearchMatch()

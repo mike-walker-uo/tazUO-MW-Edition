@@ -169,8 +169,8 @@ namespace ClassicUO.Game.UI.Controls
             _scroll.Height = Height = _background.Height = y;
             _scroll.Width = _background.Width;
 
-            X = Mouse.Position.X + 5;
-            Y = Mouse.Position.Y - 20;
+            X = Mouse.InterfacePosition.X + 5;
+            Y = Mouse.InterfacePosition.Y - 20;
 
             if (X + _background.Width > Client.Game.Window.ClientBounds.Width)
             {

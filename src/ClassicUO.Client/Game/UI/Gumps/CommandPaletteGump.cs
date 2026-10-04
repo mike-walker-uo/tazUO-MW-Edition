@@ -56,6 +56,7 @@ namespace ClassicUO.Game.UI.Gumps
         private StateFilter _stateFilter;
         private bool _rebuildRequested;
         private long _nextStatusRefresh;
+        private long _searchRebuildAt;
         private int _lastStateSignature;
 
         public CommandPaletteGump() : base(0, 0)
@@ -101,7 +102,7 @@ namespace ClassicUO.Game.UI.Gumps
             };
             CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.65f);
             _search.Add(searchBackground);
-            _search.TextChanged += (s, e) => Rebuild();
+            _search.TextChanged += (s, e) => _searchRebuildAt = (long)Time.Ticks + 120;
             Add(_search);
 
             int filterX = _search.X + _search.Width + 14;
@@ -191,7 +192,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (search.Length > 0 &&
                     name.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0 &&
-                    description.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0)
+                    description.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    (entry?.Usage ?? string.Empty).IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     continue;
                 }
@@ -742,6 +744,12 @@ namespace ClassicUO.Game.UI.Gumps
                     _lastStateSignature = signature;
                     _rebuildRequested = true;
                 }
+            }
+
+            if (_searchRebuildAt != 0 && Time.Ticks >= _searchRebuildAt)
+            {
+                _searchRebuildAt = 0;
+                _rebuildRequested = true;
             }
 
             if (_rebuildRequested)

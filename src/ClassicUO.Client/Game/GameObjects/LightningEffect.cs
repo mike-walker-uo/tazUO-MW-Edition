@@ -37,6 +37,7 @@ namespace ClassicUO.Game.GameObjects
     internal sealed partial class LightningEffect : GameEffect
     {
         private readonly bool _forceEnhanced;
+        private readonly bool _enhancedAdmitted;
 
         public LightningEffect(
             EffectManager manager,
@@ -49,6 +50,7 @@ namespace ClassicUO.Game.GameObjects
             : base(manager, 0x4E20, hue, 400, 0)
         {
             _forceEnhanced = forceEnhanced;
+            _enhancedAdmitted = EffectPresentation.Admit("Lightning", src, x, y);
             IsEnabled = true;
             AnimIndex = 0;
 

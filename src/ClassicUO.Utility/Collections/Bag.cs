@@ -101,13 +101,13 @@ namespace ClassicUO.Utility.Collections
                 return;
             }
 
-            Count = 0;
-
             // non-primitive types are cleared so the garbage collector can release them
             if (!_isPrimitive)
             {
                 Array.Clear(_items, 0, Count);
             }
+
+            Count = 0;
         }
 
         public bool Contains(T element)
@@ -167,7 +167,7 @@ namespace ClassicUO.Utility.Collections
 
         private void EnsureCapacity(int capacity)
         {
-            if (capacity < _items.Length)
+            if (capacity <= _items.Length)
             {
                 return;
             }

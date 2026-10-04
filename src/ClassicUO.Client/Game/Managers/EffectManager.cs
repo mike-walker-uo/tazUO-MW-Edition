@@ -378,7 +378,7 @@ namespace ClassicUO.Game.Managers
             sbyte sourceZ,
             CombatVisualKind kind)
         {
-            if (kind == CombatVisualKind.None)
+            if (kind == CombatVisualKind.None || !EffectPresentation.Admit(kind.ToString(), source, sourceX, sourceY))
             {
                 return;
             }
@@ -603,7 +603,7 @@ namespace ClassicUO.Game.Managers
             sbyte sourceZ,
             EnhancedSpellVisualKind kind)
         {
-            if (kind == EnhancedSpellVisualKind.None)
+            if (kind == EnhancedSpellVisualKind.None || !EffectPresentation.Admit(kind.ToString(), source, sourceX, sourceY))
             {
                 return;
             }

@@ -516,7 +516,13 @@ namespace ClassicUO.Game
                 }
             }
 
-            DrawToolTip(sb, Mouse.Position);
+            if (UIManager.InterfaceScale != 1f)
+            {
+                sb.End(); sb.Begin(null, Matrix.CreateScale(UIManager.InterfaceScale));
+                DrawToolTip(sb, Mouse.ScalePoint(Mouse.WorldPosition, UIManager.InterfaceScale));
+                sb.End(); sb.Begin();
+            }
+            else DrawToolTip(sb, Mouse.Position);
 
             if (!Settings.GlobalSettings.RunMouseInASeparateThread)
             {

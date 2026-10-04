@@ -19,6 +19,7 @@ public class RenderedMapArea : Control
     private readonly int _mapIndex;
     private readonly Rectangle _mapRenderArea;
     private static readonly ConcurrentDictionary<int, Texture2D> _textureCache = new();
+    private static readonly ConcurrentDictionary<int, byte> _loadingMaps = new();
 
     public RenderedMapArea(int mapIndex, Rectangle mapRenderArea, int x, int y, int width, int height)
     {
@@ -46,6 +47,24 @@ public class RenderedMapArea : Control
         return true;
     }
     private static async Task LoadMapTexture(int mapIndex)
+    {
+        if (_textureCache.ContainsKey(mapIndex) || !_loadingMaps.TryAdd(mapIndex, 0)) return;
+
+        try
+        {
+            await CreateMapTexture(mapIndex);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"error loading worldmap section: {ex}");
+        }
+        finally
+        {
+            _loadingMaps.TryRemove(mapIndex, out _);
+        }
+    }
+
+    private static async Task CreateMapTexture(int mapIndex)
     {
         if (_textureCache.ContainsKey(mapIndex)) return;
 
@@ -200,11 +219,13 @@ public class RenderedMapArea : Control
                     {
                         _mapTexture.SetDataPointerEXT(0, new Rectangle(0, 0, realWidth, realHeight), (IntPtr)pixels, sizeof(uint) * realWidth * realHeight);
                     }
-                    _textureCache.TryAdd(mapIndex, _mapTexture);
+                    if (!_textureCache.TryAdd(mapIndex, _mapTexture))
+                        _mapTexture.Dispose();
                 }
             }
             catch (Exception ex)
             {
+                _mapTexture.Dispose();
                 Log.Error($"error loading worldmap section: {ex}");
             }
         });
