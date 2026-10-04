@@ -48,7 +48,7 @@ namespace ClassicUO.Game.Managers
         private static readonly Dictionary<ushort, float> _scales = new Dictionary<ushort, float>();
         private static bool _loaded;
 
-        public static bool Enabled { get; private set; } = true;
+        public static bool Enabled { get; private set; } = false;
 
         // Built-in explicit overrides. User overrides via `-bodyscale` still win.
         // Demon family pinned because named-boss demons aren't in MobHpTable,
@@ -269,7 +269,7 @@ namespace ClassicUO.Game.Managers
             _scales.Clear();
             _serialHp.Clear();
             _bodyMaxHp.Clear();
-            Enabled = true;
+            Enabled = false;
             _loaded = false;
         }
 

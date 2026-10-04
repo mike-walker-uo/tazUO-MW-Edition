@@ -308,6 +308,8 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new RestockAgentGump(true));
             });
 
+            Register("magnifier", MagnifierManager.Command);
+
             Register("chess", (s) =>
             {
                 if (s != null && s.Length > 1

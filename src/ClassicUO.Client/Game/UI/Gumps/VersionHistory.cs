@@ -11,6 +11,15 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.2 beta update 1]\n" +
+            """
+            - Added a UO-style magnifying-glass cursor with 1x-4x zoom, saved zoom level, command/hotkey support and Escape dismissal
+            - Added a precise central crosshair; fixed lens opacity and added optional smooth magnification
+            - Added a pixel art scaling filter with adjustable sharpness alongside the existing xBR filter
+            - Added optional world FXAA with adjustable strength while keeping overhead text, healthbars and UI sharp
+            - Preserved background and magnifier rendering across lighting and anti-aliasing passes; reused GPU buffers with resize/logout cleanup
+            - Body scaling now defaults off while retaining saved character settings
+            """ + "\n",
             "[0.6.2 beta]\n" +
             """
             - Added permanent healthbar drag filters and individual modifier overrides; removed the B button
@@ -258,7 +267,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Color linkColor = lightTheme ? new Color(95, 50, 20) : Color.Orange;
             int linkY = Height - 22 - inset;
-            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUOWiki, "https://github.com/PlayTazUO/TazUO/wiki", linkColor, 15), 13 + inset, footerTop));
+            Add(pos.PositionExact(new HttpClickableLink(Language.Instance.TazUOWiki, "https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki", linkColor, 15), 13 + inset, footerTop));
 
             HttpClickableLink githubLink = new("TazUO MW Edition Github", "https://github.com/mike-walker-uo/tazUO-MW-Edition", linkColor, 15);
             Add(pos.PositionExact(githubLink, (Width - githubLink.Width) / 2, linkY));

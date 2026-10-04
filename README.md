@@ -9,7 +9,9 @@ It has many features, some of them are:
   - Illustrated gump themes, including Eternal Eclipse, Sovereign Gold, Lunar Silver, Dragon Ember, and 17 other premium styles; Minimal and TazUO remain available
   - Custom hit effects
   - Custom spell effects (Chiv, Magery, Myst, SW)
-  - Custom mob size (Greater Dragons mean "greater")
+  - Optional custom mob size, disabled by default
+  - UO-style magnifying-glass cursor with 1×–4× zoom, precise crosshair and command/hotkey activation
+  - Pixel-art upscaling and optional world anti-aliasing while keeping UI and text sharp
   - Custom mob death effect "ghost"
   - Custom music incl. music player (and AncientFM integration)
   - Custom Guild Chat, Global Chat, searchable Journal
@@ -35,6 +37,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 ## Version 0.6.2 beta highlights
 
+- **Beta update 1:** magnifying-glass cursor with 1×–4× zoom, central crosshair, opaque lens, smooth mode and Escape dismissal; new pixel art scaling filter and optional adjustable FXAA; body scaling defaults off while preserving saved settings. Windows file version: 0.6.2.1.
 - **Healthbar selection:** permanent All, Players, Friendly Players, Guild, Hostile, Grey and Hostile, and Neutral filters, with individual modifier-key overrides using the configured notorieties. Removed the B button from healthbars.
 - **Generated themes:** 20 new illustrated themes plus Eternal Eclipse. Removed palette-only styles while retaining Minimal and TazUO. Added favorites, per-window overrides, reduced decoration, daily rotation, and corrected individual theme previews.
 - **Graphics controls:** adaptive optional particles, a bounded optional texture cache, softer particle contacts, optional linear-light compositing, selective bloom, coordinated lighting, refined contact shadows, and local replacement-art packs.
@@ -128,6 +131,32 @@ On Windows, the client uses Windows system DPI scaling by default so the interfa
 ## Razor Enhanced plugin setup
 
 On Windows, open **Options → General → Razor Enhanced** and choose the Razor Enhanced plugin DLL or compatible executable. The client validates its plugin entry point and writes the absolute path to `settings.json`, preserving other plugins and settings. Restart the client to load the selected plugin.
+
+## Magnifying glass cursor
+
+Use `-magnifier` to toggle a UO-style magnifying-glass cursor. Its round lens enlarges the world and client UI, with a small central crosshair at the actual click position.
+Press **Escape** to turn it off; the selected zoom level is kept.
+
+- `-magnifier 1`, `2`, `3`, or `4`: select a zoom level and enable the lens. The default is 2×; the chosen level is saved per character.
+- `-magnifier next` / `-magnifier prev`: cycle through the four levels.
+- `-magnifier on`, `off`, or `status`: enable, disable, or inspect the current setting.
+- For a hotkey, create a macro in **Options → Macros**, assign its key, and add a **ClientCommand** action with text `magnifier` (without the leading `-`). Use `magnifier next` or `magnifier prev` for separate zoom hotkeys.
+
+The lens does not move the click location or change world zoom. Magnifier activation resets on logout. Included in 0.6.2 beta update 1 (Windows file version 0.6.2.1).
+
+## World scaling and anti-aliasing
+
+Under **Options → Video → Misc**, enable **post processing effects** and choose **Processing type**:
+
+- **pixel art**: preserves crisp texel interiors while smoothing their boundaries when enlarging the world. Tune **Pixel art filter sharpness (%)** under **Options → Enhancements → Graphics**: 0 gives linear filtering, 100 keeps more of the pixel structure; default 75.
+- **xbr**: the existing edge-aware pixel-art scaler. Both pixel-art filters apply when enlarging; native-size and downscaled views fall back to linear filtering.
+- **point**, **linear**, and **anisotropic** retain their existing behavior and saved selections.
+
+Under **Options → Enhancements → Graphics**, enable **World edge anti-aliasing (FXAA)** and adjust its strength from 0–100%. It works at native resolution and with upscaling. Start with 35%; higher values soften more edges. AA defaults off, and strength 0 skips its render pass. It runs after world lighting and before overhead text, healthbars and UI; those remain sharp. Quality buffers are reused, resize with the window, and are released when disabled or on logout. No CPU screenshot readback is used.
+
+**Smooth magnifier image**, in the same Graphics page, defaults on. Disable it for the original pixelated lens. The crosshair still marks the actual click position; the lens remains opaque and Escape turns it off.
+
+These additions are included in 0.6.2 beta update 1. Replace the complete client files when updating so `WorldQuality.fxc` and `Magnifier.fxc` are included.
 
 ## Razor Enhanced script buttons
 

@@ -25,6 +25,11 @@ namespace ClassicUO.Game.UI.Gumps
             Slider("Unused optional texture budget (MB)", 32, 512, _visual.TextureBudgetMB, n => _visual.TextureBudgetMB = n, 1);
             Check("Soften particle contacts", _visual.SoftParticles, b => _visual.SoftParticles = b, 1);
             Check("Linear light compositing", _visual.LinearLight, b => { _visual.LinearLight = b; Client.Game.GetScene<GameScene>()?.SetPostProcessingSettings(); }, 1);
+            Check("World edge anti-aliasing (FXAA)", _visual.WorldAntiAliasing, b => _visual.WorldAntiAliasing = b, 1);
+            Slider("Anti-aliasing strength (%)", 0, 100, _visual.WorldAntiAliasingStrength, n => _visual.WorldAntiAliasingStrength = n, 1);
+            Slider("Pixel art filter sharpness (%)", 0, 100, _visual.PixelArtSharpness, n => _visual.PixelArtSharpness = n, 1);
+            Note("Choose pixel art or xbr under Options > Video > Misc, with post processing enabled. Scaling applies when enlarging the world. FXAA leaves UI, text and healthbars sharp.", 1);
+            Check("Smooth magnifier image", _profile.MagnifierSmooth, b => _profile.MagnifierSmooth = b, 1);
             Check("Bloom on lamps and magic", _visual.SelectiveBloom, b => _visual.SelectiveBloom = b, 1);
             Slider("Bloom strength", 0, 100, _visual.BloomStrength, n => _visual.BloomStrength = n, 1);
             Check("Match fog, water and spell lighting", _visual.UnifiedLightPalette, b => _visual.UnifiedLightPalette = b, 1);

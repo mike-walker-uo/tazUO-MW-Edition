@@ -99,11 +99,15 @@ namespace ClassicUO.Game.Scenes
         private uint _timeToPlaceMultiInHouseCustomization;
         private bool _use_render_target = false;
         private int _max_texture_size = 8192;
-        private static string _filterMode = "linear"; // "point" | "linear" | "anisotropic" | "xbr"
+        private static string _filterMode = "linear"; // "point" | "linear" | "anisotropic" | "xbr" | "pixel art"
         private string _currentFilter;
         private Effect _postFx;
         private LinearCompositeEffect _linearComposite;
         private RenderTarget2D _linearEncodedTarget;
+        private WorldQualityEffect _worldQuality;
+        private RenderTarget2D _qualityTarget;
+        private bool _qualityCapturing;
+        private bool _qualityShaderChecked;
         private bool _linearActive;
         private SamplerState _postSampler = SamplerState.PointClamp;
         private UseItemQueue _useItemQueue = new UseItemQueue();
@@ -199,6 +203,9 @@ namespace ClassicUO.Game.Scenes
                     break;
                 case 3:
                     _filterMode = "xbr";
+                    break;
+                case 4:
+                    _filterMode = "pixel art";
                     break;
                 case 0:
                 default:
@@ -520,6 +527,12 @@ namespace ClassicUO.Game.Scenes
             _linearComposite = null;
             _linearEncodedTarget?.Dispose();
             _linearEncodedTarget = null;
+            _qualityTarget?.Dispose();
+            _qualityTarget = null;
+            _worldQuality?.Dispose();
+            _worldQuality = null;
+            _qualityCapturing = false;
+            _qualityShaderChecked = false;
             RegionalAmbience.Reset();
             EffectPresentation.Reset();
             _xbr?.Dispose();
@@ -1227,6 +1240,7 @@ namespace ClassicUO.Game.Scenes
                 _linearEncodedTarget.Dispose(); _linearEncodedTarget = null;
             }
             EnsureRenderTargets(gd);
+            BeginWorldQuality(gd);
 
             if (_use_render_target)
             {
@@ -1266,6 +1280,8 @@ namespace ClassicUO.Game.Scenes
 
                 hue.Z = 1f;
             }
+
+            FinishWorldQuality(batcher);
 
             if (profile.GlobalScaling)
                 batcher.Begin(null, Matrix.CreateScale(profile.GlobalScale));
@@ -1380,7 +1396,7 @@ namespace ClassicUO.Game.Scenes
                 batcher.SetSampler(SamplerState.PointClamp);
                 batcher.Draw(_world_render_target, new Rectangle(0, 0, rtW, rtH), new Vector3(0, 0, 1));
                 batcher.End();
-                gd.SetRenderTarget(null);
+                RestoreWorldPresentationTarget(gd);
                 gd.Viewport = camera_viewport;
                 compositeSource = _linearEncodedTarget;
             }
@@ -1391,6 +1407,9 @@ namespace ClassicUO.Game.Scenes
             }
             bool encodeHere = _linearActive && compositeSource == _world_render_target;
             if (encodeHere) _linearComposite.Configure(_light_render_target, can_draw_lights, UseAltLights);
+            if (_postFx == _worldQuality && _worldQuality != null)
+                _worldQuality.Configure(srcRect, new Point(compositeSource.Width, compositeSource.Height),
+                    new Point(destRect.Width, destRect.Height), VisualBudget.Settings?.PixelArtSharpness ?? 75, true);
             batcher.Begin(encodeHere ? _linearComposite : _postFx, Matrix.Identity);
             try { batcher.SetSampler(_postSampler ?? SamplerState.PointClamp); } catch { batcher.SetSampler(SamplerState.PointClamp); }
             batcher.Draw(compositeSource, destRect, srcRect, new Vector3(0, 0, 1));
@@ -1514,7 +1533,7 @@ namespace ClassicUO.Game.Scenes
 
             if (use_render_target)
             {
-                batcher.GraphicsDevice.SetRenderTarget(null);
+                RestoreWorldPresentationTarget(batcher.GraphicsDevice);
             }
             
             //batcher.Begin();
@@ -1632,7 +1651,7 @@ namespace ClassicUO.Game.Scenes
             batcher.SetBlendState(null);
             batcher.End();
 
-            batcher.GraphicsDevice.SetRenderTarget(null);
+            RestoreWorldPresentationTarget(batcher.GraphicsDevice);
 
             return true;
         }
@@ -1743,6 +1762,70 @@ namespace ClassicUO.Game.Scenes
             }
         }
 
+        private bool EnsureWorldQualityEffect(GraphicsDevice gd)
+        {
+            if (_qualityShaderChecked) return _worldQuality != null;
+            _qualityShaderChecked = true;
+            string path = System.IO.Path.Combine(AppContext.BaseDirectory, "WorldQuality.fxc");
+            if (System.IO.File.Exists(path))
+                _worldQuality = new WorldQualityEffect(gd, System.IO.File.ReadAllBytes(path));
+            else
+                GameActions.Print("WorldQuality.fxc is missing. Install the complete Windows build for pixel-art scaling and anti-aliasing.", 0x35);
+            return _worldQuality != null;
+        }
+
+        private void RestoreWorldPresentationTarget(GraphicsDevice gd)
+        {
+            if (_qualityCapturing) gd.SetRenderTarget(_qualityTarget);
+            else MagnifierManager.RestoreScreenTarget(gd);
+        }
+
+        private void BeginWorldQuality(GraphicsDevice gd)
+        {
+            _qualityCapturing = false;
+            if (VisualBudget.Settings?.WorldAntiAliasing != true
+                || VisualBudget.Settings.WorldAntiAliasingStrength <= 0 || !EnsureWorldQualityEffect(gd))
+            {
+                _qualityTarget?.Dispose();
+                _qualityTarget = null;
+                return;
+            }
+            var pp = gd.PresentationParameters;
+            if (_qualityTarget == null || _qualityTarget.Width != pp.BackBufferWidth || _qualityTarget.Height != pp.BackBufferHeight)
+            {
+                _qualityTarget?.Dispose();
+                _qualityTarget = new RenderTarget2D(gd, pp.BackBufferWidth, pp.BackBufferHeight, false,
+                    pp.BackBufferFormat, pp.DepthStencilFormat, 0, RenderTargetUsage.PreserveContents);
+            }
+            _qualityCapturing = true;
+            RestoreWorldPresentationTarget(gd);
+            gd.Clear(Color.Black);
+        }
+
+        private void FinishWorldQuality(UltimaBatcher2D batcher)
+        {
+            if (!_qualityCapturing) return;
+            var gd = batcher.GraphicsDevice;
+            Viewport viewport = gd.Viewport;
+            Rectangle source = Rectangle.Intersect(viewport.Bounds, _qualityTarget.Bounds);
+            _qualityCapturing = false;
+            RestoreWorldPresentationTarget(gd);
+            gd.Viewport = viewport;
+            if (source.Width <= 0 || source.Height <= 0) return;
+            Rectangle destination = source;
+            destination.Offset(-viewport.X, -viewport.Y);
+            _worldQuality.Configure(source, new Point(_qualityTarget.Width, _qualityTarget.Height),
+                new Point(source.Width, source.Height), VisualBudget.Settings.WorldAntiAliasingStrength, false);
+            // The captured RGB is complete; lighting alpha must not blend it a second time.
+            batcher.SetBlendState(BlendState.Opaque);
+            batcher.SetSampler(SamplerState.LinearClamp);
+            batcher.Begin(_worldQuality);
+            batcher.Draw(_qualityTarget, destination, source, new Vector3(0, 0, 1));
+            batcher.End();
+            batcher.SetBlendState(null);
+            batcher.SetSampler(null);
+        }
+
         private void EnsureRenderTargets(GraphicsDevice gd)
         {
             var vp = Camera.GetViewport();
@@ -1792,8 +1875,8 @@ namespace ClassicUO.Game.Scenes
             float scale = GetActiveScale();
 
             if (
-                (mode == "xbr" && scale >= 1.0f && !profile.GlobalScaling) ||
-                (mode == "xbr" && scale <= 1.0f && profile.GlobalScaling))
+                ((mode == "xbr" || mode == "pixel art") && scale >= 1.0f && !profile.GlobalScaling) ||
+                ((mode == "xbr" || mode == "pixel art") && scale <= 1.0f && profile.GlobalScaling))
             {
                 _postFx = null;
                 _postSampler = SamplerState.LinearClamp;
@@ -1820,6 +1903,11 @@ namespace ClassicUO.Game.Scenes
                     }
                     _postFx = _xbr;
                     _postSampler = SamplerState.PointClamp;
+                    break;
+
+                case "pixel art":
+                    _postFx = EnsureWorldQualityEffect(gd) ? _worldQuality : null;
+                    _postSampler = SamplerState.LinearClamp;
                     break;
 
                 case "anisotropic":

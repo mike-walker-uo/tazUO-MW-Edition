@@ -524,7 +524,7 @@ namespace ClassicUO.Game
             }
             else DrawToolTip(sb, Mouse.Position);
 
-            if (!Settings.GlobalSettings.RunMouseInASeparateThread)
+            if (!Settings.GlobalSettings.RunMouseInASeparateThread && !MagnifierManager.Active)
             {
                 Graphic = AssignGraphicByState();
 
