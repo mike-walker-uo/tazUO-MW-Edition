@@ -28,6 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly PaperDollGump _owner;
         private uint _nextScan;
         private int _contentSignature = int.MinValue;
+        private uint _displacedShieldSerial;
 
         public PaperDollBackpackEquipmentGump(PaperDollGump owner) : base(0, 0)
         {
@@ -187,7 +188,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 int localColumn = i / MAX_ROWS;
                 int row = i % MAX_ROWS;
-                Add(new QuickEquipmentItemControl(items[i], kind)
+                Add(new QuickEquipmentItemControl(items[i], kind, this)
                 {
                     X = startX + localColumn * CELL + 2,
                     Y = PADDING + HEADER_HEIGHT + row * CELL + 2
@@ -371,11 +372,13 @@ namespace ClassicUO.Game.UI.Gumps
         private sealed class QuickEquipmentItemControl : Control
         {
             private readonly EquipmentKind _kind;
+            private readonly PaperDollBackpackEquipmentGump _equipmentBar;
 
-            public QuickEquipmentItemControl(Item item, EquipmentKind kind)
+            public QuickEquipmentItemControl(Item item, EquipmentKind kind, PaperDollBackpackEquipmentGump equipmentBar)
             {
                 LocalSerial = item.Serial;
                 _kind = kind;
+                _equipmentBar = equipmentBar;
                 Width = CELL - 4;
                 Height = CELL - 4;
                 AcceptMouseInput = true;
@@ -472,7 +475,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return true;
             }
 
-            private static void Equip(Item item, EquipmentKind kind)
+            private void Equip(Item item, EquipmentKind kind)
             {
                 if (World.Player == null || World.Player.IsDead || MoveItemQueue.Instance == null)
                 {
@@ -496,6 +499,12 @@ namespace ClassicUO.Game.UI.Gumps
                 if (kind == EquipmentKind.Spellbook)
                 {
                     QueueUnequip(Layer.OneHanded, item.Serial, backpack.Serial);
+                    Item offHand = World.Player.FindItemByLayer(Layer.TwoHanded);
+                    if (offHand != null && offHand.ItemData.IsWeapon && !IsShield(offHand))
+                    {
+                        QueueUnequip(Layer.TwoHanded, item.Serial, backpack.Serial);
+                        AutoRearmManager.TwoHandedSerial = 0;
+                    }
                     AutoRearmManager.OneHandedSerial = item.Serial;
                 }
                 else if (kind == EquipmentKind.Weapon)
@@ -516,6 +525,8 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                     else
                     {
+                        Item shield = World.Player.FindItemByLayer(Layer.TwoHanded);
+                        if (IsShield(shield)) _equipmentBar._displacedShieldSerial = shield.Serial;
                         QueueUnequip(Layer.OneHanded, item.Serial, backpack.Serial);
                         QueueUnequip(Layer.TwoHanded, item.Serial, backpack.Serial);
                         AutoRearmManager.OneHandedSerial = 0;
@@ -524,6 +535,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else if (kind == EquipmentKind.Shield)
                 {
+                    _equipmentBar._displacedShieldSerial = 0;
                     QueueUnequip(Layer.TwoHanded, item.Serial, backpack.Serial);
                     AutoRearmManager.TwoHandedSerial = item.Serial;
                 }
@@ -535,6 +547,20 @@ namespace ClassicUO.Game.UI.Gumps
                 if (item.Container != World.Player.Serial)
                 {
                     MoveItemQueue.Instance.EnqueueEquipSingle(item.Serial, targetLayer);
+                }
+
+                if (targetLayer == Layer.OneHanded)
+                {
+                    Item offHand = World.Player.FindItemByLayer(Layer.TwoHanded);
+                    Item shield = World.Items.Get(_equipmentBar._displacedShieldSerial);
+                    if ((offHand == null || offHand.ItemData.IsWeapon && !IsShield(offHand))
+                        && IsShield(shield) && !shield.IsDestroyed && shield.RootContainer == World.Player.Serial
+                        && shield.Container != World.Player.Serial)
+                    {
+                        MoveItemQueue.Instance.EnqueueEquipSingle(shield.Serial, Layer.TwoHanded);
+                        AutoRearmManager.TwoHandedSerial = shield.Serial;
+                    }
+                    _equipmentBar._displacedShieldSerial = 0;
                 }
             }
 

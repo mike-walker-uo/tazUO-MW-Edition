@@ -128,7 +128,7 @@ namespace ClassicUO.Game.Managers
             AlertCategory category = suppliedCategory ?? InferCategory(sourceKey, text);
             AlertSeverity severity = EffectiveSeverity(category,
                 suppliedSeverity ?? InferSeverity(text, hue));
-            bool suppressed = IsMuted(category) || IsSourceMuted(sourceKey) || IsSnoozed(category);
+            bool suppressed = IsSuppressed(category, sourceKey);
             long now = DateTime.UtcNow.Ticks;
             AlertCenterEntry entry = null;
 
@@ -238,6 +238,9 @@ namespace ClassicUO.Game.Managers
             MarkDirty();
             NotifyChanged();
         }
+
+        internal static bool IsSuppressed(AlertCategory category, string sourceKey) =>
+            IsMuted(category) || IsSourceMuted(sourceKey) || IsSnoozed(category);
 
         internal static bool IsMuted(AlertCategory category)
         {

@@ -25,6 +25,7 @@ namespace ClassicUO.Game.UI.Gumps
             Slider("Unused optional texture budget (MB)", 32, 512, _visual.TextureBudgetMB, n => _visual.TextureBudgetMB = n, 1);
             Check("Soften particle contacts", _visual.SoftParticles, b => _visual.SoftParticles = b, 1);
             Check("Linear light compositing", _visual.LinearLight, b => { _visual.LinearLight = b; Client.Game.GetScene<GameScene>()?.SetPostProcessingSettings(); }, 1);
+            Note("Linear light blends lighting in linear colour space, changing its appearance and using extra GPU passes. Leave off for classic UO lighting.", 1);
             Check("World edge anti-aliasing (FXAA)", _visual.WorldAntiAliasing, b => _visual.WorldAntiAliasing = b, 1);
             Slider("Anti-aliasing strength (%)", 0, 100, _visual.WorldAntiAliasingStrength, n => _visual.WorldAntiAliasingStrength = n, 1);
             Slider("Pixel art filter sharpness (%)", 0, 100, _visual.PixelArtSharpness, n => _visual.PixelArtSharpness = n, 1);

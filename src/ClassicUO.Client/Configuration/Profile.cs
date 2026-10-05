@@ -842,96 +842,124 @@ namespace ClassicUO.Configuration
             }
         }
 
-        private void SaveGumps(string path)
+        internal bool SaveGumps(string path)
         {
             string gumpsXmlPath = Path.Combine(path, "gumps.xml");
+            string tempPath = gumpsXmlPath + ".tmp";
 
-            using (XmlTextWriter xml = new XmlTextWriter(gumpsXmlPath, Encoding.UTF8)
+            try
             {
-                Formatting = Formatting.Indented,
-                IndentChar = '\t',
-                Indentation = 1
-            })
-            {
-                xml.WriteStartDocument(true);
-                xml.WriteStartElement("gumps");
-
-                UIManager.AnchorManager.Save(xml);
-
-                LinkedList<Gump> gumps = new LinkedList<Gump>();
-
-                foreach (Gump gump in UIManager.Gumps)
+                using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var xml = new XmlTextWriter(stream, Encoding.UTF8)
                 {
-                    if (!gump.IsDisposed && gump.CanBeSaved && !(gump is AnchorableGump anchored && UIManager.AnchorManager[anchored] != null))
-                    {
-                        gumps.AddLast(gump);
-                    }
-                }
-
-                LinkedListNode<Gump> first = gumps.First;
-
-                while (first != null)
+                    Formatting = Formatting.Indented,
+                    IndentChar = '\t',
+                    Indentation = 1
+                })
                 {
-                    Gump gump = first.Value;
+                    xml.WriteStartDocument(true);
+                    xml.WriteStartElement("gumps");
 
-                    if (gump.LocalSerial != 0)
+                    UIManager.AnchorManager.Save(xml);
+
+                    LinkedList<Gump> gumps = new LinkedList<Gump>();
+
+                    foreach (Gump gump in UIManager.Gumps)
                     {
-                        Item item = World.Items.Get(gump.LocalSerial);
-
-                        if (item != null && !item.IsDestroyed && item.Opened)
+                        if (!gump.IsDisposed && gump.CanBeSaved && !(gump is AnchorableGump anchored && UIManager.AnchorManager[anchored] != null))
                         {
-                            while (SerialHelper.IsItem(item.Container))
-                            {
-                                item = World.Items.Get(item.Container);
-                            }
-
-                            SaveItemsGumpRecursive(item, xml, gumps);
-
-                            if (first.List != null)
-                            {
-                                gumps.Remove(first);
-                            }
-
-                            first = gumps.First;
-
-                            continue;
+                            gumps.AddLast(gump);
                         }
                     }
 
-                    xml.WriteStartElement("gump");
-                    gump.Save(xml);
-                    xml.WriteEndElement();
+                    LinkedListNode<Gump> first = gumps.First;
 
-                    if (first.List != null)
+                    while (first != null)
                     {
-                        gumps.Remove(first);
+                        Gump gump = first.Value;
+
+                        if (gump.LocalSerial != 0)
+                        {
+                            Item item = World.Items.Get(gump.LocalSerial);
+
+                            if (item != null && !item.IsDestroyed && item.Opened)
+                            {
+                                item = GetGumpSaveRoot(item);
+                                SaveItemsGumpRecursive(item, xml, gumps, new HashSet<uint>());
+
+                                if (first.List != null)
+                                {
+                                    gumps.Remove(first);
+                                }
+
+                                first = gumps.First;
+
+                                continue;
+                            }
+                        }
+
+                        xml.WriteStartElement("gump");
+                        gump.Save(xml);
+                        xml.WriteEndElement();
+
+                        if (first.List != null)
+                        {
+                            gumps.Remove(first);
+                        }
+
+                        first = gumps.First;
                     }
 
-                    first = gumps.First;
+                    xml.WriteEndElement();
+                    xml.WriteEndDocument();
+                    xml.Flush();
+                    stream.Flush(true);
                 }
 
-                xml.WriteEndElement();
-                xml.WriteEndDocument();
+                if (File.Exists(gumpsXmlPath))
+                    File.Replace(tempPath, gumpsXmlPath, gumpsXmlPath + ".bak1", true);
+                else
+                    File.Move(tempPath, gumpsXmlPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to save gumps: {ex}");
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+                return false;
             }
 
-
             SkillsGroupManager.Save();
+            return true;
         }
 
-        private static void SaveItemsGumpRecursive(Item parent, XmlTextWriter xml, LinkedList<Gump> list)
+        internal static Item GetGumpSaveRoot(Item item)
         {
-            if (parent != null && !parent.IsDestroyed && parent.Opened)
+            Item root = item;
+            var visited = new HashSet<uint>();
+            while (SerialHelper.IsItem(root.Container))
+            {
+                if (!visited.Add(root.Serial)) return item;
+                Item parent = World.Items.Get(root.Container);
+                if (parent == null || parent.IsDestroyed) return item;
+                root = parent;
+            }
+            return root;
+        }
+
+        private static void SaveItemsGumpRecursive(Item parent, XmlTextWriter xml, LinkedList<Gump> list, HashSet<uint> visited)
+        {
+            if (parent == null || !visited.Add(parent.Serial)) return;
+
+            if (!parent.IsDestroyed && parent.Opened)
             {
                 SaveItemsGump(parent, xml, list);
 
                 Item first = (Item)parent.Items;
 
-                while (first != null)
+                while (first != null && !visited.Contains(first.Serial))
                 {
                     Item next = (Item)first.Next;
-
-                    SaveItemsGumpRecursive(first, xml, list);
-
+                    SaveItemsGumpRecursive(first, xml, list, visited);
                     first = next;
                 }
             }

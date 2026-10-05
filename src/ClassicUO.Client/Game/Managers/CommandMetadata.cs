@@ -316,7 +316,7 @@ namespace ClassicUO.Game.Managers
             { "wparrow",       new Entry { Category="Misc", Description="Waypoint arrow toggle.", Usage="on|off" } },
             { "partycycle",    new Entry { Category="Misc", Description="Cycle to the next party member.", Usage="" } },
             { "automation",    new Entry { Category="Misc", Description="Enable or pause all automatic gameplay actions.", Usage="on|off" } },
-            { "nativechat",    new Entry { Category="Misc", Description="Replace recognized server global-chat gumps.", Usage="on|off" } },
+            { "nativechat",    new Entry { Category="Misc", Description="Replace server global-chat gumps; open shows the original chat without changing the preference.", Usage="on|off|open" } },
             { "repairauto",    new Entry { Category="Misc", Description="Enable recognized repair-bench auto-selection.", Usage="on|off" } },
             { "diagnostics",   new Entry { Category="Debug/Tools", Description="Show feature failures or re-enable a failed feature.", Usage="[reenable <name>]" } },
             { "profilerecovery", new Entry { Category="Debug/Tools", Description="Restore a recent profile and gump-layout snapshot after restart.", Usage="" } },

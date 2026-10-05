@@ -20,6 +20,7 @@ namespace ClassicUO.Game.Managers
         private const long POLL_INTERVAL_MS = 4000;
         private static long _nextPoll;
         private static bool _alerted;
+        private static bool _hasSeenBandages;
 
         public static void Tick()
         {
@@ -31,19 +32,26 @@ namespace ClassicUO.Game.Managers
             var backpack = World.Player.FindItemByLayer(Layer.Backpack);
             if (backpack == null) return;
             int count = CountBandages(backpack);
+            if (count > 0) _hasSeenBandages = true;
+            if (!ShouldMonitor(count, _hasSeenBandages, AutoBandageManager.Enabled,
+                PetBandageManager.Enabled, ExternalBandageManager.Enabled)) return;
 
             if (count < Threshold && !_alerted)
             {
                 _alerted = true;
                 try { UI.Gumps.ToastManager.Show($"Low on bandages: {count} (threshold {Threshold})", 0x21, 4500,
                     "low-bandages", AlertCategory.Supplies, AlertSeverity.Warning); } catch { }
-                try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
+                if (!AlertCenterManager.IsSuppressed(AlertCategory.Supplies, "low-bandages"))
+                    try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
             }
             else if (count >= Threshold + 10 && _alerted)
             {
                 _alerted = false; // re-arm
             }
         }
+
+        internal static bool ShouldMonitor(int count, bool seenBandages, bool auto, bool pets, bool external) =>
+            count > 0 || seenBandages || auto || pets || external;
 
         private static int CountBandages(Item parent)
         {
@@ -84,6 +92,7 @@ namespace ClassicUO.Game.Managers
             Threshold = 100;
             _nextPoll = 0;
             _alerted = false;
+            _hasSeenBandages = false;
         }
     }
 }

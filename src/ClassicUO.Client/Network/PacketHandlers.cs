@@ -62,6 +62,7 @@ namespace ClassicUO.Network
         public delegate void OnPacketBufferReader(ref StackDataReader p);
 
         private static uint _requestedGridLoot;
+        private static long _originalGlobalChatExpire;
 
         private static readonly TextFileParser _parser = new TextFileParser(
             string.Empty,
@@ -7651,8 +7652,8 @@ namespace ClassicUO.Network
             // Native Global Chat opens from new messages when enabled, so suppress the server gump.
             // PacketGumpText ordering varies by shard/layout, so locate the
             // distinctive header anywhere in the server gump text.
-            if (ProfileManager.CurrentProfile?.UseNativeGlobalChatReplacement == true &&
-                gump.IsFromServer && IsGlobalChatSignature(gump.PacketGumpText))
+            if (ShouldSuppressGlobalChat(ProfileManager.CurrentProfile?.UseNativeGlobalChatReplacement == true,
+                gump.IsFromServer, gump.PacketGumpText))
             {
                 gump.Dispose();
                 return null;
@@ -7679,6 +7680,21 @@ namespace ClassicUO.Network
             }
 
             return gump;
+        }
+
+        internal static void AllowNextOriginalGlobalChat() =>
+            _originalGlobalChatExpire = (long)Time.Ticks + 10000;
+
+        internal static void ResetOriginalGlobalChatRequest() => _originalGlobalChatExpire = 0;
+
+        internal static bool ShouldSuppressGlobalChat(bool nativeReplacement, bool isFromServer, string text)
+        {
+            if (!isFromServer || !IsGlobalChatSignature(text)) return false;
+
+            // A manual request admits one matching response, even when replacement is on.
+            bool requested = _originalGlobalChatExpire != 0 && Time.Ticks <= _originalGlobalChatExpire;
+            ResetOriginalGlobalChatRequest();
+            return nativeReplacement && !requested;
         }
 
         internal static bool IsGlobalChatSignature(string text)

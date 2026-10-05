@@ -652,6 +652,10 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        internal static bool IsNativeGlobalHistoryRequest(ChatMode mode, string text, bool nativeReplacement) =>
+            nativeReplacement && (mode == ChatMode.Default || mode == ChatMode.ServUOCommand)
+                && string.Equals(text?.Trim(), "[c", StringComparison.OrdinalIgnoreCase);
+
         public override void OnKeyboardReturn(int textID, string text)
         {
             if (!IsActive && ProfileManager.CurrentProfile.ActivateChatAfterEnter || Mode != ChatMode.Default && string.IsNullOrEmpty(text))
@@ -719,6 +723,13 @@ namespace ClassicUO.Game.UI.Gumps
                 }
 
                 MessageManager.PromptData = default;
+            }
+            else if (IsNativeGlobalHistoryRequest(sentMode, fullText,
+                ProfileManager.CurrentProfile.UseNativeGlobalChatReplacement))
+            {
+                GlobalChatGump existing = UIManager.GetGump<GlobalChatGump>();
+                if (existing == null) GlobalChatGump.OpenByUser(200, 200);
+                else { existing.SetInScreen(); existing.BringOnTop(); }
             }
             else
             {

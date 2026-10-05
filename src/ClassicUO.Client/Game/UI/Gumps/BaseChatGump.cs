@@ -206,6 +206,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             _body.RebuildFromHistory(GetCurrentFontSize());
             _store.RecordAdded += OnRecordAdded;
+            _store.HistoryCleared += OnHistoryCleared;
         }
 
         protected int FontSizeOverride { get; private set; }
@@ -232,6 +233,7 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Dispose()
         {
             _store.RecordAdded -= OnRecordAdded;
+            _store.HistoryCleared -= OnHistoryCleared;
             StoreLastBounds(X, Y, Width, Height);
             _body?.DisposeBoxes();
             base.Dispose();
@@ -241,6 +243,11 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (IsDisposed || _body == null) return;
             _body.AppendRecord(r, GetCurrentFontSize(), _search.Text);
+        }
+
+        private void OnHistoryCleared()
+        {
+            if (!IsDisposed) _body?.RebuildFromHistory(GetCurrentFontSize(), _search.Text);
         }
 
         public override void OnButtonClick(int buttonID)
@@ -265,7 +272,6 @@ namespace ClassicUO.Game.UI.Gumps
         public void ClearHistory()
         {
             _store.Clear();
-            _body.RebuildFromHistory(GetCurrentFontSize(), _search.Text);
         }
 
         protected int GetCurrentFontSize()
@@ -436,6 +442,18 @@ namespace ClassicUO.Game.UI.Gumps
 
         private sealed class ChatLine
         {
+            public ChatHistoryRecord Record;
+            public int Height => Math.Max(Box?.Height ?? 0,
+                Math.Max(ChannelBox?.Height ?? 0, NameBox?.Height ?? 0));
+
+            public void Dispose()
+            {
+                Box?.Dispose();
+                Time?.Dispose();
+                ChannelBox?.Dispose();
+                NameBox?.Dispose();
+            }
+
             public bool Mention;
             public string Message;
             public int MentionVersion;
@@ -452,7 +470,10 @@ namespace ClassicUO.Game.UI.Gumps
             private readonly ChatHistoryStore _store;
             private readonly Predicate<ChatHistoryRecord> _recordFilter;
             private readonly bool _colorChannelTags;
-            private bool _stickToBottom = true;
+            private int _layoutWidth;
+            private int _totalHeight;
+            private long _reflowAt;
+            private bool AtBottom => _scrollBar.Value >= _scrollBar.MaxValue - 4;
             private string _activeFilter = string.Empty;
             private int _activeFontSize = 16;
 
@@ -461,6 +482,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _store = store;
                 X = x; Y = y; Width = w; Height = h;
+                _layoutWidth = w;
                 _scrollBar = scrollBar;
                 _recordFilter = recordFilter;
                 _colorChannelTags = colorChannelTags;
@@ -469,7 +491,19 @@ namespace ClassicUO.Game.UI.Gumps
                 WantUpdateSize = false;
             }
 
-            public void OnResize() => RecalcScroll();
+            public void OnResize()
+            {
+                if (Width != _layoutWidth)
+                    _reflowAt = (long)Time.Ticks + 100;
+                RecalcScroll(AtBottom);
+            }
+
+            public override void Update()
+            {
+                base.Update();
+                if (!IsDisposed && _reflowAt != 0 && Time.Ticks >= _reflowAt)
+                    RebuildFromHistory(_activeFontSize, _activeFilter, true);
+            }
 
             private bool MatchesFilter(ChatHistoryRecord r, string filter)
             {
@@ -481,13 +515,25 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
-            public void RebuildFromHistory(int fontSize, string filter = null)
+            public void RebuildFromHistory(int fontSize, string filter = null, bool preserveScroll = false)
             {
+                bool followBottom = !preserveScroll || AtBottom;
+                long anchor = 0;
+                int offset = _scrollBar.Value;
+                if (!followBottom)
+                {
+                    foreach (var line in _lines)
+                    {
+                        if (offset < line.Height) { anchor = line.Record.Sequence; break; }
+                        offset -= line.Height;
+                    }
+                }
+
                 DisposeBoxes();
+                _layoutWidth = Width;
+                _reflowAt = 0;
                 _activeFilter = filter ?? string.Empty;
                 _activeFontSize = fontSize;
-
-                if (filter == "__none__") { RecalcScroll(); return; }
 
                 var profile = ProfileManager.CurrentProfile;
                 string font = profile?.SelectedTTFJournalFont;
@@ -497,9 +543,21 @@ namespace ClassicUO.Game.UI.Gumps
                     if (!MatchesFilter(r, _activeFilter)) continue;
                     AddVisualLineInternal(r, font, fontSize);
                 }
-                RecalcScroll();
-                _stickToBottom = true;
-                _scrollBar.Value = _scrollBar.MaxValue;
+                RecalcScroll(followBottom);
+                if (!followBottom && anchor != 0)
+                {
+                    int top = 0;
+                    foreach (var line in _lines)
+                    {
+                        if (line.Record.Sequence == anchor)
+                        {
+                            _scrollBar.Value = Math.Min(_scrollBar.MaxValue,
+                                top + Math.Min(offset, Math.Max(0, line.Height - 1)));
+                            break;
+                        }
+                        top += line.Height;
+                    }
+                }
             }
 
             public void AppendRecord(ChatHistoryRecord r, int fontSize, string filter)
@@ -509,13 +567,30 @@ namespace ClassicUO.Game.UI.Gumps
                     RebuildFromHistory(fontSize, filter);
                     return;
                 }
-                if (filter == "__none__") return;
-                if (!MatchesFilter(r, filter ?? string.Empty)) return;
 
-                var profile = ProfileManager.CurrentProfile;
-                string font = profile?.SelectedTTFJournalFont;
-                AddVisualLineInternal(r, font, fontSize);
-                RecalcScroll();
+                bool followBottom = AtBottom;
+                int removedHeight = 0;
+                while (_lines.Count > 0 && _lines[0].Record.Sequence < _store.OldestSequence)
+                {
+                    ChatLine line = _lines.RemoveFromFront();
+                    removedHeight += line.Height;
+                    line.Dispose();
+                }
+                _totalHeight -= removedHeight;
+                _scrollBar.Value = Math.Max(0, _scrollBar.Value - removedHeight);
+
+                if (MatchesFilter(r, filter ?? string.Empty))
+                {
+                    var profile = ProfileManager.CurrentProfile;
+                    AddVisualLineInternal(r, profile?.SelectedTTFJournalFont, fontSize);
+                }
+                RecalcScroll(followBottom);
+            }
+
+            private void AddLine(ChatLine line)
+            {
+                _lines.AddToBack(line);
+                _totalHeight += line.Height;
             }
 
             private void AddVisualLineInternal(ChatHistoryRecord r, string font, int fontSize)
@@ -553,33 +628,28 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     // System message — single coloured text after timestamp.
                     TextBox box = TextBox.GetOne(text, font, size, messageColor,
-                        new TextBox.RTLOptions { Width = Width - 4 - time.Width - channelWidth, IgnoreColorCommands = channelBox != null });
-                    _lines.AddToBack(new ChatLine { Box = box, Time = time, ChannelBox = channelBox, NameBox = null });
+                        new TextBox.RTLOptions { Width = _layoutWidth - 4 - time.Width - channelWidth, IgnoreColorCommands = channelBox != null });
+                    AddLine(new ChatLine { Record = r, Box = box, Time = time, ChannelBox = channelBox, NameBox = null });
                     return;
                 }
 
                 ushort nameHue = ChatNameHueMap.GetHueForName(name);
                 TextBox nameBox = TextBox.GetOne($"{name}: ", font, size, nameHue, TextBox.RTLOptions.Default());
 
-                int remaining = Width - 8 - time.Width - channelWidth - nameBox.Width;
+                int remaining = _layoutWidth - 8 - time.Width - channelWidth - nameBox.Width;
                 if (remaining < 80) remaining = 80;
                 TextBox messageBox = TextBox.GetOne(text, font, size, messageColor,
                     new TextBox.RTLOptions { Width = remaining, IgnoreColorCommands = channelBox != null });
 
-                _lines.AddToBack(new ChatLine { Box = messageBox, Time = time, ChannelBox = channelBox, NameBox = nameBox,
+                AddLine(new ChatLine { Record = r, Box = messageBox, Time = time, ChannelBox = channelBox, NameBox = nameBox,
                     Message = text, Mention = ChatMentions.IsMention(text), MentionVersion = ChatMentions.Version });
             }
 
             public void DisposeBoxes()
             {
-                foreach (var l in _lines)
-                {
-                    l.Box?.Dispose();
-                    l.Time?.Dispose();
-                    l.ChannelBox?.Dispose();
-                    l.NameBox?.Dispose();
-                }
+                foreach (var line in _lines) line.Dispose();
                 _lines.Clear();
+                _totalHeight = 0;
                 _scrollBar.Value = 0;
                 _scrollBar.MaxValue = 0;
             }
@@ -587,27 +657,12 @@ namespace ClassicUO.Game.UI.Gumps
             protected override void OnMouseWheel(MouseEventType delta)
             {
                 _scrollBar.InvokeMouseWheel(delta);
-                _stickToBottom = (_scrollBar.Value >= _scrollBar.MaxValue - 4);
             }
 
-            private void RecalcScroll()
+            private void RecalcScroll(bool followBottom)
             {
-                int total = 0;
-                foreach (var l in _lines)
-                {
-                    if (l.Box == null) continue;
-                    int h = l.Box.Height;
-                    if (l.ChannelBox != null && l.ChannelBox.Height > h) h = l.ChannelBox.Height;
-                    if (l.NameBox != null && l.NameBox.Height > h) h = l.NameBox.Height;
-                    total += h;
-                }
-                int max = Math.Max(0, total - Height);
-                bool atBottom = _scrollBar.Value >= _scrollBar.MaxValue - 4;
-                _scrollBar.MaxValue = max;
-                if (_stickToBottom || atBottom)
-                {
-                    _scrollBar.Value = _scrollBar.MaxValue;
-                }
+                _scrollBar.MaxValue = Math.Max(0, _totalHeight - Height);
+                if (followBottom) _scrollBar.Value = _scrollBar.MaxValue;
             }
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -622,9 +677,7 @@ namespace ClassicUO.Game.UI.Gumps
                 foreach (var l in _lines)
                 {
                     if (l.Box == null) continue;
-                    int h = l.Box.Height;
-                    if (l.ChannelBox != null && l.ChannelBox.Height > h) h = l.ChannelBox.Height;
-                    if (l.NameBox != null && l.NameBox.Height > h) h = l.NameBox.Height;
+                    int h = l.Height;
                     if (my + h < 0) { my += h; continue; }
                     if (my > Height) break;
 

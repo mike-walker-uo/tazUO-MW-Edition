@@ -125,7 +125,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             HeaderAt(HEADER_X_R, ICON_X_R, "LOW-STOCK", ICON_WARN, ref yR);
             AddCbAt(INDENT_R, "Warn when bandages low", BandageStockWarner.Enabled, b => BandageStockWarner.SetEnabled(b), ref yR,
-                "Toast + chime when total bandage count in pack drops below the threshold. Re-arms when count climbs back above threshold + 10.");
+                "Warn below the threshold when carrying bandages or using bandage automation. After observing stock, also warn when it runs out. Re-arms above threshold + 10.");
             AddThresholdRow(INDENT_R, COL_W + INDENT_R - 24, "Threshold (count)", BandageStockWarner.Threshold, v => BandageStockWarner.SetThreshold(v), ref yR,
                 "Total bandage count under which the alarm fires. Default 100.");
             yR += 4;

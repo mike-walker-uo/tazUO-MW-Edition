@@ -31,6 +31,7 @@ namespace ClassicUO.Game.Managers
         private static readonly Dictionary<string, Entry> _entries =
             new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
         private static volatile string[] _disabledNames = Array.Empty<string>();
+        private static int _session;
 
         public static void Guard(string name, Action action)
         {
@@ -65,9 +66,11 @@ namespace ClassicUO.Game.Managers
             if (string.IsNullOrEmpty(name)) name = "Unknown";
             long now = (long)Time.Ticks;
             bool disabledNow = false;
+            int session;
 
             lock (_sync)
             {
+                session = _session;
                 if (!_entries.TryGetValue(name, out Entry entry))
                 {
                     entry = new Entry { Name = name, FirstFailureAt = now };
@@ -98,7 +101,13 @@ namespace ClassicUO.Game.Managers
             {
                 string disabledName = name;
                 MainThreadQueue.EnqueueAction(() =>
-                    GameActions.Print($"[TazUO] Disabled '{disabledName}' after repeated errors. Use -diagnostics reenable {disabledName}.", 0x21));
+                {
+                    lock (_sync)
+                    {
+                        if (session != _session || !IsDisabled(disabledName)) return;
+                    }
+                    GameActions.Print($"[TazUO] Disabled '{disabledName}' after repeated errors. Use -diagnostics reenable {disabledName}.", 0x21);
+                });
             }
         }
 
@@ -155,6 +164,7 @@ namespace ClassicUO.Game.Managers
         {
             lock (_sync)
             {
+                _session++;
                 _entries.Clear();
                 _disabledNames = Array.Empty<string>();
             }

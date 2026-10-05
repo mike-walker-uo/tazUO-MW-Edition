@@ -232,6 +232,7 @@ namespace ClassicUO
             GraphicsDevice.Textures[1] = _hueSamplers[0];
             GraphicsDevice.Textures[2] = _hueSamplers[1];
             GraphicsDevice.Textures[3] = _hueSamplers[2];
+            _uoSpriteBatch.SetHueTextures(_hueSamplers[0], _hueSamplers[1], _hueSamplers[2]);
 
             MapLoader.MapsLayouts = Settings.GlobalSettings.MapsLayouts;
 
@@ -588,7 +589,6 @@ namespace ClassicUO
 
         protected override void Update(GameTime gameTime)
         {
-            FrameTimingMetrics.Record(gameTime.ElapsedGameTime.TotalMilliseconds);
             MainThreadHangDiagnostics.BeginFrame("update");
             MainThreadHangDiagnostics.Mark("Update: time");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Other);
@@ -703,6 +703,7 @@ namespace ClassicUO
         {
             MainThreadHangDiagnostics.BeginFrame("draw");
             long visualFrameStart = Stopwatch.GetTimestamp();
+            FrameTimingMetrics.RecordDraw(visualFrameStart);
             OptionalTextureCache.BeginFrame();
             MainThreadHangDiagnostics.Mark("Draw: background");
             MainThreadHangDiagnostics.BeginStage(MainThreadHangDiagnostics.FrameStage.Render);

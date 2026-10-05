@@ -11,6 +11,19 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.2 beta update 2]\n" +
+            """
+            - Added -nativechat open to open the original UOAlive Global Chat without changing the replacement preference; bare [c opens native chat history when replacement is enabled
+            - Fixed black hues after toggling linear-light composition off and fog gaps at viewport edges when zoomed or scaled
+            - Restricted pet loyalty alerts to pets with rename permission; reduced bandage alerts for non-users and silenced muted or snoozed alert sounds
+            - Restored displaced shields when the equipment bar switches back to a one-handed weapon or spellbook
+            - Made gump-layout saves atomic, preserving the previous file on failure, and guarded cyclic or missing container links
+            - Bound chat rows to retained history, disposed expired text resources and reflowed resized windows while preserving reading position
+            - Kept world-map loading on the main thread in timed slices, cancelled stale loads and released each map window's texture
+            - Reduced repeated free-slot scans while preserving locked grid slots and item order
+            - Corrected frame-cadence measurements and 1% low FPS; reset feature failures and pending notices between sessions
+            - Added quoted, culture-safe marker CSV with multiline names and preserved custom zoom levels
+            """ + "\n",
             "[0.6.2 beta update 1]\n" +
             """
             - Added a UO-style magnifying-glass cursor with 1x-4x zoom, saved zoom level, command/hotkey support and Escape dismissal
