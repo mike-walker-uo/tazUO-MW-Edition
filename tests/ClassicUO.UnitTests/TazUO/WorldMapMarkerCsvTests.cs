@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using ClassicUO.Assets;
@@ -8,9 +9,22 @@ using Xunit;
 namespace ClassicUO.UnitTests.TazUO
 {
     [Collection("Client session regression")]
-    public class WorldMapMarkerCsvTests
+    public class WorldMapMarkerCsvTests : IDisposable
     {
-        public WorldMapMarkerCsvTests() => TestLogging.EnsureInitialized();
+        private readonly string _originalExecutablePath = CUOEnviroment.ExecutablePath;
+
+        public WorldMapMarkerCsvTests()
+        {
+            // The .NET Framework test host has no entry assembly; supply its base
+            // directory before WorldMapGump initializes its static marker path.
+            if (_originalExecutablePath == null)
+                typeof(CUOEnviroment).GetField(nameof(CUOEnviroment.ExecutablePath))
+                    .SetValue(null, AppDomain.CurrentDomain.BaseDirectory);
+            TestLogging.EnsureInitialized();
+        }
+
+        public void Dispose() => typeof(CUOEnviroment).GetField(nameof(CUOEnviroment.ExecutablePath))
+            .SetValue(null, _originalExecutablePath);
 
         [Fact]
         public void Quoted_unicode_and_multiline_name_round_trips_with_zoom()
