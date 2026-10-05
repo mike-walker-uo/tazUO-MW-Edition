@@ -95,19 +95,20 @@ namespace ClassicUO.Game.Managers
 
             foreach (Mobile pet in World.Mobiles.Values)
             {
-                if (!IsNearbyMobile(pet))
+                if (!IsNearbyPet(pet))
                     continue;
 
                 if (World.OPL.TryGetNameAndData(pet.Serial, out _, out string data))
                     UpdateLoyalty(pet, data);
 
-                if (pet.IsRenamable || _loyalty.ContainsKey(pet.Serial))
-                    PacketHandlers.AddMegaClilocRequest(pet.Serial);
+                PacketHandlers.AddMegaClilocRequest(pet.Serial);
             }
         }
 
-        private static bool IsNearbyMobile(Mobile pet) =>
-            pet != null && !pet.IsDestroyed && !pet.IsDead && pet != World.Player &&
+        internal static bool IsNearbyPet(Mobile pet) =>
+            // Require permission to rename this pet; loyalty alone also
+            // appears on other players' pets and is not ownership evidence.
+            pet != null && pet.IsRenamable && !pet.IsDestroyed && !pet.IsDead && pet != World.Player &&
             pet.Distance <= World.ClientViewRange &&
             pet.NotorietyFlag != NotorietyFlag.Enemy &&
             pet.NotorietyFlag != NotorietyFlag.Invulnerable;
@@ -118,7 +119,7 @@ namespace ClassicUO.Game.Managers
                 return;
 
             Mobile pet = World.Mobiles.Get(e.Serial);
-            if (IsNearbyMobile(pet))
+            if (IsNearbyPet(pet))
                 UpdateLoyalty(pet, e.Data);
         }
 
@@ -144,9 +145,11 @@ namespace ClassicUO.Game.Managers
 
             _lastReminderAt[pet.Serial] = now;
             string name = string.IsNullOrWhiteSpace(pet.Name) ? "Your pet" : pet.Name;
-            UI.Gumps.ToastManager.ShowPersistent($"pet-loyalty-{pet.Serial}", $"Feed {name}: loyalty {value}%", 0x21,
+            string key = $"pet-loyalty-{pet.Serial}";
+            UI.Gumps.ToastManager.ShowPersistent(key, $"Feed {name}: loyalty {value}%", 0x21,
                 null, AlertCategory.Pets, AlertSeverity.Warning);
-            Client.Game?.Audio?.PlaySound(0x0055);
+            if (!AlertCenterManager.IsSuppressed(AlertCategory.Pets, key))
+                Client.Game?.Audio?.PlaySound(0x0055);
         }
 
         internal static bool TryParseLoyalty(string data, out int value)
@@ -165,7 +168,7 @@ namespace ClassicUO.Game.Managers
             int count = 0;
             foreach (Mobile pet in World.Mobiles.Values)
             {
-                if (!IsNearbyMobile(pet))
+                if (!IsNearbyPet(pet))
                     continue;
 
                 if (!_loyalty.TryGetValue(pet.Serial, out int value))
@@ -187,8 +190,7 @@ namespace ClassicUO.Game.Managers
 
         private static void OnMessage(object sender, MessageEventArgs e)
         {
-            if (!Enabled) return;
-            if (string.IsNullOrEmpty(e?.Text)) return;
+            if (!Enabled || !World.InGame || !IsOwnPetMessage(e)) return;
             string t = e.Text;
             for (int i = 0; i < Phrases.Length; i++)
             {
@@ -197,9 +199,19 @@ namespace ClassicUO.Game.Managers
                 _lastToastAt = (long)Time.Ticks;
                 try { UI.Gumps.ToastManager.ShowPersistent("pet-loyalty-message", "Pet loyalty: " + Phrases[i], 0x21,
                     null, AlertCategory.Pets, AlertSeverity.Warning); } catch { }
-                try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
+                if (!AlertCenterManager.IsSuppressed(AlertCategory.Pets, "pet-loyalty-message"))
+                    try { Client.Game?.Audio?.PlaySound(0x0055); } catch { }
                 return;
             }
+        }
+
+        internal static bool IsOwnPetMessage(MessageEventArgs e)
+        {
+            if (string.IsNullOrEmpty(e?.Text)) return false;
+            if (e.Parent is Mobile pet) return IsNearbyPet(pet);
+            // Keep explicit private reminders; ignore ambiguous overhead/broadcast text.
+            return e.Parent == null && e.Type == MessageType.System && World.Player?.Followers > 0
+                && e.Text.StartsWith("Your pet ", StringComparison.OrdinalIgnoreCase);
         }
 
         public static void SetEnabled(bool on)

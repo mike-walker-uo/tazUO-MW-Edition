@@ -1,5 +1,6 @@
 // TazUO MW Edition addition.
 using System;
+using System.Diagnostics;
 
 namespace ClassicUO.Game.Managers
 {
@@ -9,6 +10,22 @@ namespace ClassicUO.Game.Managers
         private static readonly double[] _samples = new double[CAPACITY];
         private static readonly double[] _scratch = new double[CAPACITY];
         private static int _next, _count;
+        private static long _lastDraw;
+
+        // Draw-to-draw cadence includes frame limiting and the previous presentation wait.
+        // It is not Update elapsed time or GPU execution time.
+        internal static void RecordDraw(long timestamp)
+        {
+            if (_lastDraw != 0 && timestamp > _lastDraw)
+                Record((timestamp - _lastDraw) * 1000.0 / Stopwatch.Frequency);
+            _lastDraw = timestamp;
+        }
+
+        internal static void Reset()
+        {
+            _next = _count = 0;
+            _lastDraw = 0;
+        }
 
         public static void Record(double milliseconds)
         {
@@ -30,8 +47,10 @@ namespace ClassicUO.Game.Managers
             }
             averageMilliseconds = total / _count;
             Array.Sort(_scratch, 0, _count);
-            int slowIndex = Math.Max(0, (int)Math.Ceiling(_count * 0.99) - 1);
-            onePercentLowFps = _scratch[slowIndex] > 0 ? (int)Math.Round(1000 / _scratch[slowIndex]) : 0;
+            int slowCount = Math.Max(1, (int)Math.Ceiling(_count * 0.01));
+            double slowTotal = 0;
+            for (int i = _count - slowCount; i < _count; i++) slowTotal += _scratch[i];
+            onePercentLowFps = (int)Math.Round(1000.0 * slowCount / slowTotal);
         }
     }
 }

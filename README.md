@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6.2 beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta)
+[Download version 0.6.2 beta — update 2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -36,6 +36,14 @@ It has many features, some of them are:
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
 ## Version 0.6.2 beta highlights
+
+### Beta update 2 — Windows file version 0.6.2.2
+
+- **Original chat access:** `-nativechat open` opens the original UOAlive Global Chat in either replacement mode without changing the preference. Bare `[c` opens native history when replacement is on; `[c message` still posts. `-nativechat off` restores the server chat as usual.
+- **Rendering fixes:** restore hue textures after effect passes to prevent black hues after disabling linear-light composition; cover fog to the viewport edges at different zoom and scale settings.
+- **Relevant alerts:** pet loyalty checks require rename permission; zero-bandage warnings stay quiet until bandages have been seen or bandage automation is enabled. Muted/snoozed pet and bandage alerts also stay silent.
+- **Equipment bar:** restore a displaced shield when returning from a two-handed weapon to a one-handed weapon or spellbook, while preserving another off-hand item equipped by the player or Razor Enhanced.
+- **Reliability and performance:** atomic gump-layout saves; bounded chat rows and resize reflow; cancellable world-map loading in timed main-thread slices; fewer repeated free-slot scans; session resets; correct draw-cadence/1% low metrics; quoted marker CSV with multiline names and preserved zoom.
 
 - **Beta update 1:** magnifying-glass cursor with 1×–4× zoom, central crosshair, opaque lens, smooth mode and Escape dismissal; new pixel art scaling filter and optional adjustable FXAA; body scaling defaults off while preserving saved settings. Windows file version: 0.6.2.1.
 - **Healthbar selection:** permanent All, Players, Friendly Players, Guild, Hostile, Grey and Hostile, and Neutral filters, with individual modifier-key overrides using the configured notorieties. Removed the B button from healthbars.

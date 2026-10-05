@@ -110,6 +110,7 @@ namespace ClassicUO.Game.Managers
 
         private static void ResetState()
         {
+            ClassicUO.Network.PacketHandlers.ResetOriginalGlobalChatRequest();
             BodyScaleManager.ResetForProfile();
             BodyHueManager.ResetForProfile();
             SpellAbilityEffectSettings.ResetForProfile();
@@ -206,6 +207,8 @@ namespace ClassicUO.Game.Managers
             TerrainMaterialManager.ResetSession();
             WaterEnhancementManager.ResetSession();
             TazUOManagerScheduler.Reset();
+            FeatureDiagnostics.ResetSession();
+            FrameTimingMetrics.Reset();
         }
     }
 }

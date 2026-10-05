@@ -622,7 +622,8 @@ namespace ClassicUO.Game
                 Color grade = darken ? new Color(8, 12, 22, 255) : Color.White;
                 batcher.Draw(
                     AtmosphereTextures.GetSolid(grade),
-                    new Rectangle(x, y, winsize.X, winsize.Y),
+                    FogCoverageBounds(batcher.TransformMatrix,
+                        new Point(batcher.GraphicsDevice.Viewport.Width, batcher.GraphicsDevice.Viewport.Height)),
                     ShaderHueTranslator.GetHueVector(0, false, alpha)
                 );
             }
@@ -1257,7 +1258,8 @@ namespace ClassicUO.Game
             {
                 float wash = 0.08f * _frontCoverage * (1f - SceneryInteractionManager.Shelter * 0.72f);
                 batcher.Draw(AtmosphereTextures.GetSolid(new Color(210, 215, 222, 255)),
-                    new Rectangle(x, y, w, h),
+                    FogCoverageBounds(batcher.TransformMatrix,
+                        new Point(batcher.GraphicsDevice.Viewport.Width, batcher.GraphicsDevice.Viewport.Height)),
                     ShaderHueTranslator.GetHueVector(0, false, wash));
             }
 
@@ -1299,6 +1301,20 @@ namespace ClassicUO.Game
                 if (light > 0.03f) hue = ShaderHueTranslator.GetHueVector(0, false, alpha * (0.35f + light * 0.65f));
                 batcher.Draw(texture, new Rectangle(x + bx, y + by, bw, bh), hue);
             }
+        }
+
+        internal static Rectangle FogCoverageBounds(Matrix transform, Point viewport)
+        {
+            // World camera transforms contain scale/translation. Cover the actual
+            // viewport in that coordinate space, including zoom, peek and rounding.
+            Matrix inverse = Matrix.Invert(transform);
+            Vector2 first = Vector2.Transform(Vector2.Zero, inverse);
+            Vector2 last = Vector2.Transform(new Vector2(viewport.X, viewport.Y), inverse);
+            int left = (int)Math.Floor(Math.Min(first.X, last.X)) - 2;
+            int top = (int)Math.Floor(Math.Min(first.Y, last.Y)) - 2;
+            int right = (int)Math.Ceiling(Math.Max(first.X, last.X)) + 2;
+            int bottom = (int)Math.Ceiling(Math.Max(first.Y, last.Y)) + 2;
+            return new Rectangle(left, top, right - left, bottom - top);
         }
 
         private static readonly Color[] _rainbowColors =

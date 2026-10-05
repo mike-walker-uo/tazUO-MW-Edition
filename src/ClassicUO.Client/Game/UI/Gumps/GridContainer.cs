@@ -1737,6 +1737,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             public void RebuildContainer(List<Item> filteredItems, string searchText = "", bool overrideSort = false)
             {
+                // Consume placement membership without mutating the caller's ordered list.
+                var remainingItems = new HashSet<Item>(filteredItems);
                 SetupGridItemControls();
 
                 foreach (var slot in gridSlots)
@@ -1748,7 +1750,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     Item i = World.Items.Get(spot.Value);
                     if (i != null)
-                        if (filteredItems.Contains(i) && (!overrideSort || itemLocks.Contains(spot.Value)))
+                        if (remainingItems.Contains(i) && (!overrideSort || itemLocks.Contains(spot.Value)))
                         {
                             if (spot.Key < gridSlots.Count)
                             {
@@ -1757,15 +1759,18 @@ namespace ClassicUO.Game.UI.Gumps
                                 if (itemLocks.Contains(spot.Value))
                                     gridSlots[spot.Key].ItemGridLocked = true;
 
-                                filteredItems.Remove(i);
+                                remainingItems.Remove(i);
                             }
                         }
                 }
 
+                using var freeSlots = gridSlots.GetEnumerator();
                 foreach (Item i in filteredItems)
                 {
-                    foreach (var slot in gridSlots)
+                    if (!remainingItems.Contains(i)) continue;
+                    while (freeSlots.MoveNext())
                     {
+                        var slot = freeSlots.Current;
                         if (slot.Value.SlotItem != null)
                             continue;
                         slot.Value.SetGridItem(i);

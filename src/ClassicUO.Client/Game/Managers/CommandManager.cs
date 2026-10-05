@@ -3379,6 +3379,20 @@ Register("pathpreview", (s) =>
             Register("nativechat", (s) =>
             {
                 if (ProfileManager.CurrentProfile == null) return;
+                if (s != null && s.Length >= 2 &&
+                    s[1].Trim().Equals("open", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!World.InGame)
+                    {
+                        GameActions.Print("Not in game.", 0x21);
+                        return;
+                    }
+
+                    ClassicUO.Network.PacketHandlers.AllowNextOriginalGlobalChat();
+                    GameActions.Say("[c");
+                    return;
+                }
+
                 bool enabled = s != null && s.Length >= 2
                     ? s[1].Trim().Equals("on", System.StringComparison.OrdinalIgnoreCase)
                     : !ProfileManager.CurrentProfile.UseNativeGlobalChatReplacement;

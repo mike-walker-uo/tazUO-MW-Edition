@@ -181,7 +181,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             int fps = (int)CUOEnviroment.CurrentRefreshRate;
             FrameTimingMetrics.Snapshot(out double frameMs, out int lowFps);
-            _fpsLabel.Text = $"FPS: {fps}  Frame: {frameMs:0.0} ms  1% low: {lowFps}";
+            _fpsLabel.Text = $"FPS: {fps}  Draw: {frameMs:0.0} ms  1% low: {lowFps}";
             _fpsLabel.Hue = frameMs <= 17 && lowFps >= 50
                 ? HUE_GOOD
                 : frameMs <= 34 && lowFps >= 25 ? HUE_WARNING : HUE_BAD;

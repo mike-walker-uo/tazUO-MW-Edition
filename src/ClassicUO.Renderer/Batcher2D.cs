@@ -95,6 +95,7 @@ namespace ClassicUO.Renderer
         private Matrix _transformMatrix;
         private readonly DynamicVertexBuffer _vertexBuffer;
         private readonly BasicUOEffect _basicUOEffect;
+        private readonly Texture2D[] _hueTextures = new Texture2D[3];
         private Texture2D[] _textureInfo;
         private PositionNormalTextureColor4[] _vertexInfo;
 
@@ -127,7 +128,7 @@ namespace ClassicUO.Renderer
         }
 
 
-        private Matrix TransformMatrix => _transformMatrix;
+        public Matrix TransformMatrix => _transformMatrix;
 
 
         private DepthStencilState Stencil { get; } = new DepthStencilState
@@ -158,6 +159,14 @@ namespace ClassicUO.Renderer
 
 
         public bool SupportsLinearLight => _basicUOEffect.LinearLight != null;
+        public void SetHueTextures(Texture2D first, Texture2D second, Texture2D lights)
+        {
+            Flush();
+            _hueTextures[0] = first;
+            _hueTextures[1] = second;
+            _hueTextures[2] = lights;
+        }
+
         public bool LinearLight { get; private set; }
         public void SetLinearLight(bool enabled)
         {
@@ -1373,6 +1382,11 @@ namespace ClassicUO.Renderer
             _basicUOEffect.Viewport.SetValue(new Vector2(GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height));
             _basicUOEffect.MatrixTransform.SetValue(matrix);
             _basicUOEffect.Pass.Apply();
+            // Custom effects bind their own textures at s1 (e.g. linear lights).
+            // Restore the hue tables for each batch instead of relying on startup state.
+            for (int i = 0; i < _hueTextures.Length; i++)
+                if (_hueTextures[i] != null && GraphicsDevice.Textures[i + 1] != _hueTextures[i])
+                    GraphicsDevice.Textures[i + 1] = _hueTextures[i];
         }
 
         private void Flush()

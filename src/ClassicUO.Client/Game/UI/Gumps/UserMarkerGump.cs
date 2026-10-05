@@ -5,6 +5,7 @@ using System.Linq;
 using ClassicUO.Utility;
 using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Game.Managers;
 using static ClassicUO.Game.UI.Gumps.WorldMapGump;
 using ClassicUO.Assets;
 using ClassicUO.Resources;
@@ -285,7 +286,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            var newLine = $"{newMarker.X},{newMarker.Y},{newMarker.MapId},{newMarker.Name},{newMarker.MarkerIconName},{newMarker.ColorName},4\r";
+            var newLine = WorldMapMarkerCsv.Format(newMarker) + Environment.NewLine;
 
             File.AppendAllText(_userMarkersFilePath, newLine);
 
@@ -303,12 +304,12 @@ namespace ClassicUO.Game.UI.Gumps
                 return null;
 
             // Validate User Enter Data
-            if (x > _mapMaxX || x < MAP_MIN_CORD)
+            if (x >= _mapMaxX || x < MAP_MIN_CORD)
             {
                 return null;
             }
 
-            if (y > _mapMaxY || y < MAP_MIN_CORD)
+            if (y >= _mapMaxY || y < MAP_MIN_CORD)
             {
                 return null;
             }
@@ -316,9 +317,6 @@ namespace ClassicUO.Game.UI.Gumps
             var markerName = _markerName.Text;
             if (string.IsNullOrEmpty(markerName))
                 return null;
-
-            if (markerName.Contains(","))
-                markerName = markerName.Replace(",", "");
 
             var mapIdx = World.MapIndex;
             var color = _colors[_colorsCombo.SelectedIndex];
@@ -332,6 +330,7 @@ namespace ClassicUO.Game.UI.Gumps
                 MapId = mapIdx,
                 ColorName = color,
                 Color = GetColor(color),
+                ZoomIndex = _markerIdx < 0 ? 4 : _markers[_markerIdx].ZoomIndex,
             };
 
             if (!_markerIcons.TryGetValue(icon, out var iconTexture))

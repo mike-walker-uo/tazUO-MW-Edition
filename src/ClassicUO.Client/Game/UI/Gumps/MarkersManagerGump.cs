@@ -301,7 +301,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     foreach (var marker in _markers)
                     {
-                        var newLine = $"{marker.X},{marker.Y},{marker.MapId},{marker.Name},{marker.MarkerIconName},{marker.ColorName},4";
+                        var newLine = WorldMapMarkerCsv.Format(marker);
 
                         writer.WriteLine(newLine);
                     }

@@ -44,14 +44,21 @@ namespace ClassicUO.Game.Managers
         public readonly ushort Hue;
         public readonly DateTime Time;
         public readonly MessageType MsgType;
+        internal readonly long Sequence;
 
         public ChatHistoryRecord(string name, string text, ushort hue, DateTime time, MessageType msgType)
+            : this(name, text, hue, time, msgType, 0)
+        {
+        }
+
+        internal ChatHistoryRecord(string name, string text, ushort hue, DateTime time, MessageType msgType, long sequence)
         {
             Name = name;
             Text = text;
             Hue = hue;
             Time = time;
             MsgType = msgType;
+            Sequence = sequence;
         }
 
         public string Display => string.IsNullOrEmpty(Name) ? Text : $"{Name}: {Text}";
@@ -101,8 +108,10 @@ namespace ClassicUO.Game.Managers
         private readonly Deque<ChatHistoryRecord> _records = new Deque<ChatHistoryRecord>();
         private readonly Predicate<MessageEventArgs> _filter;
         private bool _hooked;
+        private long _nextSequence;
 
         public event Action<ChatHistoryRecord> RecordAdded;
+        public event Action HistoryCleared;
 
         public ChatHistoryStore(Predicate<MessageType> filter, int capacity = 1000)
             : this(e => filter(e.Type), capacity)
@@ -111,6 +120,7 @@ namespace ClassicUO.Game.Managers
 
         public ChatHistoryStore(Predicate<MessageEventArgs> filter, int capacity = 1000)
         {
+            if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _filter = filter;
             Capacity = capacity;
         }
@@ -127,6 +137,12 @@ namespace ClassicUO.Game.Managers
             if (e == null || !_filter(e)) return;
             string name = string.IsNullOrEmpty(e.Name) ? e.Parent?.Name : e.Name;
             var r = new ChatHistoryRecord(name, e.Text, e.Hue, DateTime.Now, e.Type);
+            Add(r);
+        }
+
+        internal void Add(ChatHistoryRecord record)
+        {
+            var r = new ChatHistoryRecord(record.Name, record.Text, record.Hue, record.Time, record.MsgType, ++_nextSequence);
             while (_records.Count >= Capacity) _records.RemoveFromFront();
             _records.AddToBack(r);
             RecordAdded?.Invoke(r);
@@ -134,6 +150,11 @@ namespace ClassicUO.Game.Managers
 
         public IEnumerable<ChatHistoryRecord> All() => _records;
         public int Count => _records.Count;
-        public void Clear() => _records.Clear();
+        internal long OldestSequence => _records.Count == 0 ? _nextSequence + 1 : _records[0].Sequence;
+        public void Clear()
+        {
+            _records.Clear();
+            HistoryCleared?.Invoke();
+        }
     }
 }
