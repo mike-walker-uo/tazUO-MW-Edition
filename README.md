@@ -227,7 +227,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.6.2 beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6.2 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
@@ -245,7 +245,7 @@ Press **Escape** to turn it off; the selected zoom level is kept.
 - `-magnifier on`, `off`, or `status`: enable, disable, or inspect the current setting.
 - For a hotkey, create a macro in **Options → Macros**, assign its key, and add a **ClientCommand** action with text `magnifier` (without the leading `-`). Use `magnifier next` or `magnifier prev` for separate zoom hotkeys.
 
-The lens does not move the click location or change world zoom. Magnifier activation resets on logout. Included in 0.6.2 beta update 1 (Windows file version 0.6.2.1).
+The lens does not move the click location or change world zoom. Magnifier activation resets on logout. Included in stable 0.6.2.
 
 ## World scaling and anti-aliasing
 
@@ -259,7 +259,7 @@ Under **Options → Enhancements → Graphics**, enable **World edge anti-aliasi
 
 **Smooth magnifier image**, in the same Graphics page, defaults on. Disable it for the original pixelated lens. The crosshair still marks the actual click position; the lens remains opaque and Escape turns it off.
 
-These additions are included in 0.6.2 beta update 1. Replace the complete client files when updating so `WorldQuality.fxc` and `Magnifier.fxc` are included.
+These additions are included in stable 0.6.2. Replace the complete client files when updating so `WorldQuality.fxc` and `Magnifier.fxc` are included.
 
 ## Razor Enhanced script buttons
 
@@ -283,7 +283,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.
