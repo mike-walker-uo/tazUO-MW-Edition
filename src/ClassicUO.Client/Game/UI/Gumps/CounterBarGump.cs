@@ -1,4 +1,4 @@
-#region license
+﻿#region license
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
@@ -30,7 +30,10 @@
 
 #endregion
 
+using System;
+using System.Linq;
 using System.Collections.Generic;
+using ClassicUO.Game.Managers;
 using System.Xml;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -143,7 +146,7 @@ namespace ClassicUO.Game.UI.Gumps
             // Seed dict with keys-of-interest.
             foreach (Control c in cbg.Children)
             {
-                if (c is CounterItem ci && ci.Graphic != 0 && ci.SpellID == default)
+                if (c is CounterItem ci && ci.Graphic != 0 && ci.SpellID == default && ci.Action == null)
                 {
                     long k = ScanKey(ci.Graphic, ci.Hue);
                     if (!_scan.ContainsKey(k))
@@ -153,29 +156,18 @@ namespace ClassicUO.Game.UI.Gumps
             if (_scan.Count == 0)
                 return;
 
+            long[] keys = _scan.Keys.ToArray();
             for (Item bag = (Item)World.Player.Items; bag != null; bag = (Item)bag.Next)
             {
-                if (bag.ItemData.IsContainer && !bag.IsEmpty && bag.Layer >= Layer.OneHanded && bag.Layer <= Layer.Legs)
-                    WalkContainer(bag);
-            }
-        }
-
-        private static void WalkContainer(Item parent)
-        {
-            for (LinkedObject i = parent.Items; i != null; i = i.Next)
-            {
-                Item item = (Item)i;
-                WalkContainer(item);
-
-                if (!item.Exists)
-                    continue;
-
-                long key = ScanKey(item.Graphic, item.Hue);
-                if (_scan.TryGetValue(key, out var v))
+                if (!bag.ItemData.IsContainer || bag.IsEmpty || bag.Layer < Layer.OneHanded || bag.Layer > Layer.Legs) continue;
+                var snapshot = InventoryCounts.Get(bag);
+                foreach (long key in keys)
                 {
-                    v.Amount += item.Amount;
-                    v.TooltipItem = item;
-                    _scan[key] = v;
+                    ushort graphic = (ushort)(key >> 16), hue = (ushort)key;
+                    var entry = _scan[key];
+                    entry.Amount += snapshot.Count(graphic, hue, rawAmounts: true);
+                    entry.TooltipItem = snapshot.Sample(graphic, hue) ?? entry.TooltipItem;
+                    _scan[key] = entry;
                 }
             }
         }
@@ -307,7 +299,7 @@ namespace ClassicUO.Game.UI.Gumps
                         c.Width = _rectSize - 4;
                         c.Height = _rectSize - 4;
 
-                        c.SetGraphic(c.Graphic, c.Hue);
+                        c.SetGraphic(c.Graphic, c.Hue, c.IsGumpIcon);
 
                         indices[index] = -1;
                     }
@@ -349,7 +341,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return null;
             }
 
-            if (items.Length > index)
+            if (index >= 0 && items.Length > index)
             {
                 return items[index];
             }
@@ -389,6 +381,7 @@ namespace ClassicUO.Game.UI.Gumps
                 writer.WriteAttributeString("hue", control.Hue.ToString());
                 if (control.SpellID != default)
                     writer.WriteAttributeString("spellid", control.SpellID.ToString());
+                if (control.Action != null) writer.WriteAttributeString("action", control.Action.Serialize());
                 writer.WriteEndElement();
             }
 
@@ -417,6 +410,12 @@ namespace ClassicUO.Game.UI.Gumps
                     if (index < items.Length)
                     {
                         bool isGump = false;
+                        if (ClientAction.TryParse(controlXml.GetAttribute("action"), out ClientAction action))
+                        {
+                            items[index].SetAction(action);
+                            index++;
+                            continue;
+                        }
                         if (controlXml.HasAttribute("spellid"))
                         {
                             items[index].SpellID = int.Parse(controlXml.GetAttribute("spellid"));
@@ -466,6 +465,11 @@ namespace ClassicUO.Game.UI.Gumps
             private const uint HIGHLIGHT_DURATION = 1000;
             private uint _endHighlight;
             private bool _highlight;
+            private readonly Label _hotkeyLabel;
+            private string _lastHotkey;
+            private ClientAction _cellAction;
+            internal ClientAction Action { get; private set; }
+            internal bool IsGumpIcon { get; private set; }
 
             public CounterItem(int x, int y, int w, int h)
             {
@@ -481,22 +485,86 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _image = new ImageWithText();
                 Add(_image);
+                Add(_hotkeyLabel = new Label("", true, 0x35, 0, 1, FontStyle.BlackBorder)
+                { X = 2, Y = 0, AcceptMouseInput = false });
 
                 ContextMenu = new ContextMenuControl();
                 ContextMenu.Add(ResGumps.UseObject, Use);
                 ContextMenu.Add(ResGumps.Remove, RemoveItem);
                 ContextMenu.Add("Set spell", GenSpellList());
+                ContextMenu.Add("Assign shortcut", () => ActionShortcutGump.Open(CellAction()));
+                ContextMenu.Add("Show shortcut labels", () =>
+                    ProfileManager.CurrentProfile.CounterBarShowHotkeys = !ProfileManager.CurrentProfile.CounterBarShowHotkeys);
             }
 
             public ushort Graphic { get; private set; }
 
             public ushort Hue { get; private set; }
 
-            public int SpellID { get; set; }
+            private int _spellId;
+            public int SpellID
+            {
+                get => _spellId;
+                set { _spellId = value; if (value != 0) Action = null; SetTooltip((string)null); }
+            }
+
+            private ClientAction CellAction()
+            {
+                if (_cellAction != null) return _cellAction;
+                int index = Array.IndexOf((Parent as CounterBarGump)?.GetControls<CounterItem>() ?? Array.Empty<CounterItem>(), this);
+                return index < 0 ? null : _cellAction = new ClientAction(ClientActionKind.CounterCell, index, "Counter cell " + (index + 1));
+            }
+
+            internal void SetAction(ClientAction action)
+            {
+                SpellID = 0;
+                Action = action;
+                ushort icon = 0x082C;
+                if (action.Kind == ClientActionKind.PrimaryAbility || action.Kind == ClientActionKind.SecondaryAbility)
+                {
+                    int ability = ((byte)World.Player.Abilities[action.Kind == ClientActionKind.PrimaryAbility ? 0 : 1] & 0x7F) - 1;
+                    if (ability >= 0 && ability < AbilityData.Abilities.Length) icon = AbilityData.Abilities[ability].Icon;
+                }
+                else if (action.Kind == ClientActionKind.Macro)
+                    icon = MacroManager.TryGetMacroManager()?.FindMacro(action.Name)?.Graphic ?? icon;
+                SetGraphic(icon, 0, true);
+                SetTooltip(action.Name);
+            }
+
+            protected override void OnMouseDown(int x, int y, MouseButtonType button)
+            {
+                if (button == MouseButtonType.Right && !Keyboard.Alt)
+                {
+                    ContextMenu = new ContextMenuControl();
+                    ContextMenu.Add(ResGumps.UseObject, Use);
+                    ContextMenu.Add(ResGumps.Remove, RemoveItem);
+                    ContextMenu.Add("Set spell", GenSpellList());
+                    var skills = new List<ContextMenuItemEntry>();
+                    foreach (Skill skill in World.Player.Skills.Where(skill => skill?.IsClickable == true))
+                        skills.Add(new ContextMenuItemEntry(skill.Name, () => SetAction(new ClientAction(ClientActionKind.Skill, skill.Index, skill.Name))));
+                    ContextMenu.Add("Set skill", skills);
+                    ContextMenu.Add("Primary ability", () => SetAction(new ClientAction(ClientActionKind.PrimaryAbility, 0, "Primary weapon ability")));
+                    ContextMenu.Add("Secondary ability", () => SetAction(new ClientAction(ClientActionKind.SecondaryAbility, 0, "Secondary weapon ability")));
+                    var macros = new List<ContextMenuItemEntry>();
+                    foreach (Macro macro in MacroManager.TryGetMacroManager().GetAllMacros().Where(m => !(m.Items is MacroObjectString first && first.Code == MacroType.ContextAction)))
+                        macros.Add(new ContextMenuItemEntry(macro.Name, () => SetAction(new ClientAction(ClientActionKind.Macro, 0, macro.Name))));
+                    ContextMenu.Add("Set macro", macros);
+                    var loadouts = new List<ContextMenuItemEntry>();
+                    foreach (string name in QuickLoadoutManager.Names)
+                        loadouts.Add(new ContextMenuItemEntry(name, () => SetAction(new ClientAction(ClientActionKind.Loadout, 0, name))));
+                    ContextMenu.Add("Set loadout", loadouts);
+                    ContextMenu.Add("Assign shortcut", () => ActionShortcutGump.Open(CellAction()));
+                    ContextMenu.Add("Show shortcut labels", () => ProfileManager.CurrentProfile.CounterBarShowHotkeys = !ProfileManager.CurrentProfile.CounterBarShowHotkeys);
+                }
+                base.OnMouseDown(x, y, button);
+            }
 
             public void SetGraphic(ushort graphic, ushort hue, bool isGumpIcon = false)
             {
+                if (Graphic != graphic || Hue != hue || IsGumpIcon != isGumpIcon) _lastDisplayedAmount = -1;
+                IsGumpIcon = isGumpIcon;
                 _image.ChangeGraphic(graphic, hue, isGumpIcon);
+                if (Action != null) _image.SetAmount(Action.Name.Substring(0, Math.Min(3, Action.Name.Length)));
 
                 if (graphic == 0)
                 {
@@ -514,10 +582,17 @@ namespace ClassicUO.Game.UI.Gumps
                 _lastDisplayedAmount = -1;
                 Graphic = 0;
                 SpellID = default;
+                Action = null;
+                SetTooltip((string)null);
+                _image.SetAmount(string.Empty);
             }
 
             public void Use()
             {
+                if (!World.InGame || World.Player == null) return;
+                if (Graphic != 0 && ProfileManager.CurrentProfile.CounterBarHighlightOnUse)
+                { _highlight = true; _endHighlight = Time.Ticks + HIGHLIGHT_DURATION; }
+                if (Action != null) { Action.Execute(); return; }
                 if (Graphic == 0)
                 {
                     return;
@@ -641,6 +716,7 @@ namespace ClassicUO.Game.UI.Gumps
                         }
                     if (Client.Game.GameCursor.ItemHold.Enabled)
                     {
+                        SpellID = 0; Action = null;
                         SetGraphic(
                             Client.Game.GameCursor.ItemHold.Graphic,
                             Client.Game.GameCursor.ItemHold.Hue
@@ -690,6 +766,22 @@ namespace ClassicUO.Game.UI.Gumps
                 if (Parent != null && Parent.IsEnabled && _time < Time.Ticks)
                 {
                     _time = Time.Ticks + 100;
+                    ClientAction cell = ProfileManager.CurrentProfile.CounterBarShowHotkeys ? CellAction() : null;
+                    Macro shortcut = cell == null ? null : MacroManager.TryGetMacroManager()?.FindMacro(cell.ShortcutName);
+                    string key = ActionShortcutGump.BindingLabel(shortcut);
+                    if (_lastHotkey != key) { _hotkeyLabel.Text = _lastHotkey = key; }
+                    if (Action != null)
+                    {
+                        if (Action.Kind == ClientActionKind.PrimaryAbility || Action.Kind == ClientActionKind.SecondaryAbility)
+                        {
+                            int slot = Action.Kind == ClientActionKind.PrimaryAbility ? 0 : 1;
+                            int ability = ((byte)World.Player.Abilities[slot] & 0x7F) - 1;
+                            if (ability >= 0 && ability < AbilityData.Abilities.Length && Graphic != AbilityData.Abilities[ability].Icon)
+                                SetGraphic(AbilityData.Abilities[ability].Icon, 0, true);
+                            _image.SetAmount(((byte)World.Player.Abilities[slot] & 0x80) != 0 ? "ON" : "");
+                        }
+                        return;
+                    }
                     if (SpellID != default)
                     {
                         if (Tooltip == null)
@@ -747,7 +839,7 @@ namespace ClassicUO.Game.UI.Gumps
                         ? Color.Yellow
                         : ProfileManager.CurrentProfile.CounterBarHighlightOnAmount
                         && _amount < ProfileManager.CurrentProfile.CounterBarHighlightAmount
-                        && Graphic != 0
+                        && Graphic != 0 && Action == null && SpellID == 0
                             ? Color.Red
                             : CustomGumpThemeManager.CompactBorderColor
                 );

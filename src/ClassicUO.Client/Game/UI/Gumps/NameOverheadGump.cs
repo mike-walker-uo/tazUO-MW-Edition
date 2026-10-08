@@ -625,6 +625,49 @@ namespace ClassicUO.Game.UI.Gumps
             new Dictionary<(int X, int Y), List<int>>();
         private const int PLACEMENT_CELL_SHIFT = 7; // 128-pixel cells
         private static uint _placementTick;
+        private static readonly List<NameOverheadGump> _layoutOrder = new();
+        private bool _framePlaced;
+        private Point _framePosition, _frameAnchor;
+        private int _frameHeight;
+        private bool _frameMobile, _frameValid;
+        private double _frameHp;
+        private static int PlacementPriority(NameOverheadGump gump)
+        {
+            if (gump._positionLocked) return -1;
+            if (gump.LocalSerial == TargetManager.LastTargetInfo.Serial) return 0;
+            if (SelectedObject.Object is Entity entity && entity.Serial == gump.LocalSerial
+                || UIManager.MouseOverControl?.RootParent == gump) return 1;
+            if (World.Party.Contains(gump.LocalSerial)) return 2;
+            return 3;
+        }
+        internal static void PreparePlacements()
+        {
+            _placedNameplates.Clear(); _layoutOrder.Clear();
+            // Resize/profile changes can otherwise retain off-screen cell keys indefinitely.
+            if (_placementCells.Count > 4096) _placementCells.Clear();
+            else foreach (var indices in _placementCells.Values) indices.Clear();
+            _placementTick = Time.Ticks;
+            foreach (Gump gump in UIManager.Gumps)
+                if (gump is NameOverheadGump plate)
+                {
+                    plate._framePlaced = false;
+                    if (!plate.IsDisposed) _layoutOrder.Add(plate);
+                }
+            if (!World.InGame || ProfileManager.CurrentProfile?.NamePlateAvoidOverlap != true) return;
+            _layoutOrder.Sort((a, b) =>
+            {
+                int priority = PlacementPriority(a).CompareTo(PlacementPriority(b));
+                return priority != 0 ? priority : a.LocalSerial.CompareTo(b.LocalSerial);
+            });
+            foreach (NameOverheadGump plate in _layoutOrder)
+            {
+                plate._frameValid = plate.TryGetAnchor(out plate._frameAnchor, out plate._frameHeight, out plate._frameMobile, out plate._frameHp);
+                plate._framePlaced = true;
+                if (plate._frameValid)
+                    plate._framePosition = plate.AdjustPositionToAvoidOverlap(plate._frameAnchor.X, plate._frameAnchor.Y, plate._frameHeight, Client.Game.Scene.Camera.Bounds);
+            }
+        }
+
 
         private static bool IntersectsPlacedNameplate(Rectangle bounds, uint serial)
         {
@@ -678,9 +721,15 @@ namespace ClassicUO.Game.UI.Gumps
                 _placementTick = Time.Ticks;
             }
 
-            int stepX = Math.Max(32, (Width + COLLISION_SPACING) / 2);
-            int stepY = layoutHeight + COLLISION_SPACING;
-            for (int ring = 0; ring <= 8; ring++)
+            if (_positionLocked)
+            {
+                RememberPlacement(new Rectangle(originalX, originalY, Width, layoutHeight));
+                return new Point(originalX, originalY);
+            }
+
+            int stepX = Math.Min(48, Math.Max(24, (Width + COLLISION_SPACING) / 2));
+            int stepY = Math.Min(40, layoutHeight + COLLISION_SPACING);
+            for (int ring = 0; ring <= 3; ring++)
             {
                 for (int row = -ring; row <= ring; row++)
                 {
@@ -770,15 +819,12 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        private bool TryGetAnchor(out Point anchor, out int layoutHeight, out bool _isMobile, out double _hpPercent)
         {
-            if (IsDisposed)
-            {
-                return false;
-            }
-
-            bool _isMobile = false;
-            double _hpPercent = 1;
+            anchor = default; layoutHeight = Height;
+            int x = 0, y = 0;
+            _isMobile = false;
+            _hpPercent = 1;
             IsVisible = true;
             if (SerialHelper.IsMobile(LocalSerial))
             {
@@ -794,7 +840,7 @@ namespace ClassicUO.Game.UI.Gumps
                 if (!MatchesSearch(m))
                 {
                     IsVisible = false;
-                    return true;
+                    return false;
                 }
 
                 _isMobile = true;
@@ -871,7 +917,7 @@ namespace ClassicUO.Game.UI.Gumps
                 if (!MatchesSearch(item))
                 {
                     IsVisible = false;
-                    return true;
+                    return false;
                 }
 
                 var bounds = Client.Game.Arts.GetRealArtBounds(item.Graphic);
@@ -882,8 +928,6 @@ namespace ClassicUO.Game.UI.Gumps
                     + (int)(item.Offset.Y - item.Offset.Z)
                     + (bounds.Height >> 1);
             }
-
-            Vector3 hueVector = ShaderHueTranslator.GetHueVector(0);
 
             Point p = Client.Game.Scene.Camera.WorldToScreen(new Point(x, y));
             x = p.X - (Width >> 1);
@@ -903,7 +947,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
-            int layoutHeight = Height;
+            layoutHeight = Height;
             if (ProfileManager.CurrentProfile.NamePlateHealthBar && _isMobile)
             {
                 Mobile mobile = World.Mobiles.Get(LocalSerial);
@@ -911,7 +955,31 @@ namespace ClassicUO.Game.UI.Gumps
                     layoutHeight += 20;
             }
 
-            var adjustedPos = AdjustPositionToAvoidOverlap(x, y, layoutHeight, camera.Bounds);
+            anchor = new Point(x, y);
+            return true;
+        }
+
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            if (IsDisposed || !World.InGame || ProfileManager.CurrentProfile == null) return false;
+
+            Point anchor; int layoutHeight; bool _isMobile; double _hpPercent;
+            if (_placementTick == Time.Ticks && _framePlaced)
+            {
+                if (!_frameValid) return false;
+                anchor = _frameAnchor; layoutHeight = _frameHeight; _isMobile = _frameMobile; _hpPercent = _frameHp;
+            }
+            else if (!TryGetAnchor(out anchor, out layoutHeight, out _isMobile, out _hpPercent)) return false;
+            x = anchor.X; y = anchor.Y;
+            var camera = Client.Game.Scene.Camera;
+            Vector3 hueVector = ShaderHueTranslator.GetHueVector(0);
+            var adjustedPos = _placementTick == Time.Ticks && _framePlaced
+                ? _framePosition : AdjustPositionToAvoidOverlap(x, y, layoutHeight, camera.Bounds);
+            if (!_positionLocked && adjustedPos != anchor)
+                batcher.DrawLine(SolidColorTextureCache.GetTexture(Color.Gray),
+                    new Vector2(anchor.X + Width / 2, anchor.Y + Height),
+                    new Vector2(adjustedPos.X + Width / 2, adjustedPos.Y + Height),
+                    ShaderHueTranslator.GetHueVector(0, false, 0.65f), 1);
             x = adjustedPos.X;
             y = adjustedPos.Y;
 

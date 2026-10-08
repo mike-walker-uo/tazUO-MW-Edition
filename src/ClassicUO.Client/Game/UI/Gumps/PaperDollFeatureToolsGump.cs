@@ -105,6 +105,12 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void OnButtonClick(int buttonID)
         {
+            string command = ShortcutCommand(buttonID);
+            if (Keyboard.Ctrl && Keyboard.Shift && command != null)
+            {
+                ActionShortcutGump.Open(new ClientAction(ClientActionKind.ClientCommand, 0, command));
+                return;
+            }
             switch (buttonID)
             {
                 case 10: Open<CommandPaletteGump>(() => new CommandPaletteGump()); break;
@@ -181,11 +187,20 @@ namespace ClassicUO.Game.UI.Gumps
                 HoverOverlayColor = Color.White,
                 HoverOverlayAlpha = 0.25f
             };
+            string command = ShortcutCommand(id);
+            if (command != null)
+                button.SetTooltip((tooltip ?? text) + "\nCtrl+Shift+click to assign a shortcut.");
             CustomGumpThemeManager.StyleButton(button);
-            if (!string.IsNullOrEmpty(tooltip))
+            if (command == null && !string.IsNullOrEmpty(tooltip))
                 button.SetTooltip(tooltip);
             return button;
         }
+
+        private static string ShortcutCommand(int id) =>
+            id == 1 ? "worldexplorer" : id == 2 ? "itemfinder" : id == 3 ? "alertcenter" :
+            id == 4 ? "restock" : id == 5 ? "equipmentguru" : id == 11 ? "gumpthemes" :
+            id == 12 ? "musicplayer" : id == 13 ? "perfhud" : id == 17 ? "globalchat" :
+            id == 18 ? "guildchat" : id == 19 ? "nearbychat" : null;
 
         internal static void Open<T>(System.Func<T> factory) where T : Gump
         {

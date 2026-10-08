@@ -9,6 +9,9 @@ namespace ClassicUO.Configuration
         public int Slot { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CustomName { get; set; } = string.Empty;
+        public string SourceName { get; set; } = string.Empty;
+        public ushort? ObservedHue { get; set; }
+        public long LastScannedUtcTicks { get; set; }
         public string Phrase { get; set; } = string.Empty;
     }
 }

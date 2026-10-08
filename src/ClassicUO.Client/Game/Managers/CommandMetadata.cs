@@ -106,6 +106,7 @@ namespace ClassicUO.Game.Managers
             { "worldexplorer",  new Entry { Category="Map/Markers", Description="Scan rune books and pin quick travel destinations.", Usage="" } },
             { "itemfinder",     new Entry { Category="UI", Description="Scan reachable containers and search the accumulated catalog with ALL, NOT, and count logic.", Usage="[*] [name/type] [hci>=10] [not:cursed|not:hci>=10] [2of(hci>=10,di>=20,ssi>=10)]" } },
             { "equipmentguru", new Entry { Category="UI", Description="Analyze real skills and equipped totals, then recommend target-driven loadouts from the Item Finder catalog.", Usage="" } },
+            { "operations",    new Entry { Category="Loot", Description="View queued move, organize and restock progress; cancel unsent requests.", Usage="" } },
             { "restock",       new Entry { Category="Loot", Description="Open the Restock Agent or run it immediately.", Usage="[run]" } },
             { "readycheck",    new Entry { Category="Loot", Description="Check supplies, equipped-layer baseline, durability, weight, and backpack capacity.", Usage="" } },
             { "chess",         new Entry { Category="Games", Description="Play chess against Stockfish or a local player.", Usage="[path <stockfish.exe>]" } },

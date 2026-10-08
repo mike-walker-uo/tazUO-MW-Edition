@@ -47,6 +47,14 @@ namespace ClassicUO.Game.UI.Gumps
             Slider("Weather camera shake", 0, 100, _visual.WeatherShake, n => _visual.WeatherShake = n, 2);
             Check("Anchor fog to the world", _visual.WorldAnchoredFog, b => _visual.WorldAnchoredFog = b, 2);
             Check("Blend regional ambience sound beds", _visual.RegionalSoundBeds, b => _visual.RegionalSoundBeds = b, 2);
+            _pageContent[2].Add(new ComboBoxWithLabel("Regional soundscape", 170, 285, RegionalSoundscapes.Names,
+                RegionalSoundscapes.Normalize(_visual.RegionalSoundscape), (n, _) => { _visual.RegionalSoundscape = (byte)n; RegionalAmbience.Reset(); }, true), 2);
+            Note("Classic UO preserves the original bed palette. Wilderness adds swamp frogs and desert wind; Quiet lowers gain and lengthens pauses. Uses your installed UO sounds; no downloads or redistributed audio.", 2);
+            Check("Use optional local regional ambience pack", _visual.LocalSoundscapePack, b => _visual.LocalSoundscapePack = b, 2);
+            Text("Soundscape pack folder", _visual.SoundscapePackFolder, s => _visual.SoundscapePackFolder = s, 2);
+            Action("Reload soundscape pack", () => LocalSoundscapePack.Reload(), 2);
+            Action("Show pack name, license and load result", () => GameActions.Print(LocalSoundscapePack.Status, 0x35), 2);
+            Note("manifest.json declares name, license and region WAV paths. PCM16 mono / 22050 Hz / up to 30 s each. Invalid or missing regions retain native UO sounds. Combat cues are unchanged.", 2);
             Check("Seasonal petals, leaves and frost", _visual.SeasonalDetails, b => _visual.SeasonalDetails = b, 2);
             int map = World.MapIndex;
             Slider("Seasonal particle intensity on this map", 0, 200, (int)(VisualBudget.MapDensity * 100), n => _visual.MapParticleIntensity[map] = n, 2);

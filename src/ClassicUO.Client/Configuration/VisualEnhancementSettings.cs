@@ -31,6 +31,9 @@ namespace ClassicUO.Configuration
         public int WeatherShake { get; set; } = 100;
         public bool WorldAnchoredFog { get; set; } = true;
         public bool RegionalSoundBeds { get; set; } = true;
+        public byte RegionalSoundscape { get; set; }
+        public bool LocalSoundscapePack { get; set; }
+        public string SoundscapePackFolder { get; set; } = "";
         public bool SeasonalDetails { get; set; } = true;
         public Dictionary<int, int> MapParticleIntensity { get; set; } = new Dictionary<int, int>();
         public Dictionary<string, EffectDetailSettings> Effects { get; set; } = new Dictionary<string, EffectDetailSettings>();

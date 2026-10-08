@@ -1,4 +1,4 @@
-#region license
+﻿#region license
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
@@ -106,6 +106,7 @@ namespace ClassicUO.Configuration
         public int WorldExplorerCompactWidth { get; set; } = 180;
         public int WorldExplorerCompactHeight { get; set; }
         public byte WorldExplorerCompactColumns { get; set; } = 1;
+        public Dictionary<string, string> WorldExplorerPreferredSources { get; set; } = new Dictionary<string, string>();
         public List<WorldExplorerPin> WorldExplorerPins { get; set; } = new List<WorldExplorerPin>();
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
@@ -190,6 +191,7 @@ namespace ClassicUO.Configuration
         // visual
         public bool EnabledCriminalActionQuery { get; set; } = true;
         public bool EnabledBeneficialCriminalActionQuery { get; set; } = false;
+        public int StatusLayout { get; set; }
         public bool UseOldStatusGump { get; set; }
         public int BackpackStyle { get; set; }
         public bool HighlightGameObjects { get; set; }
@@ -358,6 +360,8 @@ namespace ClassicUO.Configuration
         public bool ShowInfoBar { get; set; }
         public int InfoBarHighlightType { get; set; } // 0 = text colour changes, 1 = underline
 
+        public bool GroundDropPreview { get; set; }
+        public bool CounterBarShowHotkeys { get; set; }
         public bool CounterBarEnabled { get; set; }
         public bool CounterBarHighlightOnUse { get; set; }
         public bool CounterBarHighlightOnAmount { get; set; }
@@ -459,6 +463,7 @@ namespace ClassicUO.Configuration
         public bool WorldMapShowGroupBar { get; set; } = true;
         public bool WorldMapShowMarkers { get; set; } = true;
         public bool WorldMapShowMarkersNames { get; set; } = true;
+        public bool WorldMapMarkerNamesAtAnyZoom { get; set; }
         public bool WorldMapShowMultis { get; set; } = true;
         public string WorldMapHiddenMarkerFiles { get; set; } = string.Empty;
         public string WorldMapHiddenZoneFiles { get; set; } = string.Empty;
@@ -489,6 +494,9 @@ namespace ClassicUO.Configuration
 
         #region GRID CONTAINER
         public bool UseGridLayoutContainerGumps { get; set; } = true;
+        public GridSectionsConfig BackpackSections { get; set; } = new GridSectionsConfig();
+        public GridSectionsConfig CorpseSections { get; set; } = new GridSectionsConfig();
+        public GridSectionsConfig ContainerSections { get; set; } = new GridSectionsConfig();
         public bool GridContainersDefaultToOldStyleView { get; set; } = false;
         public int GridContainerSearchMode { get; set; } = 1;
         public bool EnableGridContainerAnchor { get; set; } = false;
@@ -514,6 +522,13 @@ namespace ClassicUO.Configuration
         public List<string> Condition_Trigger { get; set; } = new List<string>();
         public List<int> Condition_Type { get; set; } = new List<int>();
         public List<bool> Condition_ReplaceIfExists { get; set; } = new List<bool>();
+        public List<bool> Condition_KeepExisting { get; set; } = new List<bool>();
+        public List<string> Condition_Ids { get; set; } = new List<string>();
+        internal void EnsureCooldownRuleIds()
+        {
+            while (Condition_Ids.Count < CoolDownConditionCount)
+                Condition_Ids.Add(Guid.NewGuid().ToString("N"));
+        }
         public int CoolDownConditionCount
         {
             get

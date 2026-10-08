@@ -109,6 +109,13 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
+        internal void SetMaxWidth(int width)
+        {
+            if (_gText.MaxWidth == width) return;
+            _gText.MaxWidth = width; _gText.CreateTexture();
+            Width = _gText.Width; Height = _gText.Height;
+        }
+
         internal void SetFontStyle(FontStyle style)
         {
             if (_gText.FontStyle == style)

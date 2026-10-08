@@ -339,10 +339,10 @@ namespace ClassicUO.Game.Managers
 
 
             // Move matching items to target bag using MoveItemQueue
+            QueuedOperation operation = itemsToMove.Count > 0 ? QueuedOperations.Begin("Organizer: " + config.Name) : null;
             foreach (var itemToMove in itemsToMove)
-            {
-                MoveItemQueue.Instance?.Enqueue(itemToMove.Item.Serial, destCont.Serial, itemToMove.Amount, 0xFFFF, 0xFFFF, 0);
-            }
+                MoveItemQueue.Instance?.EnqueueTracked(itemToMove.Item.Serial, destCont.Serial, itemToMove.Amount, 0xFFFF, 0xFFFF, 0, operation);
+            if (operation != null) operation.SubmissionComplete = true;
 
             if (itemsToMove.Count > 0)
             {

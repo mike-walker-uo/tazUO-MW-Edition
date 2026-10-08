@@ -500,6 +500,7 @@ namespace ClassicUO.Game.Managers
         {
             using var coordinates = Mouse.ForInterface();
             SortControlsByInfo();
+            NameOverheadGump.PreparePlacements();
             float renderScale = InterfaceRenderScale;
             batcher.Begin(null, Matrix.CreateScale(renderScale));
 

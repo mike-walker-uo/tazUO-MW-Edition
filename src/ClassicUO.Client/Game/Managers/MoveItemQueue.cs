@@ -20,8 +20,13 @@ namespace ClassicUO.Game.Managers
             Instance = this;
         }
 
-        public void Enqueue(uint serial, uint destination, ushort amt = 0, int x = 0xFFFF, int y = 0xFFFF, int z = 0)
+        public void Enqueue(uint serial, uint destination, ushort amt = 0, int x = 0xFFFF, int y = 0xFFFF, int z = 0) =>
+            EnqueueTracked(serial, destination, amt, x, y, z, null);
+
+        internal void EnqueueTracked(uint serial, uint destination, ushort amt, int x, int y, int z, QueuedOperation operation)
         {
+            if (operation?.Cancelled == true) return;
+            if (operation != null) operation.Total++;
             if(amt == 0)
             {
                 Item i = World.Items.Get(serial);
@@ -32,7 +37,7 @@ namespace ClassicUO.Game.Managers
                     amt = 1;
             }
 
-            _queue.Enqueue(new MoveRequest(serial, destination, amt, x, y, z));
+            _queue.Enqueue(new MoveRequest(serial, destination, amt, x, y, z, operation: operation));
             _isEmpty = false;
         }
 
@@ -70,18 +75,27 @@ namespace ClassicUO.Game.Managers
 
         public void ProcessQueue()
         {
-            if (_isEmpty)
-                return;
+            if (_isEmpty) return;
+            int discarded = 0;
+            while (_queue.TryPeek(out var cancelled) && cancelled.Operation?.Cancelled == true && discarded < 256)
+            { _queue.TryDequeue(out _); discarded++; }
+            _isEmpty = _queue.IsEmpty;
+            if (_isEmpty || discarded == 256) return;
 
             if (GlobalActionCooldown.IsOnCooldown)
-                return;
+            { SetWaiting("Waiting for object delay"); return; }
 
             if (Client.Game.GameCursor.ItemHold.Enabled)
-                return;
+            { SetWaiting("Waiting: cursor is holding an item"); return; }
 
             if (!_queue.TryDequeue(out var request))
                 return;
 
+            if (request.Operation?.Cancelled == true)
+            { _isEmpty = _queue.IsEmpty; return; }
+            Item live = World.Items.Get(request.Serial);
+            if (request.Operation != null && (live == null || live.IsDestroyed))
+            { request.Operation.Skipped++; _isEmpty = _queue.IsEmpty; return; }
             AsyncNetClient.Socket.Send_PickUpRequest(request.Serial, request.Amount);
 
             if(request.Destination != uint.MaxValue)
@@ -93,19 +107,25 @@ namespace ClassicUO.Game.Managers
                 AsyncNetClient.Socket.Send_EquipRequest(request.Serial, request.Layer, World.Player);
             }
 
+            if (request.Operation != null)
+            { request.Operation.Sent++; request.Operation.Detail = "Request sent; waiting for next slot"; }
             GlobalActionCooldown.BeginCooldown();
             _isEmpty = _queue.IsEmpty;
         }
 
+        private void SetWaiting(string reason)
+        {
+            if (_queue.TryPeek(out var request) && request.Operation != null && !request.Operation.Cancelled)
+                request.Operation.Detail = reason;
+        }
+
         public void Clear()
         {
-            while (_queue.TryDequeue(out var _))
-            {
-            }
+            while (_queue.TryDequeue(out var request)) request.Operation?.Cancel();
             _isEmpty = true;
         }
 
-        private readonly struct MoveRequest(uint serial, uint destination, ushort amount, int x, int y, int z, Layer layer = Layer.Invalid)
+        private readonly struct MoveRequest(uint serial, uint destination, ushort amount, int x, int y, int z, Layer layer = Layer.Invalid, QueuedOperation operation = null)
         {
             public uint Serial { get; } = serial;
             public uint Destination { get; } = destination;
@@ -115,6 +135,7 @@ namespace ClassicUO.Game.Managers
             public int Z { get; } = z;
 
             public Layer Layer { get; } = layer;
+            internal QueuedOperation Operation { get; } = operation;
         }
     }
 }

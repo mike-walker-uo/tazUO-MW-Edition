@@ -1891,6 +1891,7 @@ namespace ClassicUO.Network
                                     World.RemoveItemFromContainer(item);
                                     container.PushToBack(item);
                                     item.Container = container.Serial;
+                                    InventoryCounts.NotifyChanged(item);
 
                                     UIManager.GetGump<PaperDollGump>(item.Container)?.RequestUpdateContents();
                                     UIManager.GetGump<ModernPaperdoll>(item.Container)?.RequestUpdateContents();
@@ -2080,6 +2081,8 @@ namespace ClassicUO.Network
             Entity entity = World.Get(item.Container);
 
             entity?.PushToBack(item);
+            ItemFinderManager.NotifyItemUpdated(item);
+            InventoryCounts.NotifyChanged(item);
 
             if (item.Layer == Layer.Mount && entity is Mobile mob)
             {
@@ -3229,6 +3232,7 @@ namespace ClassicUO.Network
                 item.CheckGraphicChange();
 
                 obj.PushToBack(item);
+                InventoryCounts.NotifyChanged(item);
 
                 itemSerial = p.ReadUInt32BE();
             }
@@ -6489,6 +6493,8 @@ namespace ClassicUO.Network
             }
 
             container.PushToBack(item);
+            ItemFinderManager.NotifyItemUpdated(item);
+            InventoryCounts.NotifyChanged(item);
 
             if (SerialHelper.IsMobile(containerSerial))
             {

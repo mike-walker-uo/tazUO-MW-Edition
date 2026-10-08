@@ -89,7 +89,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (cliloc != 0)
             {
-                SetTooltip(ClilocLoader.Instance.GetString(cliloc), 80);
+                SetTooltip(ClilocLoader.Instance.GetString(cliloc) + "\nCtrl+Shift+click: assign shortcut", 80);
             }
 
             if (ProfileManager.CurrentProfile.SpellIcon_DisplayHotkey)
@@ -233,6 +233,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
+            if (button == MouseButtonType.Left && Keyboard.Ctrl && Keyboard.Shift)
+            { ActionShortcutGump.Open(new ClientAction(ClientActionKind.Spell, _spell.ID, _spell.Name)); return; }
             base.OnMouseUp(x, y, button);
 
             Point offset = Mouse.LDragOffset;
@@ -264,6 +266,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
+            if (Keyboard.Ctrl && Keyboard.Shift) return true;
             if (
                 !ProfileManager.CurrentProfile.CastSpellsByOneClick
                 && button == MouseButtonType.Left

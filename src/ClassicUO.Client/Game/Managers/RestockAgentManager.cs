@@ -64,6 +64,7 @@ namespace ClassicUO.Game.Managers
         internal static RestockSettings Settings { get; private set; } = new RestockSettings();
         internal static IReadOnlyList<RestockPreset> Presets => _presets;
         internal static IReadOnlyList<RestockLoadout> Loadouts => Settings.Loadouts;
+        private static QueuedOperation _operation;
         private static bool _verificationPending;
         private static long _verifyAt;
         private static int _verificationRetries;
@@ -186,6 +187,7 @@ namespace ClassicUO.Game.Managers
         {
             Save();
             Settings = new RestockSettings();
+            _operation?.Cancel(); _operation = null;
             _verificationPending = false;
             _verificationRetries = 0;
             _verifyAt = 0;
@@ -369,71 +371,48 @@ namespace ClassicUO.Game.Managers
         internal static int CountInBackpack(RestockEntry entry)
         {
             Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
-            return backpack == null ? 0 : CountRecursive(backpack, entry);
+            return CountRecursive(backpack, entry);
         }
 
         internal static int CountInTarget(RestockEntry entry)
         {
             Item target = ResolveTarget(entry);
-            return target == null ? 0 : CountRecursive(target, entry);
+            return CountRecursive(target, entry);
         }
 
         internal static int CountInSources(RestockEntry entry)
         {
             int count = 0;
             var seen = new HashSet<uint>();
-
             foreach (Item source in GetLoadedSources())
-            {
-                count += CountRecursive(source, entry, seen);
-            }
-
+                foreach (var item in InventoryCounts.Get(source).Items)
+                    if (seen.Add(item.Item.Serial) && entry.IsMatch(item.Item)) count += item.Units;
             return count;
         }
 
         internal static RestockCountSnapshot CreateCountSnapshot(IEnumerable<RestockEntry> entries)
         {
             var snapshot = new RestockCountSnapshot();
-            List<RestockEntry> list = entries?.Where(entry => entry != null).ToList()
-                ?? new List<RestockEntry>();
+            List<RestockEntry> list = entries?.Where(entry => entry != null).ToList() ?? new List<RestockEntry>();
             foreach (RestockEntry entry in list)
             {
-                snapshot.Target[entry] = 0;
+                snapshot.Target[entry] = CountInTarget(entry);
                 snapshot.Source[entry] = 0;
             }
-
-            foreach (IGrouping<uint, RestockEntry> group in list.GroupBy(entry =>
-                ResolveTarget(entry)?.Serial ?? 0))
-            {
-                Item target = World.Items.Get(group.Key);
-                if (target != null) CountAllRecursive(target, group.ToList(), snapshot.Target,
-                    new HashSet<uint>());
-            }
-
-            var sourceSeen = new HashSet<uint>();
+            var seen = new HashSet<uint>();
             foreach (Item source in GetLoadedSources())
-                CountAllRecursive(source, list, snapshot.Source, sourceSeen);
+                foreach (var item in InventoryCounts.Get(source).Items)
+                {
+                    if (!seen.Add(item.Item.Serial)) continue;
+                    foreach (RestockEntry entry in list)
+                        if (entry.IsMatch(item.Item))
+                            snapshot.Source[entry] += item.Units;
+                }
             return snapshot;
         }
 
-        private static void CountAllRecursive(Item parent, List<RestockEntry> entries,
-            Dictionary<RestockEntry, int> counts, HashSet<uint> seen)
-        {
-            for (var node = parent.Items; node != null; node = node.Next)
-            {
-                if (!(node is Item item) || item.IsDestroyed || !seen.Add(item.Serial)) continue;
-                int amount = item.ItemData.IsStackable ? Math.Max(1, (int)item.Amount) : 1;
-                foreach (RestockEntry entry in entries)
-                    if (entry.IsMatch(item)) counts[entry] += amount;
-                if (!item.IsEmpty) CountAllRecursive(item, entries, counts, seen);
-            }
-        }
-
-        internal static int CountBackpackItems()
-        {
-            Item backpack = World.Player?.FindItemByLayer(Layer.Backpack);
-            return backpack == null ? 0 : CountItemsRecursive(backpack);
-        }
+        internal static int CountBackpackItems() =>
+            InventoryCounts.Get(World.Player?.FindItemByLayer(Layer.Backpack)).ItemCount;
 
         internal static int CaptureEquipmentBaseline()
         {
@@ -606,8 +585,13 @@ namespace ClassicUO.Game.Managers
                 GameActions.Print("Restock: item move queue is unavailable.", 0x21);
                 return false;
             }
+            if (_operation != null && !_operation.Finished && !verificationRetry)
+            { GameActions.Print("Restock is already queued. Use Queued Actions to cancel it.", 0x35); return false; }
+            if (!verificationRetry) _operation = QueuedOperations.Begin("Restock", () => { _verificationPending = false; _verificationRetries = 0; });
             foreach (PlannedMove move in plan.Moves)
-                MoveItemQueue.Instance.Enqueue(move.Item, move.Target, move.Amount, 0xFFFF, 0xFFFF, 0);
+                MoveItemQueue.Instance.EnqueueTracked(move.Item, move.Target, move.Amount, 0xFFFF, 0xFFFF, 0, _operation);
+            _operation.SubmissionComplete = true;
+            _operation.Verified = false; _operation.Result = null;
             int queuedUnits = plan.Units;
             int completedEntries = plan.CompletedEntries;
             int activeEntries = plan.ActiveEntries;
@@ -615,6 +599,7 @@ namespace ClassicUO.Game.Managers
             if (queuedUnits > 0)
             {
                 _verificationPending = true;
+                _operation.Verifying = true; _operation.Detail = "Awaiting supply verification";
                 _verifyAt = (long)Time.Ticks + 2000;
                 if (!verificationRetry) _verificationRetries = 1;
                 GameActions.Print(
@@ -624,6 +609,8 @@ namespace ClassicUO.Game.Managers
                 return true;
             }
 
+            _operation.Verified = activeEntries > 0 && completedEntries == activeEntries;
+            _operation.Result = $"Supplies ready: {completedEntries}/{activeEntries}; nothing to move";
             GameActions.Print("Restock: nothing to move. Targets are filled or source is empty.", 0x35);
             return false;
         }
@@ -634,11 +621,14 @@ namespace ClassicUO.Game.Managers
                 || (MoveItemQueue.Instance != null && !MoveItemQueue.Instance.IsEmpty)) return;
 
             _verificationPending = false;
+            if (_operation?.Cancelled == true) return;
+            if (_operation != null) _operation.Verifying = false;
             int active = Settings.Items.Count(entry => entry.DesiredAmount > 0);
             int ready = Settings.Items.Count(entry => entry.DesiredAmount > 0
                 && CountInTarget(entry) >= entry.DesiredAmount);
             if (active > 0 && ready == active)
             {
+                if (_operation != null) { _operation.Detail = "Supplies verified"; _operation.Verified = true; }
                 GameActions.Print($"Restock verified: {ready}/{active} targets ready.", 0x35);
                 return;
             }
@@ -648,10 +638,14 @@ namespace ClassicUO.Game.Managers
                 _verificationRetries--;
                 GameActions.Print($"Restock verification: {ready}/{active} ready; retrying missing items once.", 0x35);
                 if (!Run(true))
+                {
+                    if (_operation != null) _operation.Result = $"Restock incomplete: {ready}/{active} targets ready";
                     GameActions.Print($"Restock incomplete: {ready}/{active} targets ready.", 0x21);
+                }
                 return;
             }
 
+            if (_operation != null) _operation.Result = $"Restock incomplete: {ready}/{active} targets ready after retry";
             GameActions.Print($"Restock incomplete after retry: {ready}/{active} targets ready.", 0x21);
         }
 
@@ -708,53 +702,9 @@ namespace ClassicUO.Game.Managers
 
         private static int CountRecursive(Item parent, RestockEntry entry)
         {
-            return CountRecursive(parent, entry, new HashSet<uint>());
-        }
-
-        private static int CountRecursive(Item parent, RestockEntry entry, HashSet<uint> seen)
-        {
             int count = 0;
-
-            for (var node = parent.Items; node != null; node = node.Next)
-            {
-                if (!(node is Item item) || item.IsDestroyed || !seen.Add(item.Serial))
-                {
-                    continue;
-                }
-
-                if (entry.IsMatch(item))
-                {
-                    count += item.ItemData.IsStackable ? Math.Max(1, (int)item.Amount) : 1;
-                }
-
-                if (!item.IsEmpty)
-                {
-                    count += CountRecursive(item, entry, seen);
-                }
-            }
-
-            return count;
-        }
-
-        private static int CountItemsRecursive(Item parent)
-        {
-            int count = 0;
-
-            for (var node = parent.Items; node != null; node = node.Next)
-            {
-                if (!(node is Item item) || item.IsDestroyed)
-                {
-                    continue;
-                }
-
-                count++;
-
-                if (!item.IsEmpty)
-                {
-                    count += CountItemsRecursive(item);
-                }
-            }
-
+            foreach (var item in InventoryCounts.Get(parent).Items)
+                if (entry.IsMatch(item.Item)) count += item.Units;
             return count;
         }
 

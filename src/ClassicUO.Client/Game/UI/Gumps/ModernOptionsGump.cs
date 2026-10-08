@@ -346,6 +346,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             #endregion
 
+            content.AddToRight(new CheckboxWithLabel("Ground-drop ghost preview", isChecked: profile.GroundDropPreview,
+                valueChanged: value => profile.GroundDropPreview = value), true, page);
+            content.BlankLine();
+
             #region Gumps & Context
 
             page = ((int)PAGE.General + 1002);
@@ -397,6 +401,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
                 (new CheckboxWithLabel(lang.GetGeneral.OldStatusGump, isChecked: profile.UseOldStatusGump, valueChanged: (b) => { profile.UseOldStatusGump = b; }), true, page);
+            content.BlankLine();
+            content.AddToRight(new ComboBoxWithLabel("Status layout", 0, ThemeSettings.COMBO_BOX_WIDTH,
+                new[] { "Full", "Compact horizontal", "Compact vertical" }, Math.Max(0, Math.Min(2, profile.StatusLayout)),
+                (selected, _) => StatusGumpCompact.ChangeLayout(selected)), true, page);
 
             content.BlankLine();
 
@@ -4564,7 +4572,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             main.Add(_message_type);
 
-            InputField _conditionText = new InputField(main.Width - 50, 40, text: data.trigger)
+            InputField _conditionText = new InputField(Math.Max(80, main.Width - 150), 40, text: data.trigger)
             {
                 X = 1,
                 Y = _delete.Height + 5
@@ -4572,14 +4580,16 @@ namespace ClassicUO.Game.UI.Gumps
 
             main.Add(_conditionText);
 
-            CheckboxWithLabel _replaceIfExists = new CheckboxWithLabel(isChecked: data.replace_if_exists)
+            ComboBoxWithLabel _repeatMode = new ComboBoxWithLabel(string.Empty, 0, 140,
+                new[] { "Add another", "Replace existing", "Keep existing" },
+                data.keep_existing ? 2 : data.replace_if_exists ? 1 : 0)
             {
                 X = _conditionText.X + _conditionText.Width + 2,
                 Y = _conditionText.Y + 5
             };
 
-            _replaceIfExists.SetTooltip("Replace any active cooldown of this type with a new one if triggered again.");
-            main.Add(_replaceIfExists);
+            _repeatMode.SetTooltip("When this rule triggers again: add a bar, replace its timer, or keep its running timer.");
+            main.Add(_repeatMode);
 
             ModernButton _save = new ModernButton(0, 1, 40, 40, ButtonAction.Activate, "Save", ThemeSettings.BUTTON_FONT_COLOR);
             _save.X = main.Width - _save.Width;
@@ -4589,7 +4599,7 @@ namespace ClassicUO.Game.UI.Gumps
             _save.MouseUp += (s, e) =>
             {
                 CoolDownBar.CoolDownConditionData.SaveCondition
-                    (key, _hueSelector.Hue, _name.Text, _conditionText.Text, int.Parse(_cooldown.Text), false, _message_type.SelectedIndex, _replaceIfExists.IsChecked);
+                    (key, _hueSelector.Hue, _name.Text, _conditionText.Text, int.Parse(_cooldown.Text), false, _message_type.SelectedIndex, _repeatMode.SelectedIndex == 1, _repeatMode.SelectedIndex == 2);
             };
 
             main.Add(_save);
@@ -4603,7 +4613,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (int.TryParse(_cooldown.Text, out int value))
                 {
-                    CoolDownBarManager.AddCoolDownBar(TimeSpan.FromSeconds(value), _name.Text, _hueSelector.Hue, _replaceIfExists.IsChecked);
+                    CoolDownBarManager.AddCoolDownBar(TimeSpan.FromSeconds(value), _name.Text, _hueSelector.Hue, _repeatMode.SelectedIndex == 1, _repeatMode.SelectedIndex == 2);
                 }
             };
 

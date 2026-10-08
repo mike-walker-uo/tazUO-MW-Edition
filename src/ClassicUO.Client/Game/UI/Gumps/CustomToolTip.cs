@@ -10,6 +10,7 @@ namespace ClassicUO.Game.UI.Gumps
     internal class CustomToolTip : Gump
     {
         private readonly Item item;
+        internal Item ComparedItem => item;
         private Control hoverReference;
         private readonly string prepend;
         private readonly string append;
@@ -18,6 +19,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly uint hue = 0xFFFF;
         private int _loadAttempts;
         private long _nextLoadAttempt;
+        private int _comparisonWidth;
 
         public event FinishedLoadingEvent OnOPLLoaded;
 
@@ -40,6 +42,17 @@ namespace ClassicUO.Game.UI.Gumps
         public void RemoveHoverReference()
         {
             hoverReference = null;
+        }
+
+        internal void SetComparisonWidth(int width)
+        {
+            _comparisonWidth = width;
+            text.Width = width;
+            text.Update();
+            text.Width = System.Math.Min(width, text.MeasuredSize.X + 10);
+            text.Update();
+            Width = text.Width;
+            Height = text.Height;
         }
 
         private static TextBox.RTLOptions ToolTipOptions => new TextBox.RTLOptions() { Align = ProfileManager.CurrentProfile.LeftAlignToolTips ? FontStashSharp.RichText.TextHorizontalAlignment.Left : FontStashSharp.RichText.TextHorizontalAlignment.Center };
@@ -96,6 +109,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                     Height = text.Height;
                     Width = text.Width;
+                    if (_comparisonWidth > 0)
+                        SetComparisonWidth(_comparisonWidth);
                     OnOPLLoaded?.Invoke();
                     _nextLoadAttempt = 0;
                     loaded = true;
@@ -150,9 +165,15 @@ namespace ClassicUO.Game.UI.Gumps
                 Dispose();
                 return false;
             }
-            //if (text == null) //Waiting for opl data to load the text tooltip
-            //    return true;
+            if (_comparisonWidth == 0)
+                DrawBackground(batcher, x - 4, y - 2, Width + 8, Height + 8);
 
+            text.Draw(batcher, x, y);
+            return true;
+        }
+
+        internal static void DrawBackground(UltimaBatcher2D batcher, int x, int y, int width, int height)
+        {
             float alpha = 0.7f;
 
             if (ProfileManager.CurrentProfile != null)
@@ -174,10 +195,10 @@ namespace ClassicUO.Game.UI.Gumps
                 SolidColorTextureCache.GetTexture(Color.White),
                 new Rectangle
                 (
-                    x - 4,
-                    y - 2,
-                    (int)(Width + 8),
-                    (int)(Height + 8)
+                    x,
+                    y,
+                    width,
+                    height
                 ),
                 hue_vec
             );
@@ -187,16 +208,12 @@ namespace ClassicUO.Game.UI.Gumps
             batcher.DrawRectangle
             (
                 SolidColorTextureCache.GetTexture(Color.Gray),
-                x - 4,
-                y - 2,
-                (int)(Width + 8),
-                (int)(Height + 8),
+                x,
+                y,
+                width,
+                height,
                 hue_vec
             );
-
-            text.Draw(batcher, x, y);
-
-            return true;
         }
     }
 

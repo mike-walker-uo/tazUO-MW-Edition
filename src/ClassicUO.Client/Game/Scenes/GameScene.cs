@@ -534,6 +534,7 @@ namespace ClassicUO.Game.Scenes
             _qualityCapturing = false;
             _qualityShaderChecked = false;
             RegionalAmbience.Reset();
+            LocalSoundscapePack.Reset();
             EffectPresentation.Reset();
             _xbr?.Dispose();
             _xbr = null;
@@ -1522,6 +1523,8 @@ namespace ClassicUO.Game.Scenes
 
             batcher.SetSampler(null);
             batcher.SetStencil(null);
+
+            GroundDropPreview.Draw(batcher);
 
             // draw weather
             GroundDecals.Draw(batcher, 0, 0);

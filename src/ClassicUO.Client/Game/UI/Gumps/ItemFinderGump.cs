@@ -786,9 +786,8 @@ namespace ClassicUO.Game.UI.Gumps
                     Y = 27
                 });
 
-                Add(new Label(result.Location, true, FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.ItemFinder), 112, font: 1,
-                    style: FontStyle.BlackBorder | FontStyle.Cropped,
-                    align: TEXT_ALIGN_TYPE.TS_RIGHT)
+                Add(new ContainerBreadcrumbLabel(result.ContainerSerial, result.Location,
+                    FeatureGumpArtwork.DimHue(FeatureGumpArtworkKind.ItemFinder), 112)
                 {
                     X = width - 120,
                     Y = 5

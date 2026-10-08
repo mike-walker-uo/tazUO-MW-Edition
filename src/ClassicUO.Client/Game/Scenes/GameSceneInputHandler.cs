@@ -587,116 +587,17 @@ namespace ClassicUO.Game.Scenes
                 && !Client.Game.GameCursor.ItemHold.IsFixedPosition
             )
             {
-                uint drop_container = 0xFFFF_FFFF;
-                bool can_drop = false;
-                ushort dropX = 0;
-                ushort dropY = 0;
-                sbyte dropZ = 0;
-
                 if (Keyboard.Ctrl)
                 {
-                    GameActions.DropItem(
-                            Client.Game.GameCursor.ItemHold.Serial,
-                            World.Player.X + 1,
-                            World.Player.Y,
-                            World.Player.Z + 1,
-                            0
-                        );
+                    GameActions.DropItem(Client.Game.GameCursor.ItemHold.Serial,
+                        World.Player.X + 1, World.Player.Y, World.Player.Z + 1, 0);
                     return true;
                 }
-
-                GameObject gobj = SelectedObject.Object as GameObject;
-
-                if (gobj is Entity obj)
-                {
-                    can_drop = obj.Distance <= Constants.DRAG_ITEMS_DISTANCE;
-
-                    if (can_drop)
-                    {
-                        if (obj is Item it && it.ItemData.IsContainer || obj is Mobile)
-                        {
-                            dropX = 0xFFFF;
-                            dropY = 0xFFFF;
-                            dropZ = 0;
-                            drop_container = obj.Serial;
-                        }
-                        else if (
-                            obj is Item it2
-                            && (
-                                it2.ItemData.IsSurface
-                                || it2.ItemData.IsStackable
-                                    && it2.Graphic == Client.Game.GameCursor.ItemHold.Graphic
-                            )
-                        )
-                        {
-                            dropX = obj.X;
-                            dropY = obj.Y;
-                            dropZ = obj.Z;
-
-                            if (it2.ItemData.IsSurface)
-                            {
-                                dropZ += (sbyte)(
-                                    it2.ItemData.Height == 0xFF ? 0 : it2.ItemData.Height
-                                );
-                            }
-                            else
-                            {
-                                drop_container = obj.Serial;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Client.Game.Audio.PlaySound(0x0051);
-                    }
-                }
-                else if (gobj is Land || gobj is Static || gobj is Multi)
-                {
-                    can_drop = gobj.Distance <= Constants.DRAG_ITEMS_DISTANCE;
-
-                    if (can_drop)
-                    {
-                        dropX = gobj.X;
-                        dropY = gobj.Y;
-                        dropZ = gobj.Z;
-
-                        if (gobj is Land land) { }
-                        else
-                        {
-                            ref StaticTiles itemData = ref TileDataLoader.Instance.StaticData[
-                                gobj.Graphic
-                            ];
-
-                            if (itemData.IsSurface)
-                            {
-                                dropZ += (sbyte)(itemData.Height == 0xFF ? 0 : itemData.Height);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Client.Game.Audio.PlaySound(0x0051);
-                    }
-                }
-
-                if (can_drop)
-                {
-                    if (drop_container == 0xFFFF_FFFF && dropX == 0 && dropY == 0)
-                    {
-                        can_drop = false;
-                    }
-
-                    if (can_drop)
-                    {
-                        GameActions.DropItem(
-                            Client.Game.GameCursor.ItemHold.Serial,
-                            dropX,
-                            dropY,
-                            dropZ,
-                            drop_container
-                        );
-                    }
-                }
+                GameObject target = SelectedObject.Object as GameObject;
+                if (GroundDropPreview.TryResolve(target, Client.Game.GameCursor.ItemHold.Graphic, out GroundDropLocation drop))
+                    GameActions.DropItem(Client.Game.GameCursor.ItemHold.Serial, drop.X, drop.Y, drop.Z, drop.Container);
+                else if (target != null && target.Distance > Constants.DRAG_ITEMS_DISTANCE)
+                    Client.Game.Audio.PlaySound(0x0051);
             }
             else if (TargetManager.IsTargeting)
             {
