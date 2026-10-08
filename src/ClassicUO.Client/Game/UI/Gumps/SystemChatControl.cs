@@ -654,7 +654,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         internal static bool IsNativeGlobalHistoryRequest(ChatMode mode, string text, bool nativeReplacement) =>
             nativeReplacement && (mode == ChatMode.Default || mode == ChatMode.ServUOCommand)
-                && string.Equals(text?.Trim(), "[c", StringComparison.OrdinalIgnoreCase);
+                && GlobalChatChannels.TryReadCommand(text, out GlobalChatChannel channel, out string message)
+                && channel != GlobalChatChannel.Guild && channel != GlobalChatChannel.Party && message.Length == 0;
 
         public override void OnKeyboardReturn(int textID, string text)
         {
@@ -728,8 +729,14 @@ namespace ClassicUO.Game.UI.Gumps
                 ProfileManager.CurrentProfile.UseNativeGlobalChatReplacement))
             {
                 GlobalChatGump existing = UIManager.GetGump<GlobalChatGump>();
-                if (existing == null) GlobalChatGump.OpenByUser(200, 200);
+                if (existing == null)
+                {
+                    GlobalChatGump.OpenByUser(200, 200);
+                    existing = UIManager.GetGump<GlobalChatGump>();
+                }
                 else { existing.SetInScreen(); existing.BringOnTop(); }
+                if (GlobalChatChannels.TryReadCommand(fullText, out GlobalChatChannel channel, out _))
+                    existing?.SelectChannel(channel);
             }
             else
             {

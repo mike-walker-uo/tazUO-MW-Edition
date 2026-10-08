@@ -11,6 +11,20 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.2 update 1]\n" +
+            """
+            UOAlive October 8 chat update
+            - Added Pariah to View/Send with [cp and [pariah commands.
+            - Added [chat, [trade, [event and [help aliases; explicit commands select the posting channel.
+            - Global combines all public channels, replacing All. Optionally include your received Guild and Party messages in Chat Settings; both default off.
+            - Added a Commands menu with Write shortcuts and light/dark message backgrounds with separate saved channel-color palettes.
+            - Channel tags and messages share a color; player names keep their individual colors.
+            - Consolidated identical messages from the same sender and channel into a latest entry with a repeat count.
+            - Recognize padded channel tags and the redesigned original chat window. -nativechat open remains available.
+            - Preserve existing saved View/Send selections. Journal persistence is unchanged.
+            - Automatic sorting, channel access and moderation remain server-controlled.
+            """ +
+            "\n",
             "[0.6.2]\n" +
             """
             Graphics and visual presentation

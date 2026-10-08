@@ -17,6 +17,11 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData("Bowyer Longarm", "[Events] Meet at 21:00", MessageType.ChatSystem, "Events", "Bowyer Longarm", "Meet at 21:00")]
         [InlineData("System", "[Help] No helpers online", MessageType.System, "Help", null, "No helpers online")]
         [InlineData("Bowyer Longarm", "[Global] quoted text", MessageType.Guild, "Guild", "Bowyer Longarm", "[Global] quoted text")]
+        [InlineData("System", "[Pariah] [P] Tez: exploring", MessageType.System, "Pariah", "[P] Tez", "exploring")]
+        [InlineData("[pariah] Tez", "hello", MessageType.ChatSystem, "Pariah", "Tez", "hello")]
+        [InlineData("[Pariah] Tez", "[Global] quoted text", MessageType.ChatSystem, "Pariah", "Tez", "[Global] quoted text")]
+        [InlineData("System", "  [Help ] Tez: where?", MessageType.System, "Help", "Tez", "where?")]
+        [InlineData("  [ LFG ] Tez", "join us", MessageType.Regular, "LFG", "Tez", "join us")]
         public void Display_separates_channel_and_player_without_changing_message_content(
             string name, string text, MessageType type, string expectedChannel, string expectedName, string expectedText)
         {
@@ -52,6 +57,7 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData("[Help] Tez: where is New Haven?", "Help", "[hc")]
         [InlineData("[LFG] Tez: looking for a group", "LFG", "[lfg")]
         [InlineData("  [trade] Tez: buying ore", "Trade", "[tc")]
+        [InlineData("[Pariah] Tez: hello", "Pariah", "[cp")]
         public void Public_messages_are_captured_and_routed_to_the_matching_command(string text, string channel, string command)
         {
             var message = new MessageEventArgs(null, text, "System", 0, MessageType.System, 3, TextType.SYSTEM);
@@ -62,6 +68,7 @@ namespace ClassicUO.UnitTests.TazUO
             var record = new ChatHistoryRecord(message.Name, text, 0, DateTime.MinValue, message.Type);
             GlobalChatChannels.Matches(record, selected).Should().BeTrue();
             GlobalChatChannels.Matches(record, GlobalChatChannel.All).Should().BeTrue();
+            GlobalChatChannels.Matches(record, GlobalChatChannel.Global).Should().BeTrue();
             GlobalChatChannels.Matches(record, GlobalChatChannel.Party).Should().BeFalse();
         }
 
@@ -71,6 +78,8 @@ namespace ClassicUO.UnitTests.TazUO
         [InlineData("[2] hello")]
         [InlineData("[Global hello")]
         [InlineData("Ordinary system message")]
+        [InlineData("[P] Tez: a path tag is not a channel")]
+        [InlineData("[Pariah-like] hello")]
         public void Unrelated_system_messages_do_not_enter_channel_history(string text)
         {
             var message = new MessageEventArgs(null, text, "System", 0, MessageType.System, 3, TextType.SYSTEM);
