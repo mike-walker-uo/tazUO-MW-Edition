@@ -8,6 +8,7 @@ namespace ClassicUO.UnitTests.TazUO
     public class OriginalGlobalChatTests : IDisposable
     {
         private const string ChatText = "UOAlive Chat Global [tc Trade [lfg LFG";
+        private const string RedesignedChatText = "UOAlive Chat Global Group Finder Write Settings Commands";
         private readonly uint _originalTicks = Time.Ticks;
 
         public OriginalGlobalChatTests()
@@ -64,6 +65,17 @@ namespace ClassicUO.UnitTests.TazUO
             Time.Ticks += 10001;
 
             Assert.True(PacketHandlers.ShouldSuppressGlobalChat(true, true, ChatText));
+        }
+
+        [Fact]
+        public void Redesigned_chat_with_separate_commands_menu_is_detected_and_manual_open_still_works()
+        {
+            Assert.True(PacketHandlers.ShouldSuppressGlobalChat(true, true, RedesignedChatText));
+            PacketHandlers.AllowNextOriginalGlobalChat();
+            Assert.False(PacketHandlers.ShouldSuppressGlobalChat(true, true, RedesignedChatText));
+            Assert.True(PacketHandlers.ShouldSuppressGlobalChat(true, true, RedesignedChatText));
+            Assert.False(PacketHandlers.IsGlobalChatSignature("Write Settings Commands"));
+            Assert.False(PacketHandlers.IsGlobalChatSignature("UOAlive Chat settings"));
         }
 
         [Fact]

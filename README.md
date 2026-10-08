@@ -35,6 +35,16 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.6.2 update 1 — UOAlive October 8 chat update
+
+- Added Pariah to View/Send and chat commands: `[cp` or `[pariah`. Also supports `[chat`, `[trade`, `[event`, and `[help` aliases.
+- Global now combines all public channels, replacing All. Chat Settings can optionally include your received Guild and Party messages; both default off.
+- Added a Commands menu with Write shortcuts, light/dark message backgrounds, and separate saved channel-color palettes for each mode. Channel tags and message text share a color; player names retain their distinct colors.
+- Consolidated identical messages from the same sender and channel into one latest entry with a repeat count. Journal persistence is unchanged.
+- Recognizes padded channel tags and the redesigned original chat window; `-nativechat open` remains available. Existing saved View/Send selections migrate to the new layout.
+
+These client changes follow the [October 8 patch notes](https://uoalive.com/wiki/Patch_Notes:October_8_2026). Automatic message sorting, channel access and moderation remain server-controlled. Windows file version is **0.6.2.4**; displayed client version remains **0.6.2**. Download the complete updated ZIP from the existing 0.6.2 release.
+
 ## Version 0.6.2 — changes since 0.6.1
 
 ## Graphics and visual presentation

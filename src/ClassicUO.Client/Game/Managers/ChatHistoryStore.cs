@@ -45,13 +45,14 @@ namespace ClassicUO.Game.Managers
         public readonly DateTime Time;
         public readonly MessageType MsgType;
         internal readonly long Sequence;
+        public readonly int RepeatCount;
 
         public ChatHistoryRecord(string name, string text, ushort hue, DateTime time, MessageType msgType)
             : this(name, text, hue, time, msgType, 0)
         {
         }
 
-        internal ChatHistoryRecord(string name, string text, ushort hue, DateTime time, MessageType msgType, long sequence)
+        internal ChatHistoryRecord(string name, string text, ushort hue, DateTime time, MessageType msgType, long sequence, int repeatCount = 1)
         {
             Name = name;
             Text = text;
@@ -59,6 +60,7 @@ namespace ClassicUO.Game.Managers
             Time = time;
             MsgType = msgType;
             Sequence = sequence;
+            RepeatCount = repeatCount;
         }
 
         public string Display => string.IsNullOrEmpty(Name) ? Text : $"{Name}: {Text}";
@@ -107,10 +109,13 @@ namespace ClassicUO.Game.Managers
         public int Capacity { get; }
         private readonly Deque<ChatHistoryRecord> _records = new Deque<ChatHistoryRecord>();
         private readonly Predicate<MessageEventArgs> _filter;
+        private readonly Func<ChatHistoryRecord, object> _repeatKey;
+        private readonly Dictionary<object, ChatHistoryRecord> _repeats;
         private bool _hooked;
         private long _nextSequence;
 
         public event Action<ChatHistoryRecord> RecordAdded;
+        public event Action<long> RecordRemoved;
         public event Action HistoryCleared;
 
         public ChatHistoryStore(Predicate<MessageType> filter, int capacity = 1000)
@@ -118,11 +123,14 @@ namespace ClassicUO.Game.Managers
         {
         }
 
-        public ChatHistoryStore(Predicate<MessageEventArgs> filter, int capacity = 1000)
+        public ChatHistoryStore(Predicate<MessageEventArgs> filter, int capacity = 1000,
+            Func<ChatHistoryRecord, object> repeatKey = null)
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _filter = filter;
             Capacity = capacity;
+            _repeatKey = repeatKey;
+            if (repeatKey != null) _repeats = new Dictionary<object, ChatHistoryRecord>();
         }
 
         public void EnsureHooked()
@@ -142,9 +150,28 @@ namespace ClassicUO.Game.Managers
 
         internal void Add(ChatHistoryRecord record)
         {
-            var r = new ChatHistoryRecord(record.Name, record.Text, record.Hue, record.Time, record.MsgType, ++_nextSequence);
-            while (_records.Count >= Capacity) _records.RemoveFromFront();
+            object key = _repeatKey?.Invoke(record);
+            int repeatCount = 1;
+            if (key != null && _repeats.TryGetValue(key, out ChatHistoryRecord previous))
+            {
+                repeatCount = previous.RepeatCount + 1;
+                for (int i = 0; i < _records.Count; i++)
+                {
+                    if (_records[i].Sequence != previous.Sequence) continue;
+                    _records.RemoveAt(i);
+                    RecordRemoved?.Invoke(previous.Sequence);
+                    break;
+                }
+            }
+            var r = new ChatHistoryRecord(record.Name, record.Text, record.Hue, record.Time, record.MsgType, ++_nextSequence, repeatCount);
+            while (_records.Count >= Capacity)
+            {
+                ChatHistoryRecord evicted = _records.RemoveFromFront();
+                object evictedKey = _repeatKey?.Invoke(evicted);
+                if (evictedKey != null) _repeats.Remove(evictedKey);
+            }
             _records.AddToBack(r);
+            if (key != null) _repeats[key] = r;
             RecordAdded?.Invoke(r);
         }
 
@@ -154,6 +181,7 @@ namespace ClassicUO.Game.Managers
         public void Clear()
         {
             _records.Clear();
+            _repeats?.Clear();
             HistoryCleared?.Invoke();
         }
     }

@@ -125,6 +125,8 @@ namespace ClassicUO.Game.UI.Controls
 
         public event EventHandler<int> OnOptionSelected;
 
+        internal void RefreshSelectedText() => _label.Text = ItemText(_selectedIndex);
+
         private string ItemText(int index)
         {
             string text = _items[index] ?? string.Empty;

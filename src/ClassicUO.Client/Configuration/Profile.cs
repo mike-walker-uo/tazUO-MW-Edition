@@ -288,6 +288,10 @@ namespace ClassicUO.Configuration
         public bool AutomationEnabled { get; set; } = true;
         public bool UseNativeGlobalChatReplacement { get; set; } = true;
         public bool AutoOpenGlobalChat { get; set; } = true;
+        public bool GlobalChatIncludeGuild { get; set; }
+        public bool GlobalChatIncludeParty { get; set; }
+        public bool GlobalChatLightMode { get; set; }
+        public Dictionary<string, uint> GlobalChatChannelColors { get; set; } = new Dictionary<string, uint>();
         public bool AutoOpenGuildChat { get; set; } = true;
         public bool AutoOpenNearbySpeech { get; set; } = false;
         public int NativeGlobalChatPreferenceVersion { get; set; }

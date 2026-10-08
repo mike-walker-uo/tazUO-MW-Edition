@@ -6,8 +6,8 @@
     <AssemblyName>ClassicUO</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
     <AssemblyVersion>0.6.2</AssemblyVersion>
-    <FileVersion>0.6.2.3</FileVersion>
-    <InformationalVersion>0.6.2</InformationalVersion>
+    <FileVersion>0.6.2.4</FileVersion>
+    <InformationalVersion>0.6.2+update.1</InformationalVersion>
     <PackageProjectUrl>https://github.com/PlayTazUO/TazUO</PackageProjectUrl>
   </PropertyGroup>
 

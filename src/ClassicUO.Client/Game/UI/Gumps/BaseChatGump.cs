@@ -206,11 +206,24 @@ namespace ClassicUO.Game.UI.Gumps
 
             _body.RebuildFromHistory(GetCurrentFontSize());
             _store.RecordAdded += OnRecordAdded;
+            _store.RecordRemoved += OnRecordRemoved;
             _store.HistoryCleared += OnHistoryCleared;
         }
 
         protected int FontSizeOverride { get; private set; }
+        protected virtual int MinimumWidth => 320;
         protected int ExtraHeaderY => HEADER_H + _artInset + (_artInset == 0 ? 0 : 6);
+
+        protected void FocusInput() => _input?.SetKeyboardFocus();
+
+        protected void RefreshChatAppearance()
+        {
+            _messageBackground.IsVisible = true;
+            _messageBackground.Alpha = 1;
+            _messageBackground.BaseColor = ProfileManager.CurrentProfile?.GlobalChatLightMode == true
+                ? new Color(232, 227, 206) : new Color(32, 28, 27);
+            _body.RebuildFromHistory(GetCurrentFontSize(), _search.Text, true);
+        }
 
         protected void SetRecordFilter(Predicate<ChatHistoryRecord> filter)
         {
@@ -233,6 +246,7 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Dispose()
         {
             _store.RecordAdded -= OnRecordAdded;
+            _store.RecordRemoved -= OnRecordRemoved;
             _store.HistoryCleared -= OnHistoryCleared;
             StoreLastBounds(X, Y, Width, Height);
             _body?.DisposeBoxes();
@@ -248,6 +262,11 @@ namespace ClassicUO.Game.UI.Gumps
         private void OnHistoryCleared()
         {
             if (!IsDisposed) _body?.RebuildFromHistory(GetCurrentFontSize(), _search.Text);
+        }
+
+        private void OnRecordRemoved(long sequence)
+        {
+            if (!IsDisposed) _body?.RemoveRecord(sequence);
         }
 
         public override void OnButtonClick(int buttonID)
@@ -306,7 +325,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (Mouse.LButtonPressed)
                 {
-                    int newW = Math.Max(320, _startW + (Mouse.Position.X - _resizeStartX));
+                    int newW = Math.Max(MinimumWidth, _startW + (Mouse.Position.X - _resizeStartX));
                     int newH = Math.Max(160, _startH + (Mouse.Position.Y - _resizeStartY));
                     if (newW != Width || newH != Height)
                         Resize(newW, newH);
@@ -382,7 +401,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.Restore(xml); // X/Y are restored by the outer RestoreGumps loop
             int w = Width, h = Height;
-            if (!int.TryParse(xml.GetAttribute("w"), out w) || w < 320) w = Width;
+            if (!int.TryParse(xml.GetAttribute("w"), out w)) w = Width;
+            w = Math.Max(MinimumWidth, w);
             if (!int.TryParse(xml.GetAttribute("h"), out h) || h < 160) h = Height;
             int.TryParse(xml.GetAttribute("font"), out int fontOverride);
             FontSizeOverride = fontOverride;
@@ -587,6 +607,24 @@ namespace ClassicUO.Game.UI.Gumps
                 RecalcScroll(followBottom);
             }
 
+            public void RemoveRecord(long sequence)
+            {
+                bool followBottom = AtBottom;
+                int top = 0;
+                for (int i = 0; i < _lines.Count; i++)
+                {
+                    ChatLine line = _lines[i];
+                    if (line.Record.Sequence != sequence) { top += line.Height; continue; }
+                    int height = line.Height;
+                    _lines.RemoveAt(i);
+                    _totalHeight -= height;
+                    _scrollBar.Value = Math.Max(0, _scrollBar.Value - Math.Min(height, Math.Max(0, _scrollBar.Value - top)));
+                    line.Dispose();
+                    RecalcScroll(followBottom);
+                    return;
+                }
+            }
+
             private void AddLine(ChatLine line)
             {
                 _lines.AddToBack(line);
@@ -606,7 +644,11 @@ namespace ClassicUO.Game.UI.Gumps
                 else
                     messageHue = r.Hue == 0 ? (ushort)0x0481 : r.Hue;
 
-                TextBox time = TextBox.GetOne($"{r.Time:HH:mm}", font, size - 2, 1150, TextBox.RTLOptions.Default());
+                TextBox time = _colorChannelTags
+                    ? TextBox.GetOne($"{r.Time:HH:mm}", font, size - 2,
+                        ProfileManager.CurrentProfile?.GlobalChatLightMode == true ? new Color(85, 80, 70) : new Color(170, 166, 151),
+                        TextBox.RTLOptions.Default())
+                    : TextBox.GetOne($"{r.Time:HH:mm}", font, size - 2, 1150, TextBox.RTLOptions.Default());
 
                 string name = r.Name;
                 string text = r.Text ?? string.Empty;
@@ -617,11 +659,12 @@ namespace ClassicUO.Game.UI.Gumps
                     GlobalChatChannel? channel = GlobalChatChannels.GetDisplayParts(r, out name, out text);
                     if (channel.HasValue)
                     {
-                        messageColor = GlobalChatChannels.TagColor(channel.Value);
+                        messageColor = GlobalChatChannels.DisplayColor(channel.Value, ProfileManager.CurrentProfile);
                         channelBox = TextBox.GetOne("[" + GlobalChatChannels.Names[(int)channel.Value] + "] ",
                             font, size, messageColor, TextBox.RTLOptions.Default().IgnoreColors());
                     }
                 }
+                if (r.RepeatCount > 1) text += $" [×{r.RepeatCount}]";
                 int channelWidth = channelBox?.Width ?? 0;
 
                 if (string.IsNullOrEmpty(name))
