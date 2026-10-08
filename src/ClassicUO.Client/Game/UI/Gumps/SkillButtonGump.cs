@@ -34,6 +34,7 @@ using System.IO;
 using System.Xml;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Assets;
@@ -74,6 +75,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void BuildGump()
         {
+            SetTooltip("Ctrl+Shift+click: assign shortcut");
             Width = 88;
             Height = 44;
 
@@ -117,6 +119,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
+            if (button == MouseButtonType.Left && Keyboard.Ctrl && Keyboard.Shift)
+            { ActionShortcutGump.Open(new ClientAction(ClientActionKind.Skill, _skill.Index, _skill.Name)); return; }
             base.OnMouseUp(x, y, button);
 
             if (ProfileManager.CurrentProfile.CastSpellsByOneClick && button == MouseButtonType.Left && !Keyboard.Alt)
@@ -127,6 +131,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
+            if (Keyboard.Ctrl && Keyboard.Shift) return true;
             if (!ProfileManager.CurrentProfile.CastSpellsByOneClick && button == MouseButtonType.Left && !Keyboard.Alt)
             {
                 GameActions.UseSkill(_skill.Index);

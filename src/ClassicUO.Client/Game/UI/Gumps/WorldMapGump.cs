@@ -1,4 +1,4 @@
-#region license
+﻿#region license
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
@@ -151,6 +151,8 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _showGroupName = true;
         private bool _showMarkerIcons = true;
         private bool _showMarkerNames = true;
+        private bool _markerNamesAtAnyZoom;
+        private readonly List<Rectangle> _drawnMarkerLabels = new();
         private bool _showMarkers = true;
         private bool _showCorpse = true;
         private bool _showMobiles = true;
@@ -283,6 +285,7 @@ namespace ClassicUO.Game.UI.Gumps
             _showMarkers = ProfileManager.CurrentProfile.WorldMapShowMarkers;
             _showMultis = ProfileManager.CurrentProfile.WorldMapShowMultis;
             _showMarkerNames = ProfileManager.CurrentProfile.WorldMapShowMarkersNames;
+            _markerNamesAtAnyZoom = ProfileManager.CurrentProfile.WorldMapMarkerNamesAtAnyZoom;
 
 
             _hiddenMarkerFiles = string.IsNullOrEmpty(ProfileManager.CurrentProfile.WorldMapHiddenMarkerFiles) ? new List<string>() : ProfileManager.CurrentProfile.WorldMapHiddenMarkerFiles.Split(',').ToList();
@@ -324,6 +327,7 @@ namespace ClassicUO.Game.UI.Gumps
             ProfileManager.CurrentProfile.WorldMapShowMarkers = _showMarkers;
             ProfileManager.CurrentProfile.WorldMapShowMultis = _showMultis;
             ProfileManager.CurrentProfile.WorldMapShowMarkersNames = _showMarkerNames;
+            ProfileManager.CurrentProfile.WorldMapMarkerNamesAtAnyZoom = _markerNamesAtAnyZoom;
 
             ProfileManager.CurrentProfile.WorldMapHiddenMarkerFiles = string.Join(",", _hiddenMarkerFiles);
             ProfileManager.CurrentProfile.WorldMapHiddenZoneFiles = string.Join(",", _hiddenZoneFiles);
@@ -364,6 +368,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             _options["show_all_markers"] = new ContextMenuItemEntry(ResGumps.ShowAllMarkers, () => { _showMarkers = !_showMarkers; SaveSettings(); }, true, _showMarkers);
             _options["show_marker_names"] = new ContextMenuItemEntry(ResGumps.ShowMarkerNames, () => { _showMarkerNames = !_showMarkerNames; SaveSettings(); }, true, _showMarkerNames);
+            _options["marker_names_any_zoom"] = new ContextMenuItemEntry("Marker names at every zoom",
+                () => { _markerNamesAtAnyZoom = !_markerNamesAtAnyZoom; SaveSettings(); }, true, _markerNamesAtAnyZoom);
             _options["show_marker_icons"] = new ContextMenuItemEntry(ResGumps.ShowMarkerIcons, () => { _showMarkerIcons = !_showMarkerIcons; SaveSettings(); }, true, _showMarkerIcons);
             _options["flip_map"] = new ContextMenuItemEntry(ResGumps.FlipMap, () =>
             {
@@ -620,6 +626,7 @@ namespace ClassicUO.Game.UI.Gumps
             markersEntry.Add(_options["show_all_markers"]);
             markersEntry.Add(new ContextMenuItemEntry(""));
             markersEntry.Add(_options["show_marker_names"]);
+            markersEntry.Add(_options["marker_names_any_zoom"]);
             markersEntry.Add(_options["show_marker_icons"]);
             markersEntry.Add(new ContextMenuItemEntry(""));
 
@@ -2361,6 +2368,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
+            _drawnMarkerLabels.Clear();
             if (!_isScrolling && !_freeView && !_temporaryAltView)
             {
                 CenterOnFollowTarget();
@@ -3069,7 +3077,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
-            if (_zoomIndex < marker.ZoomIndex && marker.Color == Color.Transparent)
+            if (!_markerNamesAtAnyZoom && _zoomIndex < marker.ZoomIndex && marker.Color == Color.Transparent)
             {
                 return false;
             }
@@ -3099,7 +3107,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
-            bool showMarkerName = _showMarkerNames && !string.IsNullOrEmpty(marker.Name) && _zoomIndex > 5;
+            bool showMarkerName = _showMarkerNames && !string.IsNullOrEmpty(marker.Name) && (_markerNamesAtAnyZoom || _zoomIndex > 5);
             bool drawSingleName = false;
 
             if (_zoomIndex < marker.ZoomIndex || !_showMarkerIcons || marker.MarkerIcon == null)
@@ -3127,19 +3135,16 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 batcher.Draw(marker.MarkerIcon, new Vector2(rot.X - (marker.MarkerIcon.Width >> 1), rot.Y - (marker.MarkerIcon.Height >> 1)), hueVector);
 
-                if (!showMarkerName)
+                if (Mouse.Position.X >= rot.X - (marker.MarkerIcon.Width >> 1) &&
+                    Mouse.Position.X <= rot.X + (marker.MarkerIcon.Width >> 1) &&
+                    Mouse.Position.Y >= rot.Y - (marker.MarkerIcon.Height >> 1) &&
+                    Mouse.Position.Y <= rot.Y + (marker.MarkerIcon.Height >> 1))
                 {
-                    if (Mouse.Position.X >= rot.X - (marker.MarkerIcon.Width >> 1) &&
-                        Mouse.Position.X <= rot.X + (marker.MarkerIcon.Width >> 1) &&
-                        Mouse.Position.Y >= rot.Y - (marker.MarkerIcon.Height >> 1) &&
-                        Mouse.Position.Y <= rot.Y + (marker.MarkerIcon.Height >> 1))
-                    {
-                        drawSingleName = true;
-                    }
+                    drawSingleName = true;
                 }
             }
 
-            if (showMarkerName)
+            if (showMarkerName && (!_markerNamesAtAnyZoom || ReserveMarkerLabel(marker.Name, rot, x, y)))
             {
                 DrawMarkerString(batcher, marker, x, y, width, height);
 
@@ -3147,6 +3152,30 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             return drawSingleName;
+        }
+
+        private bool ReserveMarkerLabel(string name, Point position, int x, int y)
+        {
+            if (_drawnMarkerLabels.Count >= 200) return false;
+            Rectangle bounds = MarkerLabelBounds(position, _markerFont.MeasureString(name), new Rectangle(x, y, Width, Height));
+            foreach (var other in _drawnMarkerLabels)
+                if (bounds.Intersects(other)) return false;
+            _drawnMarkerLabels.Add(bounds);
+            return true;
+        }
+
+        internal static Rectangle MarkerLabelBounds(Point position, Vector2 size, Rectangle viewport)
+        {
+            if (position.X + size.X / 2 > viewport.Right - 8)
+                position.X = viewport.Right - 8 - (int)(size.X / 2);
+            else if (position.X - size.X / 2 < viewport.X)
+                position.X = viewport.X + (int)(size.X / 2);
+            if (position.Y + size.Y > viewport.Bottom)
+                position.Y = viewport.Bottom - (int)size.Y;
+            else if (position.Y - size.Y < viewport.Y)
+                position.Y = viewport.Y + (int)size.Y;
+            return new Rectangle((int)(position.X - size.X / 2) - 2,
+                (int)(position.Y - size.Y - 5) - 2, (int)(size.X + 4), (int)(size.Y + 4));
         }
 
         private void DrawMarkerString(UltimaBatcher2D batcher, WMapMarker marker, int x, int y, int width, int height)
@@ -3166,41 +3195,16 @@ namespace ClassicUO.Game.UI.Gumps
             rot.X += x + width;
             rot.Y += y + height;
 
-            Vector2 size = _markerFont.MeasureString(marker.Name);
-
-            if (rot.X + size.X / 2 > x + Width - 8)
-            {
-                rot.X = x + Width - 8 - (int)(size.X / 2);
-            }
-            else if (rot.X - size.X / 2 < x)
-            {
-                rot.X = x + (int)(size.X / 2);
-            }
-
-            if (rot.Y + size.Y > y + Height)
-            {
-                rot.Y = y + Height - (int)size.Y;
-            }
-            else if (rot.Y - size.Y < y)
-            {
-                rot.Y = y + (int)size.Y;
-            }
-
-            int xx = (int)(rot.X - size.X / 2);
-            int yy = (int)(rot.Y - size.Y - 5);
+            Rectangle labelBounds = MarkerLabelBounds(rot, _markerFont.MeasureString(marker.Name), new Rectangle(x, y, Width, Height));
+            int xx = labelBounds.X + 2;
+            int yy = labelBounds.Y + 2;
 
             Vector3 hueVector = new Vector3(0f, 1f, 0.5f);
 
             batcher.Draw
             (
                 SolidColorTextureCache.GetTexture(Color.Black),
-                new Rectangle
-                (
-                    xx - 2,
-                    yy - 2,
-                    (int)(size.X + 4),
-                    (int)(size.Y + 4)
-                ),
+                labelBounds,
                 hueVector
             );
 

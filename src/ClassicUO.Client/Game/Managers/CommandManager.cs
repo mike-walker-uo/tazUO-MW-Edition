@@ -275,6 +275,11 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new EquipmentGuruGump());
             });
 
+            Register("operations", _ =>
+            {
+                if (UIManager.GetGump<QueuedOperationsGump>() == null) UIManager.Add(new QueuedOperationsGump());
+                else UIManager.GetGump<QueuedOperationsGump>().BringOnTop();
+            });
             Register("restock", (s) =>
             {
                 if (s != null && s.Length > 1

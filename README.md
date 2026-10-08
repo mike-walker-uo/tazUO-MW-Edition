@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6.2 beta — update 2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta)
+[Download version 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -35,31 +35,126 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
-## Version 0.6.2 beta highlights
+## Version 0.6.2 — changes since 0.6.1
 
-### Beta update 2 — Windows file version 0.6.2.2
+## Graphics and visual presentation
 
-- **Original chat access:** `-nativechat open` opens the original UOAlive Global Chat in either replacement mode without changing the preference. Bare `[c` opens native history when replacement is on; `[c message` still posts. `-nativechat off` restores the server chat as usual.
-- **Rendering fixes:** restore hue textures after effect passes to prevent black hues after disabling linear-light composition; cover fog to the viewport edges at different zoom and scale settings.
-- **Relevant alerts:** pet loyalty checks require rename permission; zero-bandage warnings stay quiet until bandages have been seen or bandage automation is enabled. Muted/snoozed pet and bandage alerts also stay silent.
-- **Equipment bar:** restore a displaced shield when returning from a two-handed weapon to a one-handed weapon or spellbook, while preserving another off-hand item equipped by the player or Razor Enhanced.
-- **Reliability and performance:** atomic gump-layout saves; bounded chat rows and resize reflow; cancellable world-map loading in timed main-thread slices; fewer repeated free-slot scans; session resets; correct draw-cadence/1% low metrics; quoted marker CSV with multiline names and preserved zoom.
+- **Magnifying-glass cursor:** added illustrated UO artwork with adjustable 1×–4× magnification, saved per-character zoom and a central crosshair for precise item selection. Activate using `-magnifier`, `-magnifier 1` through `-magnifier 4`, or a ClientCommand macro hotkey.
+- **Magnifier controls:** Escape disables the magnifier. The lens displays an opaque image and supports optional smooth magnification. Mouse targeting coordinates remain unchanged.
+- **Pixel-art scaling:** added a pixel-art processing filter with adjustable sharpness alongside the existing point, linear, anisotropic and xBR options.
+- **World anti-aliasing:** added optional FXAA with adjustable strength. Processing occurs before overhead text, healthbars and interface rendering, keeping those elements sharp.
+- **Lighting controls:** added optional linear-light composition, coordinated atmospheric light colors, selective bloom around emissive sources and refined contact shadows.
+- **Particle controls:** added configurable visual budgets, adaptive optional particle density and softer particle contacts with scenery.
+- **Texture caching:** added an optional bounded texture cache.
+- **Local artwork packs:** added support for optional local replacement-art packs.
+- **Body scaling:** now disabled by default for new settings while preserving existing saved character preferences.
+- **Rendering fixes:** corrected black hues remaining after disabling linear-light composition. Fixed background and magnifier rendering across lighting and anti-aliasing passes.
+- **GPU resource handling:** rendering buffers are reused and cleaned up when resizing, disabling effects or logging out.
 
-- **Beta update 1:** magnifying-glass cursor with 1×–4× zoom, central crosshair, opaque lens, smooth mode and Escape dismissal; new pixel art scaling filter and optional adjustable FXAA; body scaling defaults off while preserving saved settings. Windows file version: 0.6.2.1.
-- **Healthbar selection:** permanent All, Players, Friendly Players, Guild, Hostile, Grey and Hostile, and Neutral filters, with individual modifier-key overrides using the configured notorieties. Removed the B button from healthbars.
-- **Generated themes:** 20 new illustrated themes plus Eternal Eclipse. Removed palette-only styles while retaining Minimal and TazUO. Added favorites, per-window overrides, reduced decoration, daily rotation, and corrected individual theme previews.
-- **Graphics controls:** adaptive optional particles, a bounded optional texture cache, softer particle contacts, optional linear-light compositing, selective bloom, coordinated lighting, refined contact shadows, and local replacement-art packs.
-- **Weather and ambience:** biome/season/time-aware ambient weather, gradual compatible transitions, world-anchored fog, shared wind, regional sound beds, seasonal details, and separate lightning, thunder and shake controls.
-- **Spell effects:** per-effect intensity, density and glow; distant-effect decluttering; local classic/enhanced comparison previews; smoother effect geometry.
-- **Interface:** independent scaling for supported UI, clearer resize/lock grips, settings search synonyms, and corrected scrollable Enhancements pages.
-- **Restocking:** preview planned moves and shortages; prevent overlapping rules from reserving the same stock twice.
-- **Chat and settings:** configurable local mention highlighting, saved settings history, and selective undo.
-- **Razor Enhanced:** choose the plugin from Options on Windows and save its path to settings.json while preserving other settings. Restart the client to load it.
-- **Reliability and performance:** two audit passes covering binary-reader bounds, packet writing, Huffman streaming, resource lifetimes, collection retention, animation/map validation, culture-safe item properties, and reduced repeated work and allocations.
+### Gump themes and interface
 
-Open **Options → Enhancements** or type `-enhancements` for the new controls. Open `-gumpthemes` for previews, favorites and **Rotate themes daily**. Daily rotation advances to the next available theme once per local day while logged in, or on the next login; per-window overrides remain fixed. Select a permanent healthbar drag filter and its modifier overrides in **Options → General**.
+- **21 illustrated premium themes:** added Sovereign Gold, Lunar Silver, Dragon Ember, Verdant Cathedral, Runic Obsidian, Ivory Citadel, Stormforged, Sunken Treasury, Astral Observatory, Crimson Velvet, Jade Dynasty, Amber Alchemist, Glacial Crown, Phoenix Imperial, Sapphire Reliquary, Ancient Sandstone, Pearl Sanctum, Nocturne, Prismatic Vault, Rose Quartz Court and Eternal Eclipse.
+- **Theme selection:** added favorites, per-window theme overrides and reduced-decoration options.
+- **Daily theme rotation:** optionally advance to the next available theme once per local day, or on the next login. Per-window overrides remain fixed.
+- **Theme previews:** corrected the selector so cards display their respective themes.
+- **Theme cleanup:** retired palette-only styles while retaining Minimal and TazUO.
+- **Interface scaling:** added independent scaling for supported interface windows.
+- **Window controls:** improved resize and lock grips.
+- **Enhancements options:** corrected category layout, content positioning and scrolling.
+- **Settings search:** expanded search synonyms to make relevant options easier to find.
+- **Settings history:** added saved settings history with selective undo.
+- **Compact status windows:** added horizontal and vertical layouts showing health, mana, stamina, stats and weight. Select a layout in **Options → General**; Alt+left-click a compact status window to change its layout.
+- **Native label appearance:** retained original label rendering without automatic rectangular backing plates.
 
-This is a beta release. Back up the existing client folder and profiles before upgrading.
+### Weather, ambience and spell effects
+
+- **Ambient weather:** expanded biome-, season- and time-aware weather behavior and gradual transitions between compatible conditions.
+- **Fog:** improved world anchoring and fixed gaps at viewport edges when zooming or scaling.
+- **Environmental detail:** added shared wind, seasonal details and coordinated atmospheric presentation.
+- **Storm controls:** added separate controls for lightning, thunder and screen shake.
+- **Regional soundscapes:** added Classic UO, Britannian Wilderness and Quiet Exploration presets.
+- **Local soundscape packs:** added optional local regional audio packs with asynchronous loading and native UO fallback for missing or invalid regions.
+- **Spell and combat effects:** added per-effect intensity, density and glow controls, smoother effect geometry and distant-effect decluttering.
+- **Effect previews:** added local classic/enhanced comparison previews.
+
+### Inventory and container tools
+
+- **Bulk selection:** select grid-container items by equipment layer, graphic or name, or select all items, before adding them to Multi Move. Access through Alt+left-click on the original-container-view icon.
+- **Configurable grid sections:** group items using weapon, armor, reagent, equipment-layer, graphic or name rules. Configure backpack, corpse and other-container categories separately, with per-container overrides.
+- **Locked slots:** bulk selection and section presentation preserve locked slot positions.
+- **Container breadcrumbs:** click a grid-container title or an Item Finder location label to navigate known parent containers. Unavailable parents are identified as last-known locations.
+- **Item comparison:** enhanced the existing Ctrl-hover comparison with enlarged native item artwork, hue swatches and complete candidate/equipped tooltips side by side.
+- **Comparison appearance:** uses configured tooltip colors, font and background in one content-sized gump without scrolling.
+- **Comparison controls:** fixed Pin/Unpin click handling and premature closing when hovering child controls. Removed the unnecessary Rows/full tooltips toggle. Right-click and Escape still close the gump.
+- **Ground-drop preview:** optionally show translucent item artwork at the proposed drop tile and elevation, with a range indicator. The server remains responsible for accepting the drop.
+- **Restock preview:** show planned moves and shortages before execution.
+- **Restock allocation:** prevent overlapping rules from reserving the same stock more than once.
+- **Queued operations:** added shared progress reporting for Multi Move, Organizer and Restock. Open the panel with `-operations`.
+- **Cancellation:** cancel requests that have not yet been sent. Closing the progress window does not cancel an operation.
+- **Grid placement:** reduced repeated free-slot scans while preserving locked slots and item order.
+
+### Action bars, shortcuts and cooldowns
+
+- **Expanded counter/action bar:** cells can now run skills, primary and secondary weapon abilities, macros and Restock loadouts alongside existing item and spell actions.
+- **Action feedback:** weapon-ability cells display the current ability icon and active state.
+- **Shortcut labels:** optionally display assigned shortcut labels on counter/action-bar cells.
+- **Direct shortcut assignment:** Ctrl+Shift+click supported spell, skill, ability and macro icons, or supported paperdoll Feature Tools actions, to assign a shortcut.
+- **Binding controls:** capture, confirm or clear bindings, with checks for supported client macro and spell-bar conflicts. Razor Enhanced bindings remain managed separately.
+- **Cooldown repeat handling:** added **Keep existing**, allowing repeated triggers to leave an active timer running. Existing add-another and replace-existing behavior remains available.
+- **Cooldown rule identity:** stable saved rule IDs distinguish rules with identical names or triggers.
+
+### Healthbars and nameplates
+
+- **Permanent healthbar drag filters:** added one active default filter with individual modifier-key overrides: All Mobiles, Players only, Friendly Players only, Guild only, Hostile Mobiles only, Grey and Hostile Mobiles only, and Neutral Mobiles only.
+- **Notoriety filtering:** filters use the specified notoriety values; All Mobiles includes every notoriety.
+- **Healthbar cleanup:** removed the B button.
+- **Crowded nameplates:** improved overlap avoidance with bounded placement lanes and leader lines. Last target, hovered entities and party members receive priority; manually locked labels retain their positions.
+
+### Chat, alerts and equipment switching
+
+- **Original Global Chat access:** `-nativechat open` opens the original UOAlive Global Chat regardless of the replacement-chat preference, without changing that setting.
+- **Native chat history:** with replacement enabled, bare `[c` opens the original chat history; `[c message` continues to post normally.
+- **Chat mentions:** added configurable local mention highlighting.
+- **Chat history resources:** bounded visible rows to retained history and released expired text resources.
+- **Chat resizing:** reflow messages while preserving the reading position.
+- **Pet loyalty alerts:** restrict checks to pets for which the player has rename permission and ignore unrelated pet messages.
+- **Bandage alerts:** suppress zero-bandage warnings for non-users until bandage stock has been observed or bandage automation is enabled.
+- **Muted alerts:** muting or snoozing pet and bandage alerts also silences their sounds.
+- **Shield restoration:** remember shields displaced by a two-handed weapon and restore them when switching back to a one-handed weapon or spellbook. Preserve another off-hand item subsequently equipped by the player or Razor Enhanced.
+
+### Maps and travel
+
+- **World-map loading:** moved loading into timed main-thread slices, cancelled stale work when changing maps or sessions, and improved texture disposal.
+- **Marker names:** added an option to show marker names at every zoom level, with bounded label counts, overlap suppression and hover fallback.
+- **Marker CSV:** added support for quoted fields, multiline names and culture-safe coordinates while preserving custom zoom settings.
+- **Travel-source identification:** World Explorer displays source names, serials and rune slots to distinguish destinations with identical names.
+- **Travel-source details:** added observed source hue and scan-time information; unavailable facet information remains unknown.
+- **Preferred travel sources:** save a preferred source for matching destination names. Travel still uses the explicitly selected entry.
+
+### Performance and stability
+
+- **Incremental Item Finder search:** added cached query plans and a text candidate index, updated when observed item data changes. Queries unsuitable for indexing retain full evaluation.
+- **Shared inventory counts:** counters, Restock/readiness checks and reagent/bandage watchers reuse observed inventory snapshots, invalidated when relevant items or sessions change.
+- **Background screenshots:** PNG encoding and disk writes run on a worker after GPU capture. Pending captures are bounded, files complete atomically, and pending saves finish on exit.
+- **Safe layout saving:** save gump layouts atomically and preserve the previous file if saving fails.
+- **Container traversal:** guard missing and cyclic container links.
+- **Session cleanup:** reset stale feature failures and pending notices between sessions.
+- **Performance diagnostics:** corrected draw-cadence measurements and slowest-1% FPS calculations.
+- **Binary and network handling:** strengthened reader bounds, packet-field writing and Huffman streaming.
+- **Asset validation:** improved animation, map and texture-atlas validation.
+- **Resource management:** corrected resource lifetimes and collection retention; reduced repeated work and allocations.
+- **Property parsing:** improved culture-safe item-property handling.
+- **Utility fixes:** corrected issues in collection views, averaging, logging, regular-expression handling and string-builder replacement.
+
+### Razor Enhanced and installation
+
+- **Plugin picker:** choose Razor Enhanced through Options on Windows and save the selected plugin path to `settings.json` while preserving other settings. Restart the client to load it.
+- **Supported platform:** Windows x64, .NET Framework 4.7.2, using the existing pinned SDL3/FNA runtime.
+- Replace the complete client files when upgrading so new artwork and shaders are included.
+- Back up the existing client folder and profiles before upgrading.
+
+
+See the [0.6.2 setup guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.2-Guide) and [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands). Open `-enhancements` for graphics and ambience, `-gumpthemes` for themes, and `-operations` for queued actions.
 
 ## Version 0.6.1 highlights
 
@@ -132,7 +227,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.6.2 beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6.2 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
@@ -150,7 +245,7 @@ Press **Escape** to turn it off; the selected zoom level is kept.
 - `-magnifier on`, `off`, or `status`: enable, disable, or inspect the current setting.
 - For a hotkey, create a macro in **Options → Macros**, assign its key, and add a **ClientCommand** action with text `magnifier` (without the leading `-`). Use `magnifier next` or `magnifier prev` for separate zoom hotkeys.
 
-The lens does not move the click location or change world zoom. Magnifier activation resets on logout. Included in 0.6.2 beta update 1 (Windows file version 0.6.2.1).
+The lens does not move the click location or change world zoom. Magnifier activation resets on logout. Included in stable 0.6.2.
 
 ## World scaling and anti-aliasing
 
@@ -164,7 +259,7 @@ Under **Options → Enhancements → Graphics**, enable **World edge anti-aliasi
 
 **Smooth magnifier image**, in the same Graphics page, defaults on. Disable it for the original pixelated lens. The crosshair still marks the actual click position; the lens remains opaque and Escape turns it off.
 
-These additions are included in 0.6.2 beta update 1. Replace the complete client files when updating so `WorldQuality.fxc` and `Magnifier.fxc` are included.
+These additions are included in stable 0.6.2. Replace the complete client files when updating so `WorldQuality.fxc` and `Magnifier.fxc` are included.
 
 ## Razor Enhanced script buttons
 
@@ -188,7 +283,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2-beta).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.

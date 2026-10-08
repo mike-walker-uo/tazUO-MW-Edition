@@ -62,6 +62,7 @@ namespace ClassicUO.Game.UI.Gumps
             Y = y;
             Width = DEFAULT_WIDTH;
             Height = DEFAULT_HEIGHT;
+            SetTooltip("Ctrl+Shift+click: assign shortcut");
             TheMacro = macro;
 
             BuildGump();
@@ -182,6 +183,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override void OnMouseUp(int x, int y, MouseButtonType button)
         {
+            if (button == MouseButtonType.Left && Keyboard.Ctrl && Keyboard.Shift)
+            {
+                if (TheMacro?.Items is MacroObjectString saved && saved.Code == MacroType.ContextAction && ClientAction.TryParse(saved.Text, out ClientAction action))
+                    ActionShortcutGump.Open(action);
+                else if (TheMacro != null) ActionShortcutGump.Open(new ClientAction(ClientActionKind.Macro, 0, TheMacro.Name));
+                return;
+            }
             base.OnMouseUp(x, y, MouseButtonType.Left);
 
             Point offset = Mouse.LDragOffset;
@@ -194,6 +202,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
+            if (Keyboard.Ctrl && Keyboard.Shift) return true;
             if (ProfileManager.CurrentProfile.CastSpellsByOneClick || button != MouseButtonType.Left)
             {
                 return false;

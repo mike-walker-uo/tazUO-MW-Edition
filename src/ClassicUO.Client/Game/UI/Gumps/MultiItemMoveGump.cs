@@ -54,6 +54,7 @@ namespace ClassicUO.Game.UI.Gumps
         // ===== Processing state =====
         public static int ObjDelay = 1000;
         private static bool processing = false;
+        private static QueuedOperation _operation;
         private static ProcessType processType = ProcessType.None;
         private static uint _lastMoveTick;
         private static uint tradeId, containerId;
@@ -287,6 +288,7 @@ namespace ClassicUO.Game.UI.Gumps
                 containerId = container.Serial;
                 processType = ProcessType.Container;
                 processing = true;
+                StartOperation();
             }
         }
 
@@ -297,6 +299,7 @@ namespace ClassicUO.Game.UI.Gumps
             groundY = y;
             groundZ = z;
             processing = true;
+            StartOperation();
         }
 
         private static void ProcessItemMoves(uint tradeID)
@@ -304,6 +307,13 @@ namespace ClassicUO.Game.UI.Gumps
             tradeId = tradeID;
             processType = ProcessType.TradeWindow;
             processing = true;
+            StartOperation();
+        }
+
+        private static void StartOperation()
+        {
+            if (_operation == null || _operation.Finished)
+                _operation = QueuedOperations.Begin("Multi Move", ClearAll);
         }
 
         public override void Update()
@@ -326,42 +336,43 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (MoveItems.TryDequeue(out Item moveItem))
             {
-                if (_selected.ContainsKey(moveItem.Serial))
+                if (!moveItem.IsDestroyed && _selected.ContainsKey(moveItem.Serial))
                 {
                     bool enqueued = false;
                     switch (processType)
                     {
                         case ProcessType.Ground:
                             var itemData = TileDataLoader.Instance.StaticData[moveItem.Graphic];
-                            MoveItemQueue.Instance.Enqueue(
+                            MoveItemQueue.Instance.EnqueueTracked(
                                 moveItem.Serial,
                                 0,
                                 moveItem.Amount,
                                 groundX,
                                 groundY,
-                                groundZ + (sbyte)(itemData.Height == 0xFF ? 0 : itemData.Height));
+                                groundZ + (sbyte)(itemData.Height == 0xFF ? 0 : itemData.Height), _operation);
                             enqueued = true;
                             break;
 
                         case ProcessType.Container:
-                            MoveItemQueue.Instance.Enqueue(moveItem.Serial, containerId, moveItem.Amount);
+                            MoveItemQueue.Instance.EnqueueTracked(moveItem.Serial, containerId, moveItem.Amount, 0xFFFF, 0xFFFF, 0, _operation);
                             enqueued = true;
                             break;
 
                         case ProcessType.TradeWindow:
-                            MoveItemQueue.Instance.Enqueue(
+                            MoveItemQueue.Instance.EnqueueTracked(
                                 moveItem.Serial,
                                 tradeId,
                                 moveItem.Amount,
                                 RandomHelper.GetValue(0, 20),
                                 RandomHelper.GetValue(0, 20),
-                                0);
+                                0, _operation);
                             enqueued = true;
                             break;
 
                         case ProcessType.None:
                         default:
                             processing = false;
+                            _operation?.Cancel();
                             ResetDestination();
                             break;
                     }
@@ -378,6 +389,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (MoveItems.IsEmpty && SelectedCount == 0)
             {
                 processing = false;
+                if (_operation != null) _operation.SubmissionComplete = true;
                 ResetDestination();
             }
         }
@@ -385,7 +397,7 @@ namespace ClassicUO.Game.UI.Gumps
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
             // auto-close if nothing is selected
-            if (SelectedCount == 0 || MoveItems.IsEmpty)
+            if ((SelectedCount == 0 || MoveItems.IsEmpty) && (_operation == null || _operation.Finished))
             {
                 ClearAll();
                 Dispose();
@@ -398,11 +410,12 @@ namespace ClassicUO.Game.UI.Gumps
         private static string TextForHeader()
         {
             var count = SelectedCount;
-            return processing ? $"Moving {count} items." : $"Selected {count} items.";
+            return _operation != null && !_operation.Finished ? _operation.Summary : $"Selected {count} items.";
         }
 
         private static void ClearAll()
         {
+            _operation?.Cancel();
             _selected.Clear();
             while (MoveItems.TryDequeue(out _)) { }
             processing = false;

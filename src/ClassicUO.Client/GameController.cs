@@ -1223,6 +1223,7 @@ namespace ClassicUO
 
         protected override void OnExiting(object sender, EventArgs args)
         {
+            ScreenshotWriter.FinishPendingSave();
             Scene?.Dispose();
 
             base.OnExiting(sender, args);
@@ -1230,50 +1231,40 @@ namespace ClassicUO
 
         private void TakeScreenshot()
         {
-            string screenshotsFolder = FileSystemHelper.CreateFolderIfNotExists(
-                CUOEnviroment.ExecutablePath,
-                "Data",
-                "Client",
-                "Screenshots"
-            );
-
-            string path = Path.Combine(
-                screenshotsFolder,
-                $"screenshot_{DateTime.Now:yyyy-MM-dd_hh-mm-ss}.png"
-            );
-
-            Color[] colors = new Color[
-                GraphicManager.PreferredBackBufferWidth * GraphicManager.PreferredBackBufferHeight
-            ];
-
-            GraphicsDevice.GetBackBufferData(colors);
-
-            using (
-                Texture2D texture = new Texture2D(
-                    GraphicsDevice,
-                    GraphicManager.PreferredBackBufferWidth,
-                    GraphicManager.PreferredBackBufferHeight,
-                    false,
-                    SurfaceFormat.Color
-                )
-            )
-            using (FileStream fileStream = File.Create(path))
+            if (!ScreenshotWriter.TryReserve())
             {
-                texture.SetData(colors);
-                texture.SaveAsPng(fileStream, texture.Width, texture.Height);
-                string message = string.Format(ResGeneral.ScreenshotStoredIn0, path);
+                GameActions.Print("A screenshot is still being saved.");
+                return;
+            }
 
-                if (
-                    ProfileManager.CurrentProfile == null
-                    || ProfileManager.CurrentProfile.HideScreenshotStoredInMessage
-                )
+            try
+            {
+                int width = GraphicsDevice.PresentationParameters.BackBufferWidth;
+                int height = GraphicsDevice.PresentationParameters.BackBufferHeight;
+                var colors = new Color[checked(width * height)];
+                GraphicsDevice.GetBackBufferData(colors);
+                string folder = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client", "Screenshots");
+                string path = Path.Combine(folder, $"screenshot_{DateTime.Now:yyyy-MM-dd_HH-mm-ss-fff}.png");
+                var profile = ProfileManager.CurrentProfile;
+                ScreenshotWriter.Save(path, colors, width, height, error =>
                 {
-                    Log.Info(message);
-                }
-                else
-                {
-                    GameActions.Print(message, 0x44, MessageType.System);
-                }
+                    if (error != null)
+                    {
+                        Log.Error("Could not save screenshot: " + error);
+                        return;
+                    }
+                    string message = string.Format(ResGeneral.ScreenshotStoredIn0, path);
+                    if (profile == null || profile != ProfileManager.CurrentProfile
+                        || profile.HideScreenshotStoredInMessage || !World.InGame)
+                        Log.Info(message);
+                    else
+                        GameActions.Print(message, 0x44, MessageType.System);
+                });
+            }
+            catch (Exception ex)
+            {
+                ScreenshotWriter.Release();
+                Log.Error("Could not capture screenshot: " + ex);
             }
         }
 

@@ -2252,12 +2252,18 @@ namespace ClassicUO.Game.Managers
                     // handle in gamesceneinput
                     break;
 
+                case MacroType.ContextAction:
+                    if (ClientAction.TryParse(((MacroObjectString)macro).Text, out ClientAction action)) action.Execute();
+                    if (_lastMacro != macro) return 1; // A macro cell transferred execution; do not skip its first action.
+                    break;
+
                 case MacroType.UseCounterBar:
                     string counterIndex = ((MacroObjectString)macro).Text;
 
                     if (!string.IsNullOrEmpty(counterIndex) && int.TryParse(counterIndex, out int cIndex))
                     {
                         CounterBarGump.CurrentCounterBarGump?.GetCounterItem(cIndex)?.Use();
+                        if (_lastMacro != macro) return 1;
                     }
                     break;
                 case MacroType.ClientCommand:
@@ -2611,6 +2617,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.UseCounterBar:
                 case MacroType.SetSpellBarRow:
                 case MacroType.ClientCommand:
+                case MacroType.ContextAction:
                     obj = new MacroObjectString(code, MacroSubType.MSC_NONE);
 
                     break;
@@ -2791,6 +2798,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.UseCounterBar:
                 case MacroType.SetSpellBarRow:
                 case MacroType.ClientCommand:
+                case MacroType.ContextAction:
                     SubMenuType = 2;
 
                     break;
@@ -2930,6 +2938,7 @@ namespace ClassicUO.Game.Managers
         RemoveFriend,
         ToggleHotkeys,
         RazorEnhancedHotkey,
+        ContextAction,
     }
 
     public enum MacroSubType

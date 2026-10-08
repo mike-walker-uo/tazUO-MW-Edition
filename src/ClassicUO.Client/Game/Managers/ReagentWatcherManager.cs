@@ -98,17 +98,8 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static int CountIn(Item parent, ushort graphic)
-        {
-            int total = 0;
-            for (LinkedObject i = parent.Items; i != null; i = i.Next)
-            {
-                Item it = (Item)i;
-                if (it.Graphic == graphic && it.Exists) total += it.Amount;
-                if (it.ItemData.IsContainer && !it.IsEmpty) total += CountIn(it, graphic);
-            }
-            return total;
-        }
+        private static int CountIn(Item parent, ushort graphic) =>
+            InventoryCounts.Get(parent).Count(graphic, 0, anyHue: true, rawAmounts: true);
 
         public static void SetEnabled(bool on)
         {

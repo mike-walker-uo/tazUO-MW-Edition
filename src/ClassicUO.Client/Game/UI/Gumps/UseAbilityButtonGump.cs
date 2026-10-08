@@ -32,6 +32,7 @@
 
 using System.Xml;
 using ClassicUO.Game.Data;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Assets;
@@ -75,7 +76,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_button);
 
-            SetTooltip(ClilocLoader.Instance.GetString(1028838 + (Index - 1)), 80);
+            SetTooltip(ClilocLoader.Instance.GetString(1028838 + (Index - 1)) + "\nCtrl+Shift+click: assign shortcut", 80);
 
             WantUpdateSize = true;
             AcceptMouseInput = true;
@@ -90,8 +91,20 @@ namespace ClassicUO.Game.UI.Gumps
             BuildGump();
         }
 
+        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        {
+            if (button == MouseButtonType.Left && Keyboard.Ctrl && Keyboard.Shift)
+            {
+                ActionShortcutGump.Open(new ClientAction(IsPrimary ? ClientActionKind.PrimaryAbility : ClientActionKind.SecondaryAbility,
+                    0, IsPrimary ? "Primary weapon ability" : "Secondary weapon ability"));
+                return;
+            }
+            base.OnMouseUp(x, y, button);
+        }
+
         protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
+            if (Keyboard.Ctrl && Keyboard.Shift) return true;
             if (button == MouseButtonType.Left)
             {
                 if (IsPrimary)

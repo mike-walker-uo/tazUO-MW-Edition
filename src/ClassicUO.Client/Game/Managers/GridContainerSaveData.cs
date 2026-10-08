@@ -305,6 +305,8 @@ public class GridContainerEntry
 
     [JsonPropertyName("vs")] public bool VisuallyStackNonStackables { get; set; }
 
+    [JsonPropertyName("sections")] public int SectionsOverride { get; set; } = -1;
+
     [JsonPropertyName("sm")] public int SortMode { get; set; }
 
     [JsonPropertyName("ls")] public Dictionary<uint, GridContainerSlotEntry> Slots { get; set; } = new();

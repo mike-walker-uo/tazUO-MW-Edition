@@ -64,6 +64,18 @@ public class SpellBarManager
         }
     }
 
+    internal static bool HasBinding(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
+    {
+        if (!enabled || spellBarSettings?.Enabled != true) return false;
+        for (int i = 0; i < Math.Min(10, Math.Min(spellBarSettings.HotKeys.Length, spellBarSettings.KeyMod.Length)); i++)
+        {
+            var required = (SDL.SDL_Keymod)spellBarSettings.KeyMod[i];
+            if ((SDL.SDL_Keycode)spellBarSettings.HotKeys[i] == key &&
+                (required == SDL.SDL_Keymod.SDL_KMOD_NONE ? mod == required : (mod & required) == required)) return true;
+        }
+        return false;
+    }
+
     public static void KeyPress(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
     {
         if (!enabled || !spellBarSettings.Enabled || ProfileManager.CurrentProfile.DisableHotkeys)

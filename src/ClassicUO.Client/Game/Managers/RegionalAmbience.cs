@@ -27,10 +27,18 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static readonly Bed[] _beds = new Bed[4];
+        private static readonly Bed[] _beds = new Bed[7];
+        private static byte _preset;
+        private static int _packRevision;
         private static uint _last;
         private static bool _unavailable;
-        private static readonly int[] Sounds = { 0x01B, 0x014, 0x01B, 0x016 };
+
+
+        private static bool TryGetSample(AmbienceOverlay.AmbientBiome biome, int sound, out byte[] pcm, out string name)
+        {
+            if (LocalSoundscapePack.TryGet(biome, out pcm)) { name = biome + " local ambience"; return true; }
+            return SoundsLoader.Instance.TryGetSound(sound, out pcm, out name);
+        }
 
         internal static void Reset()
         {
@@ -42,28 +50,37 @@ namespace ClassicUO.Game.Managers
         {
             Profile profile = ProfileManager.CurrentProfile;
             if (profile == null || !World.InGame || !AmbienceOverlay.Enabled || VisualBudget.Settings?.RegionalSoundBeds != true)
-            { if (_last != 0) Reset(); return; }
+            { if (_last != 0) Reset(); LocalSoundscapePack.Update(false, ""); return; }
+            LocalSoundscapePack.Update(VisualBudget.Settings.LocalSoundscapePack, VisualBudget.Settings.SoundscapePackFolder);
+            if (_packRevision != LocalSoundscapePack.Revision) { Reset(); _packRevision = LocalSoundscapePack.Revision; }
+            byte preset = RegionalSoundscapes.Normalize(VisualBudget.Settings.RegionalSoundscape);
+            if (preset != _preset) { Reset(); _preset = preset; }
             if (_unavailable) return;
             uint now = Time.Ticks;
             float dt = Math.Min(250u, _last == 0 ? 16u : now - _last) / 1000f;
             _last = now;
-            int active = biome == AmbienceOverlay.AmbientBiome.Dungeon ? 3
-                : biome == AmbienceOverlay.AmbientBiome.Town ? 2
-                : biome == AmbienceOverlay.AmbientBiome.Coast || biome == AmbienceOverlay.AmbientBiome.Desert ? 1 : 0;
+            int active = (int)biome;
+            if (preset == 0 && !VisualBudget.Settings.LocalSoundscapePack)
+            {
+                if (biome == AmbienceOverlay.AmbientBiome.Forest || biome == AmbienceOverlay.AmbientBiome.Swamp) active = 0;
+                else if (biome == AmbienceOverlay.AmbientBiome.Desert) active = (int)AmbienceOverlay.AmbientBiome.Coast;
+            }
+            if (active < 0 || active >= _beds.Length) active = 0;
             bool audible = profile.EnableSound && (Client.Game.IsActive || profile.ReproduceSoundsInBackground);
             float volume = audible ? profile.SoundVolume / 250f * SceneryInteractionManager.WeatherSoundScale : 0f;
             try
             {
                 for (int i = 0; i < _beds.Length; i++)
                 {
-                    if (_beds[i] == null && i == active && volume > 0 && SoundsLoader.Instance.TryGetSound(Sounds[i], out byte[] pcm, out string name))
+                    RegionalSoundscapes.Voice voice = RegionalSoundscapes.For(preset, (AmbienceOverlay.AmbientBiome)i);
+                    if (_beds[i] == null && i == active && volume > 0 && TryGetSample((AmbienceOverlay.AmbientBiome)i, voice.Sound, out byte[] pcm, out string name))
                     {
-                        _beds[i] = new Bed(Sounds[i], pcm, name, i == 0 || i == 2 ? 14 : 2);
+                        _beds[i] = new Bed(voice.Sound, pcm, name, voice.Pause);
                         _beds[i].Play(now, 0f);
                     }
                     Bed bed = _beds[i];
                     if (bed == null) continue;
-                    float target = i == active ? (i == 2 ? 0.08f : i == 3 ? 0.07f : 0.14f) : 0f;
+                    float target = i == active ? voice.Gain : 0f;
                     bed.Gain += (target - bed.Gain) * (1f - (float)Math.Exp(-dt / 3f));
                     bed.Volume = volume * bed.Gain;
                     if (i != active && bed.Gain < 0.001f) { bed.Dispose(); _beds[i] = null; }

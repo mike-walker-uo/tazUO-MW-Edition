@@ -393,6 +393,11 @@ public class SpellBar : Gump
                     )
                 );
             }));
+            ContextMenu.Add(new ContextMenuItemEntry("Assign shortcut", () =>
+            {
+                if (spell != null && spell != SpellDefinition.EmptySpell)
+                    ActionShortcutGump.Open(new ClientAction(ClientActionKind.Spell, spell.ID, spell.Name));
+            }));
             ContextMenu.Add(new ContextMenuItemEntry("Clear", () =>
             {
                 SetSpell(SpellDefinition.EmptySpell, row, col);

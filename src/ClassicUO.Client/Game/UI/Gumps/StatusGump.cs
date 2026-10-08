@@ -163,7 +163,11 @@ namespace ClassicUO.Game.UI.Gumps
         {
             StatusGumpBase gump;
 
-            if (!CUOEnviroment.IsOutlands)
+            if (ProfileManager.CurrentProfile.StatusLayout > 0)
+            {
+                gump = UIManager.GetGump<StatusGumpCompact>();
+            }
+            else if (!CUOEnviroment.IsOutlands)
             {
                 if (ProfileManager.CurrentProfile.UseOldStatusGump)
                 {
@@ -186,7 +190,11 @@ namespace ClassicUO.Game.UI.Gumps
         {
             StatusGumpBase gump;
 
-            if (!CUOEnviroment.IsOutlands)
+            if (ProfileManager.CurrentProfile.StatusLayout > 0)
+            {
+                gump = new StatusGumpCompact();
+            }
+            else if (!CUOEnviroment.IsOutlands)
             {
                 if (Client.Version < ClientVersion.CV_308Z || ProfileManager.CurrentProfile.UseOldStatusGump)
                 {

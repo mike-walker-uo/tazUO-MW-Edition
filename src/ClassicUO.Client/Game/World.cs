@@ -518,6 +518,7 @@ namespace ClassicUO.Game
 
         public static void RemoveItemFromContainer(Item obj)
         {
+            InventoryCounts.NotifyChanged(obj);
             uint containerSerial = obj.Container;
 
             // if entity is running the "dying" animation we have to reset container too.
@@ -943,6 +944,8 @@ namespace ClassicUO.Game
 
         public static void Clear()
         {
+            InventoryCounts.Reset();
+            QueuedOperations.Reset();
             foreach (Mobile mobile in Mobiles.Values)
             {
                 RemoveMobile(mobile);

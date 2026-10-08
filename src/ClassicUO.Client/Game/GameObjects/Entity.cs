@@ -114,6 +114,7 @@ namespace ClassicUO.Game.GameObjects
 
         public void FixHue(ushort hue)
         {
+            if (this is Item item) InventoryCounts.NotifyChanged(item);
             ushort fixedColor = (ushort) (hue & 0x3FFF);
 
             if (fixedColor != 0)

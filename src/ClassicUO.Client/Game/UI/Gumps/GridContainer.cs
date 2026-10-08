@@ -212,7 +212,7 @@ namespace ClassicUO.Game.UI.Gumps
             #endregion
 
             #region TOP BAR AREA
-            containerNameLabel = new Label(GetContainerName(), true, 0x0481, ishtml: true)
+            containerNameLabel = new ContainerBreadcrumbLabel(LocalSerial, ContainerBreadcrumbLabel.Path(LocalSerial), 0x0481, Math.Max(80, Width - borderWidth * 2))
             {
                 X = borderWidth,
                 Y = -20
@@ -243,6 +243,11 @@ namespace ClassicUO.Game.UI.Gumps
             var regularGumpIcon = Client.Game.Gumps.GetGump(5839).Texture;
             openRegularGump = new GumpPic(background.Width - 25 - borderWidth, borderWidth, regularGumpIcon == null ? (ushort)1209 : (ushort)5839, 0);
             openRegularGump.ContextMenu = GenContextMenu();
+            openRegularGump.MouseDown += (_, e) =>
+            {
+                if (e.Button == MouseButtonType.Left && Keyboard.Alt)
+                    openRegularGump.ContextMenu = GenContextMenu();
+            };
 
             openRegularGump.MouseUp += (sender, e) =>
             {
@@ -268,7 +273,7 @@ namespace ClassicUO.Game.UI.Gumps
             openRegularGump.SetTooltip(
                 "/c[orange]Grid ↔ Classic toggle/cd\n" +
                 "Click: switch to classic container view\n" +
-                "Alt+Click: open options menu\n\n" +
+                "Alt+Click: options, multi-move selection and sections\n\n" +
                 "/c[orange]Grid Container Controls:/cd\n" +
                 "Ctrl + Click to lock an item in place\n" +
                 "Alt + Click to toggle selection for multi-move\n" +
@@ -405,6 +410,12 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.GridContainer;
 
+        private int SectionScope => container.IsCorpse ? 1 : container == World.Player?.FindItemByLayer(Layer.Backpack) ? 0 : 2;
+        private GridSectionsConfig SectionsConfig => SectionScope == 0 ? ProfileManager.CurrentProfile.BackpackSections :
+            SectionScope == 1 ? ProfileManager.CurrentProfile.CorpseSections : ProfileManager.CurrentProfile.ContainerSections;
+        private bool SectionsEnabled => gridContainerEntry.SectionsOverride < 0 ? SectionsConfig.Enabled : gridContainerEntry.SectionsOverride == 1;
+        internal void RefreshSections() { UpdateItems(true); gridContainerEntry.UpdateSaveDataEntry(this); }
+
         private ContextMenuControl GenContextMenu()
         {
             var control = new ContextMenuControl();
@@ -435,7 +446,62 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 GridHighlightMenu.Open();
             }));
+            control.Add("Configure sections", () => UIManager.Add(new GridSectionsGump(this, SectionScope)));
+            var sections = new ContextMenuItemEntry("Sections for this container");
+            sections.Add(new ContextMenuItemEntry("Use category default", () => { gridContainerEntry.SectionsOverride = -1; RefreshSections(); }, true, gridContainerEntry.SectionsOverride == -1));
+            sections.Add(new ContextMenuItemEntry("Enabled", () => { gridContainerEntry.SectionsOverride = 1; RefreshSections(); }, true, gridContainerEntry.SectionsOverride == 1));
+            sections.Add(new ContextMenuItemEntry("Disabled", () => { gridContainerEntry.SectionsOverride = 0; RefreshSections(); }, true, gridContainerEntry.SectionsOverride == 0));
+            control.Add(sections);
+            var select = new ContextMenuItemEntry("Multi Move");
+            select.Add(new ContextMenuItemEntry("Select all", () => SelectItems(_ => true)));
+            var layers = new ContextMenuItemEntry("Select by equipment layer");
+            var graphics = new ContextMenuItemEntry("Select by graphic");
+            var names = new ContextMenuItemEntry("Select by name");
+            var items = GridSlotManager.GetItemsInContainer(container);
+            foreach (int key in items.Select(i => GridSlotManager.EquipmentLayerSortKey(i.ItemData)).Distinct().OrderBy(k => k))
+            {
+                int layer = key;
+                string label = layer == int.MaxValue ? "Non-equipment" : ((Layer)layer).ToString();
+                layers.Add(new ContextMenuItemEntry(label,
+                    () => SelectItems(i => GridSlotManager.EquipmentLayerSortKey(i.ItemData) == layer)));
+            }
+            foreach (var group in items.GroupBy(i => i.Graphic).OrderBy(g => g.Key))
+            {
+                ushort graphic = group.Key;
+                string name = GridSlotManager.GetItemName(group.First());
+                graphics.Add(new ContextMenuItemEntry($"{name} (0x{graphic:X4})",
+                    () => SelectItems(i => i.Graphic == graphic)));
+            }
+            foreach (string key in items.Select(GridSlotManager.GetItemName)
+                .Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n))
+            {
+                string name = key;
+                names.Add(new ContextMenuItemEntry(name,
+                    () => SelectItems(i => string.Equals(GridSlotManager.GetItemName(i), name, StringComparison.OrdinalIgnoreCase))));
+            }
+            select.Add(layers);
+            select.Add(graphics);
+            select.Add(names);
+            control.Add(select);
             return control;
+        }
+
+        internal static int SelectForMultiMove(uint containerSerial, IEnumerable<Item> items, Func<Item, bool> matches)
+        {
+            int selected = 0;
+            foreach (Item item in items)
+                if (item != null && !item.IsDestroyed && item.Container == containerSerial && matches(item)
+                    && MultiItemMoveGump.TrySelect(item)) selected++;
+            return selected;
+        }
+
+        private void SelectItems(Func<Item, bool> matches)
+        {
+            if (!World.InGame || container == null || gridSlotManager == null) return;
+            SelectForMultiMove(LocalSerial, GridSlotManager.GetItemsInContainer(container), matches);
+            foreach (var slot in gridSlotManager.GridSlots.Values)
+                slot.SelectHighlight = slot.SlotItem != null && MultiItemMoveGump.IsSelected(slot.SlotItem.Serial);
+            MultiItemMoveGump.ShowNextTo(this);
         }
 
         private ContextMenuControl GenSortContextMenu()
@@ -601,7 +667,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            containerNameLabel.Text = GetContainerName();
+            ((ContainerBreadcrumbLabel)containerNameLabel).RefreshPath();
 
             if (autoSortContainer)
                 overrideSort = true;
@@ -610,6 +676,11 @@ namespace ClassicUO.Game.UI.Gumps
                 ? gridSlotManager.SearchResults(searchBox.Text)
                 : GridSlotManager.GetItemsInContainer(container, sortMode);
 
+            if (SectionsEnabled)
+            {
+                // Stable grouping. Rebuild still reserves every locked slot before placing free items.
+                sortedContents = sortedContents.OrderBy(i => SectionsConfig.Group(i.ItemData, i.Graphic, GridSlotManager.GetItemName(i))).ToList();
+            }
             gridSlotManager.RebuildContainer(sortedContents, searchBox.Text, overrideSort);
             InvalidateContents = false;
         }
@@ -960,6 +1031,7 @@ namespace ClassicUO.Game.UI.Gumps
             scrollArea.X = contentInset;
             scrollArea.Y = TOP_BAR_HEIGHT + contentInset + topOffset;
             containerNameLabel.X = contentInset;
+            containerNameLabel.SetMaxWidth(Math.Max(80, Width - contentInset * 2));
             searchBox.X = contentInset;
             searchBox.Y = contentInset + topOffset;
             openRegularGump.X = Width - openRegularGump.Width - contentInset;
@@ -1675,6 +1747,7 @@ namespace ClassicUO.Game.UI.Gumps
             private Dictionary<int, uint> itemPositions = new Dictionary<int, uint>();
             private List<uint> itemLocks = new List<uint>();
             private GridContainer gridContainer;
+            private readonly List<Label> _sectionHeaders = new List<Label>();
 
             public Dictionary<int, GridItem> GridSlots { get { return gridSlots; } }
             public List<Item> ContainerContents { get { return containerContents; } }
@@ -1826,12 +1899,30 @@ namespace ClassicUO.Game.UI.Gumps
             /// </summary>
             public void SetGridPositions()
             {
+                foreach (Label header in _sectionHeaders) { header.Parent = null; header.Dispose(); }
+                _sectionHeaders.Clear();
+                int lastGroup = -1;
                 int x = X_SPACING, y = 0;
                 foreach (var slot in gridSlots)
                 {
                     if (!slot.Value.IsVisible)
                     {
                         continue;
+                    }
+                    if (gridContainer.SectionsEnabled && slot.Value.SlotItem is Item item)
+                    {
+                        GridSectionsConfig config = gridContainer.SectionsConfig;
+                        int group = config.Group(item.ItemData, item.Graphic, GetItemName(item));
+                        if (group != lastGroup)
+                        {
+                            if (x != X_SPACING) y += gridItemSize + Y_SPACING;
+                            x = X_SPACING;
+                            GridSectionRule rule = group < config.Rules.Count ? config.Rules[group] : null;
+                            var header = new Label(rule?.Name ?? "Other", true, rule?.Hue ?? CustomGumpThemeManager.TitleHue,
+                                Math.Max(20, area.Width - 18), font: 1) { X = 2, Y = y, AcceptMouseInput = false };
+                            area.Add(header); _sectionHeaders.Add(header);
+                            y += Math.Max(24, header.Height + 4); lastGroup = group;
+                        }
                     }
                     if (x + gridItemSize >= area.Width - 14) //14 is the scroll bar width
                     {
@@ -1962,7 +2053,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return c != 0 ? c : a.Hue.CompareTo(b.Hue);
             };
 
-            private static string GetItemName(Item item)
+            internal static string GetItemName(Item item)
             {
                 if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
                 {

@@ -328,7 +328,7 @@ namespace ClassicUO.Game.UI.Gumps
                     || (_filter == 3 && p.Kind == "portal" && p.Phrase.IndexOf("dungeon ", StringComparison.OrdinalIgnoreCase) >= 0))
                 && (query.Length == 0 || p.Name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0
                     || SourceName(p).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
-            List<WorldExplorerPin> entries = filtered.ToList();
+            List<WorldExplorerPin> entries = filtered.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ThenByDescending(IsPreferred).ThenBy(p => p.Serial).ThenBy(p => p.Slot).ToList();
             if (_libraryPage * RowsPerPage >= entries.Count)
                 _libraryPage = Math.Max(0, (entries.Count - 1) / RowsPerPage);
             for (int i = _libraryPage * RowsPerPage; i < Math.Min(entries.Count, (_libraryPage + 1) * RowsPerPage); i++)
@@ -340,7 +340,30 @@ namespace ClassicUO.Game.UI.Gumps
             if (pin.Kind == "portal")
                 return pin.Phrase.IndexOf("dungeon ", StringComparison.OrdinalIgnoreCase) >= 0
                     ? "Corrupted Crystal Portal" : "Crystal Portal";
-            return _sourceNames.TryGetValue(pin.Serial, out string name) ? name : pin.Kind;
+            return _sourceNames.TryGetValue(pin.Serial, out string name) ? name : string.IsNullOrEmpty(pin.SourceName) ? pin.Kind : pin.SourceName;
+        }
+
+        private bool IsPreferred(WorldExplorerPin pin) => Profile?.WorldExplorerPreferredSources != null
+            && Profile.WorldExplorerPreferredSources.TryGetValue(TravelDestinationIdentity.NameKey(pin), out string source)
+            && source == TravelDestinationIdentity.SourceKey(pin);
+
+        private void PreferSource(WorldExplorerPin pin)
+        {
+            if (Profile == null) return;
+            if (Profile.WorldExplorerPreferredSources == null) Profile.WorldExplorerPreferredSources = new Dictionary<string, string>();
+            string key = TravelDestinationIdentity.NameKey(pin);
+            if (IsPreferred(pin)) Profile.WorldExplorerPreferredSources.Remove(key);
+            else Profile.WorldExplorerPreferredSources[key] = TravelDestinationIdentity.SourceKey(pin);
+            Save(); RebuildRows();
+            Status("Preferred sources sort first. Travel always uses the selected entry.");
+        }
+
+        private void StampSource(WorldExplorerPin pin, Item source)
+        {
+            pin.SourceName = ItemName(source); pin.ObservedHue = source.Hue; pin.LastScannedUtcTicks = DateTime.UtcNow.Ticks;
+            foreach (WorldExplorerPin saved in Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>())
+                if (SameLocation(saved, pin) && string.Equals(saved.Name, pin.Name, StringComparison.OrdinalIgnoreCase))
+                { saved.SourceName = pin.SourceName; saved.ObservedHue = pin.ObservedHue; saved.LastScannedUtcTicks = pin.LastScannedUtcTicks; }
         }
 
         private static bool SameLocation(WorldExplorerPin a, WorldExplorerPin b) =>
@@ -371,7 +394,8 @@ namespace ClassicUO.Game.UI.Gumps
             pins.Add(new WorldExplorerPin
             {
                 Kind = pin.Kind, Serial = pin.Serial, Slot = pin.Slot,
-                Name = pin.Name, CustomName = pin.CustomName, Phrase = pin.Phrase
+                Name = pin.Name, CustomName = pin.CustomName, Phrase = pin.Phrase,
+                SourceName = pin.SourceName, ObservedHue = pin.ObservedHue, LastScannedUtcTicks = pin.LastScannedUtcTicks
             });
             Save();
             RebuildRows();
@@ -564,10 +588,10 @@ namespace ClassicUO.Game.UI.Gumps
             foreach (Item rune in _runes)
             {
                 if (World.Items.Get(rune.Serial) != null && IsMarkedRune(rune))
-                    _catalog.Add(new WorldExplorerPin
-                    {
-                        Kind = "rune", Serial = rune.Serial, Name = RuneName(rune)
-                    });
+                {
+                    var pin = new WorldExplorerPin { Kind = "rune", Serial = rune.Serial, Name = RuneName(rune) };
+                    StampSource(pin, rune); _catalog.Add(pin);
+                }
             }
             RebuildRows();
             NextBook();
@@ -606,6 +630,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _pending = PendingAction.None;
                 _scanCompleted = true;
+                Save();
                 RebuildRows();
                 Status("Scan complete: " + _catalog.Count(p => p.Kind != "portal") + " rune locations from " + _books.Count + " books."
                     + (_scanFailures > 0 ? " " + _scanFailures + " scan failures; see client log." : string.Empty));
@@ -769,6 +794,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     Kind = kind, Serial = book.Serial, Slot = slot, Name = name
                 };
+                StampSource(pin, book);
                 _catalog.RemoveAll(p => SameLocation(p, pin));
                 _catalog.Add(pin);
                 count++;
@@ -1266,7 +1292,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             internal ExplorerRow(WorldExplorerGump owner, WorldExplorerPin pin, int index,
                 bool pinned, bool available, bool unverified, bool classic, ushort ink)
-                : base(0, 0, pinned ? PinWidth - 20 : LibraryWidth - 20, 22)
+                : base(0, 0, pinned ? PinWidth - 20 : LibraryWidth - 20, pinned ? 22 : 44)
             {
                 _owner = owner;
                 _pin = pin;
@@ -1280,7 +1306,7 @@ namespace ClassicUO.Game.UI.Gumps
                 });
                 string text = pinned ? DisplayName(pin) : pin.Name;
                 if (pinned && !available && !unverified) text += "  [missing]";
-                Add(new Label(text, true, available || unverified ? ink : (ushort)0x0021, Width - (pinned ? 90 : 36), font: 1)
+                Add(new Label(text, true, available || unverified ? ink : (ushort)0x0021, Width - (pinned ? 90 : 68), font: 1, style: FontStyle.Cropped)
                 {
                     X = 5, Y = 2
                 });
@@ -1293,11 +1319,19 @@ namespace ClassicUO.Game.UI.Gumps
                     Add(new ExplorerButton(Width - 22, 1, 20, 20, "x", 2000 + index, classic, ink));
                 }
                 else
+                {
+                    var prefer = new ExplorerButton(Width - 65, 1, 28, 20, owner.IsPreferred(pin) ? "*" : "o", 5000 + index, classic, ink);
+                    prefer.SetTooltip("Prefer this source for destinations with the same name. Does not reroute travel.");
+                    Add(prefer);
                     Add(new ExplorerButton(Width - 35, 1, 32, 20, "+", 3000 + index, classic, ink));
+                    Add(new Label(owner.SourceName(pin) + $" / {pin.Serial:X8}" + (pin.Kind == "rune" || pin.Kind == "portal" ? "" : " / slot " + (pin.Slot + 1)),
+                        true, ink, Width - 12, font: 1, style: FontStyle.Cropped) { X = 5, Y = 22 });
+                }
                 string tooltip = pin.Kind == "portal" ? "Say: " + pin.Phrase
                     : owner.SourceName(pin) + (pin.Kind == "rune" ? string.Empty : " / slot " + (pin.Slot + 1));
                 if (pinned && !string.IsNullOrWhiteSpace(pin.CustomName))
                     tooltip += " / original: " + pin.Name;
+                if (pin.Kind != "portal") tooltip += "\n" + TravelDestinationIdentity.Observation(pin);
                 SetTooltip(tooltip);
             }
 
@@ -1322,7 +1356,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override void OnButtonClick(int buttonID)
             {
-                if (buttonID >= 4000) _owner.EditPin(_pin);
+                if (buttonID >= 5000) _owner.PreferSource(_pin);
+                else if (buttonID >= 4000) _owner.EditPin(_pin);
                 else if (buttonID >= 3000) _owner.AddPin(_pin);
                 else if (buttonID >= 2000) _owner.RemovePin(_index);
                 else if (buttonID >= 1000) _owner.Travel(_pin);

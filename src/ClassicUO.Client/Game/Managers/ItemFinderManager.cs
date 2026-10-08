@@ -27,6 +27,83 @@ namespace ClassicUO.Game.Managers
 
         private static readonly Dictionary<uint, IndexedItem> _catalog =
             new Dictionary<uint, IndexedItem>();
+        private static readonly IncrementalTextIndex _textIndex = new();
+        private static readonly HashSet<uint> _dirtyItems = new();
+        private static readonly HashSet<uint> _unloadedItems = new();
+        private static readonly Dictionary<uint, HashSet<uint>> _children = new();
+        private static Query _cachedQuery;
+        private static string _cachedQueryText;
+
+        static ItemFinderManager()
+        {
+            EventSink.OPLOnReceive += (_, e) => MarkDirty(e.Serial);
+            EventSink.OnItemUpdated += (sender, _) => { if (sender is Item item) MarkDirty(item.Serial); };
+        }
+
+        internal static void NotifyItemUpdated(Item item)
+        {
+            if (item != null) MarkDirty(item.Serial);
+        }
+
+        private static void MarkDirty(uint serial)
+        {
+            if (!_catalog.ContainsKey(serial) || _dirtyItems.Contains(serial)) return;
+            var pending = new Stack<uint>(); pending.Push(serial);
+            while (pending.Count > 0)
+            {
+                uint current = pending.Pop();
+                if (!_dirtyItems.Add(current)) continue;
+                if (_children.TryGetValue(current, out var children))
+                    foreach (uint child in children) pending.Push(child);
+            }
+        }
+
+        private static void IndexRecord(IndexedItem item)
+        {
+            if (item.IndexedParent != item.ContainerSerial)
+            {
+                RemoveParentLink(item.Serial, item.IndexedParent);
+                if (!_children.TryGetValue(item.ContainerSerial, out var children))
+                    _children[item.ContainerSerial] = children = new HashSet<uint>();
+                children.Add(item.Serial);
+                item.IndexedParent = item.ContainerSerial;
+            }
+            _textIndex.Update(item.Serial, $"{item.Name} {item.FallbackText} {item.PropertyData}");
+            if (string.IsNullOrWhiteSpace(item.PropertyData)) _unloadedItems.Add(item.Serial);
+            else _unloadedItems.Remove(item.Serial);
+        }
+
+        private static void RemoveParentLink(uint serial, uint parent)
+        {
+            if (_children.TryGetValue(parent, out var siblings))
+            {
+                siblings.Remove(serial);
+                if (siblings.Count == 0) _children.Remove(parent);
+            }
+        }
+
+        private static bool RemoveRecord(uint serial)
+        {
+            if (_catalog.TryGetValue(serial, out var item)) RemoveParentLink(serial, item.IndexedParent);
+            _textIndex.Remove(serial);
+            _dirtyItems.Remove(serial);
+            _unloadedItems.Remove(serial);
+            return _catalog.Remove(serial);
+        }
+
+        private static void RefreshDirtyRecords()
+        {
+            // OPL callbacks may fire synchronously when properties are requested.
+            var serials = _dirtyItems.ToArray();
+            _dirtyItems.Clear();
+            foreach (uint serial in serials)
+                if (_catalog.TryGetValue(serial, out var item))
+                {
+                    RefreshIndexedItem(item, true);
+                    IndexRecord(item);
+                }
+        }
+
         private static readonly Dictionary<uint, HighlightState> _highlights =
             new Dictionary<uint, HighlightState>();
         private static readonly List<uint> _expiredHighlights = new List<uint>();
@@ -168,6 +245,7 @@ namespace ClassicUO.Game.Managers
         private sealed class IndexedItem
         {
             internal uint Serial;
+            internal uint IndexedParent;
             internal uint ContainerSerial;
             internal uint RootContainerSerial;
             internal ushort Graphic;
@@ -194,6 +272,14 @@ namespace ClassicUO.Game.Managers
             internal Color Color;
             internal ushort Hue;
             internal long Expires;
+        }
+
+        internal static bool TryGetKnownParent(uint serial, out uint parent, out string name)
+        {
+            parent = 0; name = null;
+            if (_catalogOwner != World.Player?.Serial || _catalogProfilePath != ProfileManager.ProfilePath
+                || !_catalog.TryGetValue(serial, out var item)) return false;
+            parent = item.ContainerSerial; name = item.Name; return true;
         }
 
         internal static int CatalogCount => _catalog.Count;
@@ -237,7 +323,7 @@ namespace ClassicUO.Game.Managers
             List<uint> serials = _catalog.Values
                 .Where(item => item.RootContainerSerial == rootSerial)
                 .Select(item => item.Serial).ToList();
-            foreach (uint serial in serials) _catalog.Remove(serial);
+            foreach (uint serial in serials) RemoveRecord(serial);
             if (serials.Count > 0) SaveCatalog();
             return serials.Count;
         }
@@ -520,7 +606,7 @@ namespace ClassicUO.Game.Managers
 
                 foreach (uint serial in stale)
                 {
-                    _catalog.Remove(serial);
+                    RemoveRecord(serial);
                 }
 
                 report.RemovedItems += stale.Count;
@@ -538,11 +624,13 @@ namespace ClassicUO.Game.Managers
         {
             report = new SearchReport();
 
-            if (!TryParse(text, out Query query, out error))
+            Query query = _cachedQuery;
+            if (query == null || !string.Equals(text, _cachedQueryText, StringComparison.Ordinal))
             {
-                return false;
+                if (!TryParse(text, out query, out error)) return false;
+                _cachedQuery = query; _cachedQueryText = text;
             }
-
+            error = null;
             report.LogicSummary = Describe(query);
 
             if (World.Player == null)
@@ -558,11 +646,18 @@ namespace ClassicUO.Game.Managers
                 ScanReachable(requestedSerials);
             }
 
+            RefreshDirtyRecords();
+            HashSet<uint> candidates = _textIndex.Candidates(query.RequiredTextTerms);
+            // Unknown properties must still get evaluated/requested, even if the text index misses.
+            if (candidates != null) candidates.UnionWith(_unloadedItems);
+            IEnumerable<IndexedItem> records = candidates == null ? _catalog.Values
+                : candidates.Where(serial => _catalog.ContainsKey(serial)).Select(serial => _catalog[serial]);
             var temporaryItems = new List<uint>();
 
-            foreach (IndexedItem indexed in _catalog.Values)
+            foreach (IndexedItem indexed in records)
             {
                 RefreshIndexedItem(indexed);
+                IndexRecord(indexed);
                 if (IsTemporaryArcaneFocus(indexed.Name))
                 {
                     temporaryItems.Add(indexed.Serial);
@@ -574,7 +669,7 @@ namespace ClassicUO.Game.Managers
             if (temporaryItems.Count > 0)
             {
                 foreach (uint serial in temporaryItems)
-                    _catalog.Remove(serial);
+                    RemoveRecord(serial);
                 SaveCatalog();
             }
 
@@ -797,6 +892,10 @@ namespace ClassicUO.Game.Managers
 
             ClearHighlights();
             _catalog.Clear();
+            _textIndex.Clear();
+            _dirtyItems.Clear();
+            _unloadedItems.Clear();
+            _children.Clear();
             _catalogOwner = World.Player.Serial;
             _catalogProfilePath = profilePath;
 
@@ -871,6 +970,7 @@ namespace ClassicUO.Game.Managers
                     }
 
                     _catalog[serial] = indexed;
+                    IndexRecord(indexed);
                 }
                 catch (FormatException)
                 {
@@ -1203,7 +1303,7 @@ namespace ClassicUO.Game.Managers
 
             if (IsTemporaryArcaneFocus(itemName))
             {
-                if (_catalog.Remove(item.Serial))
+                if (RemoveRecord(item.Serial))
                     report.RemovedItems++;
                 return;
             }
@@ -1243,6 +1343,7 @@ namespace ClassicUO.Game.Managers
             indexed.MapIndex = mapIndex;
             indexed.LastSeenUtcTicks = DateTime.UtcNow.Ticks;
             report.Items++;
+            IndexRecord(indexed);
 
             if (!hasProperties && report.RequestedProperties < MAX_PROPERTY_REQUESTS
                 && (requestedSerials == null || requestedSerials.Add(item.Serial)))
@@ -1292,7 +1393,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static void RefreshIndexedItem(IndexedItem indexed)
+        private static void RefreshIndexedItem(IndexedItem indexed, bool refreshLocation = false)
         {
             Item item = World.Items.Get(indexed.Serial);
 
@@ -1301,7 +1402,8 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            // Keep the saved container paired with its scanned root and location.
+            if (refreshLocation) RefreshLocation(indexed, item);
+            // Unloaded/unknown parents retain their last complete scanned location.
             indexed.Graphic = item.Graphic;
             indexed.Hue = item.Hue;
             indexed.Amount = item.Amount;
@@ -1324,6 +1426,30 @@ namespace ClassicUO.Game.Managers
                     indexed.ParsedProperties = null;
                 }
             }
+        }
+
+        private static void RefreshLocation(IndexedItem indexed, Item item)
+        {
+            var parents = new List<Item>();
+            var seen = new HashSet<uint> { item.Serial };
+            Item root = item;
+            while (!root.OnGround && root.Container != World.Player.Serial)
+            {
+                Item parent = World.Items.Get(root.Container);
+                if (parent == null || parent.IsDestroyed || !seen.Add(parent.Serial)) return;
+                parents.Add(parent); root = parent;
+            }
+            string location;
+            if (root.OnGround)
+                location = $"{(root.ItemData.IsContainer ? "Container" : "Ground")}: {GetDisplayName(root, true)} • {GetFacetName(World.MapIndex)} {root.X}, {root.Y}";
+            else
+                location = root.Layer == Layer.Backpack ? "Backpack" : root.Layer == Layer.Bank ? "Bank" : "Equipped";
+            for (int i = parents.Count - 2; i >= 0; i--) location += " > " + GetDisplayName(parents[i], true);
+            indexed.ContainerSerial = item.Container;
+            indexed.RootContainerSerial = root.Serial;
+            indexed.Location = location;
+            indexed.HasWorldPosition = root.OnGround;
+            indexed.RootX = root.X; indexed.RootY = root.Y; indexed.RootZ = root.Z; indexed.MapIndex = World.MapIndex;
         }
 
         private static void Evaluate(IndexedItem indexed, Query query, SearchReport report,

@@ -53,19 +53,8 @@ namespace ClassicUO.Game.Managers
         internal static bool ShouldMonitor(int count, bool seenBandages, bool auto, bool pets, bool external) =>
             count > 0 || seenBandages || auto || pets || external;
 
-        private static int CountBandages(Item parent)
-        {
-            int total = 0;
-            for (LinkedObject i = parent.Items; i != null; i = i.Next)
-            {
-                Item it = (Item)i;
-                if (it.Graphic == AutoBandageManager.BANDAGE_GRAPHIC && it.Exists)
-                    total += it.Amount;
-                if (it.ItemData.IsContainer && !it.IsEmpty)
-                    total += CountBandages(it);
-            }
-            return total;
-        }
+        private static int CountBandages(Item parent) =>
+            InventoryCounts.Get(parent).Count(AutoBandageManager.BANDAGE_GRAPHIC, 0, anyHue: true, rawAmounts: true);
 
         public static void SetEnabled(bool on)
         {

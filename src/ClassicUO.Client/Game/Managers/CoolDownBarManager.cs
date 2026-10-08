@@ -24,6 +24,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
+            profile.EnsureCooldownRuleIds();
             for (int i = 0; i < count; i++)
             {
                 switch (profile.Condition_Type[i])
@@ -49,14 +50,25 @@ namespace ClassicUO.Game.Managers
                         profile.Condition_Hue[i],
                         profile.Condition_ReplaceIfExists.Count > i
                             ? profile.Condition_ReplaceIfExists[i]
-                            : false
+                            : false,
+                        i < profile.Condition_KeepExisting.Count && profile.Condition_KeepExisting[i],
+                        ProfileManager.ProfilePath + "\n" + profile.Condition_Ids[i]
                     );
                 }
             }
         }
 
-        public static void AddCoolDownBar(TimeSpan _duration, string _name, ushort _hue, bool replace)
+        internal static bool MatchesRule(string activeKey, string activeLabel, string key, string label) =>
+            key != null ? string.Equals(activeKey, key, StringComparison.Ordinal)
+                : activeKey == null && string.Equals(activeLabel, label, StringComparison.Ordinal);
+
+        public static void AddCoolDownBar(TimeSpan _duration, string _name, ushort _hue, bool replace, bool keepExisting = false, string ruleKey = null)
         {
+            if (keepExisting)
+                foreach (var bar in coolDownBars)
+                    if (bar != null && !bar.IsDisposed && MatchesRule(bar.RuleKey, bar.textLabel.Text, ruleKey, _name))
+                        return;
+
             if (replace)
                 for (int i = 0; i < coolDownBars.Length; i++)
                 {
@@ -64,6 +76,7 @@ namespace ClassicUO.Game.Managers
                     {
                         coolDownBars[i].Dispose();
                         coolDownBars[i] = new CoolDownBar(_duration, _name, _hue, CoolDownBar.DEFAULT_X, CoolDownBar.DEFAULT_Y + (i * (CoolDownBar.COOL_DOWN_HEIGHT + 5)));
+                        coolDownBars[i].RuleKey = ruleKey;
                         UIManager.Add(coolDownBars[i]);
                         return;
                     }
@@ -73,6 +86,7 @@ namespace ClassicUO.Game.Managers
                 if (coolDownBars[i] == null || coolDownBars[i].IsDisposed)
                 {
                     coolDownBars[i] = new CoolDownBar(_duration, _name, _hue, CoolDownBar.DEFAULT_X, CoolDownBar.DEFAULT_Y + (i * (CoolDownBar.COOL_DOWN_HEIGHT + 5)));
+                    coolDownBars[i].RuleKey = ruleKey;
                     UIManager.Add(coolDownBars[i]);
                     return;
                 }

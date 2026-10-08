@@ -260,6 +260,7 @@ namespace ClassicUO.Game.GameObjects
 
         public override void Destroy()
         {
+            InventoryCounts.NotifyChanged(this);
             if (IsDestroyed)
             {
                 return;
