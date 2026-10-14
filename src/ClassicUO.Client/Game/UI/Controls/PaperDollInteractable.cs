@@ -131,9 +131,12 @@ namespace ClassicUO.Game.UI.Controls
 
         public void SetFakeItem(bool value)
         {
-            _updateUI = HasFakeItem && !value || !HasFakeItem && value;
+            _updateUI |= HasFakeItem != value;
             HasFakeItem = value;
         }
+
+        internal static bool MatchesEquipment(Item item, uint owner, Layer layer) =>
+            item != null && !item.IsDestroyed && item.Container == owner && item.Layer == layer;
 
         private void UpdateUI()
         {
@@ -534,9 +537,19 @@ namespace ClassicUO.Game.UI.Controls
             public override void Update()
             {
                 base.Update();
+                if (IsDisposed) return;
 
                 if (World.InGame)
                 {
+                    // A moved/removed item must not survive as an equipped sprite,
+                    // even if a drag-preview callback delayed the parent refresh.
+                    if (SerialHelper.IsValid(LocalSerial) && Parent is PaperDollInteractable paperDoll
+                        && !MatchesEquipment(World.Items.Get(LocalSerial), paperDoll.LocalSerial, _layer))
+                    {
+                        paperDoll.RequestUpdate();
+                        Dispose();
+                        return;
+                    }
                     if (
                         CanLift
                         && !Client.Game.GameCursor.ItemHold.Enabled

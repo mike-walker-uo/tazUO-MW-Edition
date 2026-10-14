@@ -78,6 +78,7 @@ namespace ClassicUO.IO.Audio
 
         public void Update()
         {
+            if (IsPaused) return;
             // sanity - if the buffer empties, we will lose our sound effect. Thus we must continually check if it is dead.
             OnBufferNeeded(null, null);
 

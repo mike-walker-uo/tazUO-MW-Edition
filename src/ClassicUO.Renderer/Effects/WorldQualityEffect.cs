@@ -8,7 +8,7 @@ namespace ClassicUO.Renderer
     {
         public WorldQualityEffect(GraphicsDevice device, byte[] bytecode) : base(device, bytecode) { }
 
-        public void Configure(Rectangle source, Point textureSize, Point destinationSize, int strength, bool upscale)
+        public void Configure(Rectangle source, Point textureSize, Point destinationSize, int strength, bool upscale, int detailProtection = 0)
         {
             var viewport = GraphicsDevice.Viewport;
             CurrentTechnique = Techniques[upscale ? "PixelArt" : "AntiAlias"];
@@ -21,6 +21,7 @@ namespace ClassicUO.Renderer
                 (source.Right - 0.5f) / textureSize.X, (source.Bottom - 0.5f) / textureSize.Y));
             Parameters["Footprint"].SetValue(new Vector2(
                 (float)source.Width / destinationSize.X, (float)source.Height / destinationSize.Y));
+            Parameters["DetailProtection"].SetValue(Math.Max(0, Math.Min(100, detailProtection)) / 100f);
             Parameters["Strength"].SetValue(Math.Max(0, Math.Min(100, strength)) / 100f);
         }
     }

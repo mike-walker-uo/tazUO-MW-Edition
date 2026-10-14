@@ -78,6 +78,8 @@ namespace ClassicUO.Input
             Ctrl = (filtered & SDL.SDL_Keymod.SDL_KMOD_CTRL) != SDL.SDL_Keymod.SDL_KMOD_NONE;
         }
 
+        internal static void ResetModifiers() { Alt = Shift = Ctrl = false; }
+
         public static void Refresh()
         {
             SDL.SDL_Keymod mod = SDL.SDL_GetModState();

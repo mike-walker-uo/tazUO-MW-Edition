@@ -11,16 +11,30 @@ namespace ClassicUO.Game.UI.Gumps
     internal sealed class ClientEnhancementsGump : BaseOptionsGump
     {
         private readonly Profile _profile;
+        private WorldGraphicsSettings? _previousGraphics;
         private readonly VisualEnhancementSettings _visual;
         private readonly VBoxContainer[] _pageContent = new VBoxContainer[7];
 
-        internal ClientEnhancementsGump() : base(980, 720, "Client enhancements")
+        internal ClientEnhancementsGump(WorldGraphicsSettings? previousGraphics = null) : base(980, 720, "Client enhancements")
         {
             _profile = ProfileManager.CurrentProfile;
+            _previousGraphics = previousGraphics;
             _visual = _profile.VisualEnhancements ?? (_profile.VisualEnhancements = new VisualEnhancementSettings());
             CenterXInScreen(); CenterYInScreen();
             Category("Graphics", 1); Category("Weather & ambience", 2); Category("Interface & themes", 3);
             Category("Chat mentions", 4); Category("Spell details", 5); Category("Settings history", 6);
+            Action("Toggle exploration mode", () => { ExplorationMode.Toggle(); if (ExplorationMode.Active) Dispose(); }, 1);
+            Note("Fly as a bird at a fixed height: -fly, hold right mouse / WASD / arrows to steer, Q to rise, E to descend, Shift for speed, wheel for zoom, Esc to return. Set a ToggleExploration macro hotkey under Options > Macros. Your character stays in place and remains live; live entities are available only near your character.", 1);
+            Action("Crisp Classic preset", () => ApplyGraphicsPreset(0), 1);
+            Action("Balanced preset", () => ApplyGraphicsPreset(1), 1);
+            Action("Smooth preset", () => ApplyGraphicsPreset(2), 1);
+            if (_previousGraphics.HasValue) Action("Restore previous graphics settings", () =>
+            {
+                _previousGraphics.Value.Apply(_profile); _previousGraphics = null; RefreshGraphicsPage();
+            }, 1);
+            Action("Live Before / After comparison", () => UIManager.Add(new WorldGraphicsComparisonGump(
+                _previousGraphics ?? WorldGraphicsSettings.Capture(_profile))), 1);
+            Note("Presets change filtering and AA only. Comparison switches the same live viewport; Keep after applies it, closing cancels.", 1);
             Check("Adapt optional particle density to frame time", _visual.AdaptiveParticles, b => _visual.AdaptiveParticles = b, 1);
             Slider("Unused optional texture budget (MB)", 32, 512, _visual.TextureBudgetMB, n => _visual.TextureBudgetMB = n, 1);
             Check("Soften particle contacts", _visual.SoftParticles, b => _visual.SoftParticles = b, 1);
@@ -28,8 +42,9 @@ namespace ClassicUO.Game.UI.Gumps
             Note("Linear light blends lighting in linear colour space, changing its appearance and using extra GPU passes. Leave off for classic UO lighting.", 1);
             Check("World edge anti-aliasing (FXAA)", _visual.WorldAntiAliasing, b => _visual.WorldAntiAliasing = b, 1);
             Slider("Anti-aliasing strength (%)", 0, 100, _visual.WorldAntiAliasingStrength, n => _visual.WorldAntiAliasingStrength = n, 1);
+            Slider("Preserve fine detail (%)", 0, 100, _visual.AntiAliasingDetailProtection, n => _visual.AntiAliasingDetailProtection = n, 1);
             Slider("Pixel art filter sharpness (%)", 0, 100, _visual.PixelArtSharpness, n => _visual.PixelArtSharpness = n, 1);
-            Note("Choose pixel art or xbr under Options > Video > Misc, with post processing enabled. Scaling applies when enlarging the world. FXAA leaves UI, text and healthbars sharp.", 1);
+            Note("For crisp native UO artwork, choose point under Options > Video > Misc and leave FXAA off. Linear, anisotropic, xbr and pixel art smooth the world differently; FXAA can soften fine detail. UI, text and healthbars stay sharp.", 1);
             Check("Smooth magnifier image", _profile.MagnifierSmooth, b => _profile.MagnifierSmooth = b, 1);
             Check("Bloom on lamps and magic", _visual.SelectiveBloom, b => _visual.SelectiveBloom = b, 1);
             Slider("Bloom strength", 0, 100, _visual.BloomStrength, n => _visual.BloomStrength = n, 1);
@@ -39,6 +54,8 @@ namespace ClassicUO.Game.UI.Gumps
             Text("Art pack folder", _visual.ArtPackFolder, s => _visual.ArtPackFolder = s, 1);
             Action("Reload art pack", () => LocalArtPack.Reload(), 1);
             Note("Art packs need manifest.json and local sprite images. Missing replacements retain native art.", 1);
+            Slider("Combat music crossfade (ms; 0 = off)", 0, 1000, _profile.CombatMusicCrossfadeMs, n => _profile.CombatMusicCrossfadeMs = n, 2);
+            Note("Local music fades into combat and resumes the peaceful track at its saved position. Manual pause / stop stays respected. Radio is unchanged.", 2);
             Check("Enable ambient weather", _profile.AmbientWeatherEnabled, b => { _profile.AmbientWeatherEnabled = b; AmbientWeatherManager.Configure(b); }, 2);
             Check("Schedule ambient weather by biome, season and time", _visual.BiomeWeather, b => _visual.BiomeWeather = b, 2);
             Check("Blend compatible weather transitions", _visual.WeatherCrossfade, b => _visual.WeatherCrossfade = b, 2);
@@ -58,6 +75,13 @@ namespace ClassicUO.Game.UI.Gumps
             Check("Seasonal petals, leaves and frost", _visual.SeasonalDetails, b => _visual.SeasonalDetails = b, 2);
             int map = World.MapIndex;
             Slider("Seasonal particle intensity on this map", 0, 200, (int)(VisualBudget.MapDensity * 100), n => _visual.MapParticleIntensity[map] = n, 2);
+            Check("Compact item transfer indicator", _profile.CompactTransferProgress, b =>
+            {
+                _profile.CompactTransferProgress = b;
+                if (b) QueuedOperations.EnsureIndicator();
+                else UIManager.GetGump<QueuedOperationIndicatorGump>()?.Dispose();
+            }, 3);
+            Note("Optional corner counter. Left-click opens detailed queued actions; right-click hides it. Transfers continue when closed.", 3);
             Check("Scale interface and text independently of world zoom", _profile.InterfaceScaling, b => _profile.InterfaceScaling = b, 3);
             Slider("Interface and text scale (%)", 75, 200, (int)(_profile.InterfaceScale * 100), n => _profile.InterfaceScale = n / 100f, 3);
             Check("Reduce theme decoration, retain palette", _profile.ReducedThemeDecoration, b => _profile.ReducedThemeDecoration = b, 3);
@@ -98,6 +122,24 @@ namespace ClassicUO.Game.UI.Gumps
             }
             Action("Save changes", Save, 6);
             ChangePage(1);
+        }
+
+        private void ApplyGraphicsPreset(int preset)
+        {
+            if (!_previousGraphics.HasValue) _previousGraphics = WorldGraphicsSettings.Capture(_profile);
+            WorldGraphicsSettings.Preset(preset).Apply(_profile);
+            RefreshGraphicsPage();
+        }
+        internal void GraphicsComparisonApplied(WorldGraphicsSettings before)
+        {
+            if (!_previousGraphics.HasValue) _previousGraphics = before;
+            RefreshGraphicsPage();
+        }
+        private void RefreshGraphicsPage()
+        {
+            WorldGraphicsPreview.Clear();
+            var replacement = new ClientEnhancementsGump(_previousGraphics) { X = X, Y = Y };
+            Dispose(); UIManager.Add(replacement);
         }
 
         private void Category(string label, int page)

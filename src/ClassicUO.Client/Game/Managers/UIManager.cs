@@ -318,6 +318,13 @@ namespace ClassicUO.Game.Managers
             }
         }
 
+        internal static void ResetHeldMouseInput()
+        {
+            Array.Clear(_mouseDownControls, 0, _mouseDownControls.Length);
+            DraggingControl = null;
+            _isDraggingControl = false;
+        }
+
         public static Control LastControlMouseDown(MouseButtonType button)
         {
             return _mouseDownControls[(int)button];

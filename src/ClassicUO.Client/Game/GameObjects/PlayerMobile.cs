@@ -1637,6 +1637,7 @@ namespace ClassicUO.Game.GameObjects
 
          public bool Walk(Direction direction, bool run)
         {
+            if (ExplorationMode.Active) return false;
             if (!ProfileManager.CurrentProfile.AutoAvoidObstacules || Pathfinder.AutoWalking)
             {
 
@@ -1853,6 +1854,7 @@ namespace ClassicUO.Game.GameObjects
 
         public bool WalkNotAvoid(Direction direction, bool run)
         {
+            if (ExplorationMode.Active) return false;
             if (Walker.WalkingFailed || Walker.LastStepRequestTime > Time.Ticks || Walker.StepsCount >= Constants.MAX_STEP_COUNT || Client.Version >= ClientVersion.CV_60142 && IsParalyzed)
             {
                 return false;

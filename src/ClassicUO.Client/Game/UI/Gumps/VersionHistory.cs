@@ -1,4 +1,4 @@
-﻿using ClassicUO.Assets;
+using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.UI.Controls;
@@ -11,6 +11,26 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.3 beta]\n" +
+            """
+            Changes since 0.6.2
+            - Exploration bird camera: -fly on/off/toggle/status. Right mouse / WASD / arrows steer; Q rises, E descends, Shift speeds up, wheel zooms and Esc returns.
+            - Automatic takeoff and fixed cruising Z. Your character stays in place and remains vulnerable; live entities are available only near it.
+            - Preserve the chat field and drafts while flying; Enter/click types. Restore previous chat and zoom on exit. Disable ambience overlays in flight.
+            - End exploration on logout, map/profile changes or death; clear controls on focus loss. Assign ToggleExploration under Options > Macros.
+            - Added Crisp Classic, Balanced and Smooth graphics presets, previous-settings restore and live Before/After with Keep after or Cancel.
+            - Added FXAA fine-detail protection and point fallback for unsuitable upscaling; UI and healthbars stay sharp.
+            - Fixed weather coverage across zoom/scaling, including fog, lightning, storm flashes, snow and rain. Bounded particles and reused unchanged transforms.
+            - Resume peace music after war mode. Configurable local combat crossfade: 0-1000 ms, default 350 ms; respects pause/stop.
+            - Restored grid-container item counts beside breadcrumbs.
+            - Queued Actions auto-popup defaults off. -operations on enables, -operations off disables/closes, -operations opens manually. Transfers continue when closed.
+            - Optional compact transfer indicator defaults off; click opens details.
+            - Fixed stale paperdoll equipment and drag-preview sprites after weapon/item changes.
+            - Clear stuck input and peek when switching apps; preserve queued actions and Razor Enhanced key-release behavior.
+            - Added detailed render-stage logging for hangs. The reported normal-play rendering hang remains unresolved.
+            - Live-shard graphics, music, 4K and exploration behavior still need player verification.
+            """ +
+            "\n",
             "[0.6.2 update 1]\n" +
             """
             UOAlive October 8 chat update

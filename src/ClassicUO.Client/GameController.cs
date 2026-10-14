@@ -789,6 +789,34 @@ namespace ClassicUO
 
         private bool HandleSdlEvent(IntPtr userData, SDL_Event* sdlEvent)
         {
+            // Clear client state even when the assistant consumes the window event.
+            if ((SDL_EventType)sdlEvent->type == SDL_EventType.SDL_EVENT_WINDOW_FOCUS_LOST)
+            {
+                Keyboard.ResetModifiers();
+                Mouse.LButtonPressed = Mouse.RButtonPressed = Mouse.MButtonPressed = Mouse.XButtonPressed = Mouse.IsDragging = false;
+                SDL.SDL_CaptureMouse(false);
+                UIManager.ResetHeldMouseInput();
+                GetScene<GameScene>()?.ResetHeldInput();
+                _ignoreNextTextInput = false;
+                Plugin.ProcessHotkeys(0, 0, false); // Same release contract as normal key-up.
+            }
+            if (ExplorationMode.Active && (SDL_EventType)sdlEvent->type == SDL_EventType.SDL_EVENT_KEY_DOWN)
+            {
+                Keyboard.OnKeyDown(sdlEvent->key);
+                if (ExplorationMode.KeyDown((SDL_Keycode)sdlEvent->key.key, sdlEvent->key.mod))
+                {
+                    _ignoreNextTextInput = true;
+                    if ((SDL_Keycode)sdlEvent->key.key == SDL_Keycode.SDLK_ESCAPE) MagnifierManager.Disable();
+                    return true;
+                }
+            }
+            if ((SDL_EventType)sdlEvent->type == SDL_EventType.SDL_EVENT_KEY_UP
+                && ExplorationMode.KeyUp((SDL_Keycode)sdlEvent->key.key))
+            {
+                Keyboard.OnKeyUp(sdlEvent->key);
+                Plugin.ProcessHotkeys(0, 0, false);
+                return true;
+            }
             if (Plugin.ProcessWndProc(sdlEvent) != 0)
             {
                 if ((SDL_EventType)sdlEvent->type == SDL_EventType.SDL_EVENT_MOUSE_MOTION)

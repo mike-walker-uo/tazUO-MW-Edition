@@ -429,6 +429,13 @@ namespace ClassicUO.Game.Managers
             IsTemporarilyShowing = true;
         }
 
+        internal static void ResetHeldKey()
+        {
+            _lastKeySym = SDL.SDL_Keycode.SDLK_UNKNOWN;
+            _lastKeyMod = SDL.SDL_Keymod.SDL_KMOD_NONE;
+            IsTemporarilyShowing = false;
+        }
+
         public static void RegisterKeyUp(SDL.SDL_Keycode key)
         {
             if (key != _lastKeySym)

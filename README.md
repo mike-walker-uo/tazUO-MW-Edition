@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download version 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2)
+[Download 0.6.3 beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.3-beta) · [Stable 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -34,6 +34,31 @@ It has many features, some of them are:
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6.3 beta
+
+## Changes since 0.6.2
+
+- **Exploration flight:** added a local bird camera with a random bird/eagle and hue. Use `-fly [on|off|toggle|status]`, hold right mouse or use WASD/arrows to travel, Q/E to rise/descend, Shift for speed, the wheel to zoom, and Esc to return. Automatic takeoff starts from your character's height; cruising Z stays fixed across terrain. A ToggleExploration macro action is available under Options → Macros.
+- **Flight usability:** keep the bottom chat field visible; Enter or a click enables typing and pauses steering. Preserve drafts and restore chat/zoom on exit. Suspend ambience overlays during flight and clear held controls on focus loss. Map/profile changes, logout and death end exploration.
+- **Flight rendering:** show the bird above scenery with a ground shadow, support world zoom alongside interface scaling, and clamp map boundaries and render-target dimensions. Your real character stays in place and can still be attacked; live entities are available only near it.
+- **Graphics presets:** added Crisp Classic, Balanced and Smooth presets plus Restore previous graphics settings. Live Before/After compares settings in the same viewport; Keep after saves, and Cancel/Esc restores the saved appearance.
+- **Sharper optional filtering:** added Preserve fine detail to FXAA and point-filter fallback when xBR/pixel-art upscaling is unsuitable. Native UO point filtering remains available with AA off; interface text and healthbars remain sharp.
+- **Weather coverage:** corrected fog, lightning, storm flashes, snow and rain projection across zoomed/scaled viewports, including 4K. Keep particle counts bounded and avoid rebuilding unchanged weather transforms.
+- **Music transitions:** resume the previous peace track after war mode instead of skipping tracks. Added configurable local combat crossfades (0–1000 ms, default 350 ms), respecting pause/stop controls and music stream ownership.
+- **Container counts:** restored the grid-container item count alongside its breadcrumb/path label.
+- **Queued Actions popup:** automatic opening now defaults off. `-operations on` enables it; `-operations off` disables and closes the panel without cancelling transfers; `-operations` opens it manually. Save the preference per character. An optional compact corner transfer indicator also defaults off and opens details when clicked.
+- **Paperdoll refresh:** prevent outdated weapon/equipment sprites and drag previews remaining after equipment moves or replacement.
+- **Input cleanup:** clear stuck modifiers, held mouse controls, movement, selection and camera peek after switching apps, while preserving queued actions and Razor Enhanced's normal key-release contract.
+- **Rendering diagnostics:** added finer render-stage markers to session logs so hangs can be narrowed to object collection, terrain/mobiles, effects, weather, lighting, compositing or a batch flush.
+
+## Beta testing
+
+The reported normal-play rendering hang remains unresolved; the new diagnostics help identify a repeat. Windows CI validates tests, shaders and packaging. Live-shard graphics, 4K, music and exploration behavior still need player verification. Razor Enhanced remains the supported assistant.
+
+Replace the complete client ZIP so updated shaders are included. Displayed version: **0.6.3-beta**; Windows file version: **0.6.3.0**.
+
+See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.3-Beta-Guide).
 
 ## Version 0.6.2 update 1 — UOAlive October 8 chat update
 
@@ -164,7 +189,7 @@ These client changes follow the [October 8 patch notes](https://uoalive.com/wiki
 - Back up the existing client folder and profiles before upgrading.
 
 
-See the [0.6.2 setup guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.2-Guide) and [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands). Open `-enhancements` for graphics and ambience, `-gumpthemes` for themes, and `-operations` for queued actions.
+See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.3-Beta-Guide) or [stable 0.6.2 setup guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.2-Guide) and [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands). Open `-enhancements` for graphics and ambience, `-gumpthemes` for themes, and `-operations` for queued actions.
 
 ## Version 0.6.1 highlights
 
@@ -237,7 +262,7 @@ See the [Client Commands wiki](https://github.com/mike-walker-uo/tazUO-MW-Editio
 
 ## Compatibility
 
-Version 0.6.2 uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
+Version 0.6.3 beta uses a pinned FNA/SDL3 graphics and input stack while remaining on .NET Framework 4.7.2 for Razor Enhanced compatibility.
 
 On Windows, the client uses Windows system DPI scaling by default so the interface remains readable on high-resolution displays. Start the client with `-native-dpi` to use SDL3's native per-monitor pixels instead. The legacy `-highdpi` option also selects native DPI mode.
 
@@ -293,7 +318,7 @@ Custom Weather Effects: https://youtu.be/4BqKIRYgKqI
 ## Installation
 
 1. Make a backup of your ClassicUO folder.
-2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.2 release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2).
+2. Download and extract `tazUO-MW-Edition-win-x64.zip` from the [0.6.3 beta release](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.3-beta), or use [stable 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2).
 3. Place its contents in your ClassicUO or tazUO folder, where `ClassicUO.exe` is located.
 4. Optional: Download [UOMusic.zip](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/download/0.1/UOMusic.zip), then place the contents of its `UOMusic` folder in your UO folder under `Music/Digital`.
 5. Start `ClassicUO.exe`.

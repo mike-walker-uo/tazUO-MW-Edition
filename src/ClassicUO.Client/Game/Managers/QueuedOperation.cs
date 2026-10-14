@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using ClassicUO.Game.UI;
+using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Gumps;
 
 namespace ClassicUO.Game.Managers
@@ -36,9 +36,27 @@ namespace ClassicUO.Game.Managers
             if (Recent.Count >= 12) Recent.RemoveAll(operation => operation.Finished);
             var operation = new QueuedOperation(name) { CancelSource = cancelSource };
             Recent.Add(operation);
-            if (World.InGame && UIManager.GetGump<QueuedOperationsGump>() == null)
+            if (World.InGame && ProfileManager.CurrentProfile?.AutoOpenQueuedActions == true
+                && UIManager.GetGump<QueuedOperationsGump>() == null)
                 UIManager.Add(new QueuedOperationsGump());
+            EnsureIndicator();
             return operation;
+        }
+        internal static void EnsureIndicator()
+        {
+            if (World.InGame && ProfileManager.CurrentProfile?.CompactTransferProgress == true
+                && UIManager.GetGump<QueuedOperationIndicatorGump>() == null)
+                UIManager.Add(new QueuedOperationIndicatorGump());
+        }
+        internal static int ActiveProgress(out int completed, out int total)
+        {
+            int active = 0; completed = total = 0;
+            foreach (var operation in Recent)
+            {
+                if (operation.Finished) continue;
+                active++; completed += operation.Sent + operation.Skipped; total += operation.Total;
+            }
+            return active;
         }
         internal static void Reset()
         {

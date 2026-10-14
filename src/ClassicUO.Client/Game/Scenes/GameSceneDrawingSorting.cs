@@ -99,6 +99,13 @@ namespace ClassicUO.Game.Scenes
 
         public void UpdateMaxDrawZ(bool force = false)
         {
+            if (ExplorationMode.Active)
+            {
+                _maxGroundZ = 127;
+                _maxZ = 127;
+                _noDrawRoofs = !ProfileManager.CurrentProfile.DrawRoofs;
+                return;
+            }
             int playerX = World.Player.X;
             int playerY = World.Player.Y;
             int playerZ = World.Player.Z;
@@ -326,7 +333,7 @@ namespace ClassicUO.Game.Scenes
             ref StaticTiles itemData
         )
         {
-            if (obj.Z < _maxZ && itemData.IsFoliage)
+            if (!ExplorationMode.Active && obj.Z < _maxZ && itemData.IsFoliage)
             {
                 if (obj.FoliageIndex != FoliageIndex)
                 {
@@ -383,7 +390,7 @@ namespace ClassicUO.Game.Scenes
         )
         {
             allowSelection = true;
-            if (ProfileManager.CurrentProfile.UseCircleOfTransparency && ProfileManager.CurrentProfile.CircleOfTransparencyType == 2)
+            if (!ExplorationMode.Active && ProfileManager.CurrentProfile.UseCircleOfTransparency && ProfileManager.CurrentProfile.CircleOfTransparencyType == 2)
             {
                 if (Vector2.Distance(new Vector2(obj.RealScreenPosition.X, obj.RealScreenPosition.Y), playerPos) < ProfileManager.CurrentProfile.CircleOfTransparencyRadius)
                 {
@@ -478,7 +485,7 @@ namespace ClassicUO.Game.Scenes
             ref bool allowSelection
         )
         {
-            if (ProfileManager.CurrentProfile.UseCircleOfTransparency && obj.TransparentTest(maxZ))
+            if (!ExplorationMode.Active && ProfileManager.CurrentProfile.UseCircleOfTransparency && obj.TransparentTest(maxZ))
             {
                 int maxDist = ProfileManager.CurrentProfile.CircleOfTransparencyRadius + 0;
                 Vector2 pos = new Vector2(obj.RealScreenPosition.X, obj.RealScreenPosition.Y - 44);
@@ -660,6 +667,7 @@ namespace ClassicUO.Game.Scenes
             // slow as fuck
             if (
                 allowSelection
+                && !ExplorationMode.Active
                 && obj.Z <= _maxGroundZ
                 && obj.AllowedToDraw
                 && obj.CheckMouseSelection()
@@ -1148,6 +1156,20 @@ namespace ClassicUO.Game.Scenes
 
             int winDrawOffsetX = (tileOffX - tileOffY) * 22 - winGameCenterX;
             int winDrawOffsetY = (tileOffX + tileOffY) * 22 - winGameCenterY;
+            if (ExplorationMode.Active)
+            {
+                tileOffX = (int)ExplorationMode.Position.X; tileOffY = (int)ExplorationMode.Position.Y;
+                var center = new Point(winGameWidth >> 1, winGameHeight >> 1);
+                if (ProfileManager.CurrentProfile.GlobalScaling)
+                {
+                    // Global fullscreen clips a scaled viewport to the backbuffer.
+                    // Keep world zoom centered on its visible part, not the clipped part.
+                    center.X = (int)Math.Round(Camera.Bounds.Width / 2f + (center.X - Camera.Bounds.Width / 2f) * zoom);
+                    center.Y = (int)Math.Round(Camera.Bounds.Height / 2f + (center.Y - Camera.Bounds.Height / 2f) * zoom);
+                }
+                Point origin = ExplorationMode.DrawOffset(ExplorationMode.Position, center, ExplorationMode.FlightZ);
+                winDrawOffsetX = origin.X; winDrawOffsetY = origin.Y;
+            }
 
             int winGameScaledOffsetX;
             int winGameScaledOffsetY;
@@ -1177,6 +1199,7 @@ namespace ClassicUO.Game.Scenes
             }
 
             int size = (int)(Math.Max(winGameWidth / 44f + 1, winGameHeight / 44f + 1) * zoom);
+            if (ExplorationMode.Active) size += (int)Math.Ceiling(Math.Abs(ExplorationMode.Altitude) / 11f);
 
             if (Camera.Offset.X != 0 || Camera.Offset.Y != 0)
             {
@@ -1189,6 +1212,11 @@ namespace ClassicUO.Game.Scenes
 
             int realMaxRangeX = tileOffX + size;
             int realMaxRangeY = tileOffY + size;
+            if (ExplorationMode.Active)
+            {
+                realMaxRangeX = Math.Min(ExplorationMode.MapSize.X - 1, realMaxRangeX);
+                realMaxRangeY = Math.Min(ExplorationMode.MapSize.Y - 1, realMaxRangeY);
+            }
 
             int drawOffset = (int)(44 / zoom);
 

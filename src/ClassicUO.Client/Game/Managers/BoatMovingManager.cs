@@ -70,6 +70,7 @@ namespace ClassicUO.Game.Managers
 
         public static void MoveRequest(Direction direciton, byte speed)
         {
+            if (ExplorationMode.Active && speed != 0) return;
             NetClient.Socket.Send_MultiBoatMoveRequest(World.Player, direciton, speed);
             _timePacket = Time.Ticks;
         }

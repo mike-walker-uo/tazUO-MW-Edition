@@ -17,6 +17,7 @@ namespace ClassicUO.Configuration
         public bool LinearLight { get; set; }
         public bool WorldAntiAliasing { get; set; }
         public int WorldAntiAliasingStrength { get; set; } = 35;
+        public int AntiAliasingDetailProtection { get; set; } = 75;
         public int PixelArtSharpness { get; set; } = 75;
         public bool SelectiveBloom { get; set; } = true;
         public int BloomStrength { get; set; } = 35;

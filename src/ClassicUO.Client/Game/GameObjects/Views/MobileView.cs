@@ -56,6 +56,8 @@ namespace ClassicUO.Game.GameObjects
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
+            // The exploration avatar is drawn separately at the camera's position.
+            if (ExplorationMode.Active && ReferenceEquals(this, World.Player)) return false;
             if (IsDestroyed || !AllowedToDraw)
             {
                 return false;

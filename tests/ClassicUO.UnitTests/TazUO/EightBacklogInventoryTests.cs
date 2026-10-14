@@ -97,6 +97,16 @@ namespace ClassicUO.UnitTests.TazUO
             var path = ContainerBreadcrumbs.Build(bag.Serial);
             Assert.False(path[0].Available); Assert.Contains("last-known", path[0].Name); Assert.True(path[1].Available);
         }
+        [Theory]
+        [InlineData(0)]
+        [InlineData(125)]
+        [InlineData(500)]
+        public void Grid_title_keeps_count_before_the_full_breadcrumb(int count)
+        {
+            var pack = Add(1, 0); var bag = Add(2, 2, pack.Serial);
+            Assert.Equal($"({count}) Backpack › Blue Bag", ContainerBreadcrumbLabel.Path(bag.Serial, count));
+            Assert.Equal("Backpack › Blue Bag", ContainerBreadcrumbLabel.Path(bag.Serial));
+        }
         public void Dispose()
         {
             InventoryCounts.Reset();

@@ -142,6 +142,16 @@ namespace ClassicUO.Game.UI.Gumps
 
             WantUpdateSize = false;
 
+            foreach (Control input in new Control[] { _trans, TextBoxControl })
+                input.MouseUp += (_, e) =>
+                {
+                    if (ExplorationMode.Active && !IsActive && e.Button == MouseButtonType.Left)
+                    {
+                        BeginExplorationChat();
+                        ExplorationMode.ResetKeys();
+                    }
+                };
+
             EventSink.MessageReceived += ChatOnMessageReceived;
             Mode = ChatMode.Default;
 
@@ -250,8 +260,28 @@ namespace ClassicUO.Game.UI.Gumps
             TextBoxControl.IsEditable = true;
             TextBoxControl.SetKeyboardFocus();
             TextBoxControl.IsEditable = _isActive;
-            _trans.IsVisible = _isActive;
+            RefreshInputVisibility();
             ApplyTheme();
+        }
+
+        internal void RefreshInputVisibility()
+        {
+            // Camera controls pause editing, but the message field stays present.
+            TextBoxControl.IsVisible = _trans.IsVisible = _isActive || ExplorationMode.Active;
+        }
+
+        internal void BeginExplorationChat()
+        {
+            _isActive = true;
+            TextBoxControl.Width = _trans.Width - CHAT_X_OFFSET;
+            SetFocus(); // Preserve any draft instead of clearing it through IsActive's setter.
+        }
+
+        internal void RestoreExplorationChat(bool wasActive)
+        {
+            _isActive |= wasActive;
+            TextBoxControl.IsEditable = _isActive;
+            RefreshInputVisibility();
         }
 
         internal void ApplyTheme()

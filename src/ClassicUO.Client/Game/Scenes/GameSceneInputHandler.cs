@@ -72,6 +72,25 @@ namespace ClassicUO.Game.Scenes
             _selectionEnd;
         private int AnchorOffset => ProfileManager.CurrentProfile.DragSelectAsAnchor ? 0 : 2;
 
+        internal void ResetHeldInput()
+        {
+            Array.Clear(_flags, 0, _flags.Length);
+            ExplorationMode.ResetKeys();
+            _isMouseLeftDown = _isSelectionActive = _rightMousePressed = _continueRunning = false;
+            _holdMouse2secOverItemTime = 0;
+            Camera.PeekingToMouse = false;
+            _nameplateChordHeld = false;
+            NameOverHeadManager.ResetHeldKey();
+            if (_requestedWarMode && World.InGame) AsyncNetClient.Socket.Send_ChangeWarMode(false);
+            _requestedWarMode = false;
+            var profile = ProfileManager.CurrentProfile;
+            if (!ExplorationMode.Active && profile?.EnableMousewheelScaleZoom == true && profile.RestoreScaleAfterUnpressCtrl)
+                Camera.Zoom = profile.DefaultScale;
+            if (_boatIsMoving && World.InGame)
+                BoatMovingManager.MoveRequest(World.Player.Direction, 0);
+            _boatIsMoving = _boatRun = false;
+        }
+
         private static int GetMovementKeyIndex(SDL.SDL_Keycode key, bool wasd)
         {
             if (wasd)
@@ -427,6 +446,12 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseDown(MouseButtonType button)
         {
+            if (ExplorationMode.Active && UIManager.IsMouseOverWorld)
+            {
+                if (button == MouseButtonType.Right) ExplorationMode.SetMouseSteering(true);
+                Mouse.CancelDoubleClick = true;
+                return true;
+            }
             switch (button)
             {
                 case MouseButtonType.Left:
@@ -444,6 +469,9 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseUp(MouseButtonType button)
         {
+            if (ExplorationMode.Active && button == MouseButtonType.Right && ExplorationMode.MouseSteering)
+            { ExplorationMode.SetMouseSteering(false); return true; }
+            if (ExplorationMode.Active && UIManager.IsMouseOverWorld) return true;
             switch (button)
             {
                 case MouseButtonType.Left:
@@ -461,6 +489,7 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseDoubleClick(MouseButtonType button)
         {
+            if (ExplorationMode.Active && UIManager.IsMouseOverWorld) return OnMouseDown(button);
             switch (button)
             {
                 case MouseButtonType.Left:
@@ -1117,6 +1146,11 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseWheel(bool up)
         {
+            if (ExplorationMode.Active && UIManager.IsMouseOverWorld)
+            {
+                if (up) Camera.ZoomIn(); else Camera.ZoomOut();
+                return true;
+            }
             if (Keyboard.Ctrl && Client.Game.GameCursor.ItemHold.Enabled)
             {
                 if (!up && !Client.Game.GameCursor.ItemHold.IsFixedPosition)
@@ -1177,6 +1211,7 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseDragging()
         {
+            if (ExplorationMode.Active && UIManager.IsMouseOverWorld) return true;
             if (!UIManager.IsMouseOverWorld)
             {
                 return false;
@@ -1361,6 +1396,11 @@ namespace ClassicUO.Game.Scenes
 
                 case SDL.SDL_Keycode.SDLK_RETURN:
                 case SDL.SDL_Keycode.SDLK_KP_ENTER:
+                    if (ExplorationMode.Active)
+                    {
+                        UIManager.SystemChat.IsActive = false;
+                        return;
+                    }
 
                     if (UIManager.KeyboardFocusControl == UIManager.SystemChat.TextBoxControl)
                     {
@@ -1504,7 +1544,8 @@ namespace ClassicUO.Game.Scenes
             }
 
             if (
-                ProfileManager.CurrentProfile.EnableMousewheelScaleZoom
+                !ExplorationMode.Active
+                && ProfileManager.CurrentProfile.EnableMousewheelScaleZoom
                 && ProfileManager.CurrentProfile.RestoreScaleAfterUnpressCtrl
                 && !Keyboard.Ctrl
             )

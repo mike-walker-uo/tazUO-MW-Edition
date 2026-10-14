@@ -2297,6 +2297,10 @@ namespace ClassicUO.Game.Managers
                     AsyncNetClient.Socket.Send_Resync();
                     break;
 
+                case MacroType.ToggleExploration:
+                    ExplorationMode.Toggle();
+                    break;
+
                 case MacroType.ToggleHotkeys:
                     ProfileManager.CurrentProfile.DisableHotkeys = !ProfileManager.CurrentProfile.DisableHotkeys;
                     GameActions.Print($"Hotkeys {(ProfileManager.CurrentProfile.DisableHotkeys ? "disabled" : "enabled")}.");
@@ -2939,6 +2943,7 @@ namespace ClassicUO.Game.Managers
         ToggleHotkeys,
         RazorEnhancedHotkey,
         ContextAction,
+        ToggleExploration,
     }
 
     public enum MacroSubType
