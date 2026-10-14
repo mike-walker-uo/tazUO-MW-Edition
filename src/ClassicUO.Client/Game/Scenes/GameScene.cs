@@ -192,8 +192,10 @@ namespace ClassicUO.Game.Scenes
 
         public void SetPostProcessingSettings()
         {
-            _use_render_target = ProfileManager.CurrentProfile.EnablePostProcessingEffects || VisualBudget.Settings?.LinearLight == true;
-            switch (ProfileManager.CurrentProfile.PostProcessingType)
+            var graphics = WorldGraphicsPreview.Effective(ProfileManager.CurrentProfile);
+            _use_render_target = graphics.Processing || VisualBudget.Settings?.LinearLight == true
+                || ExplorationMode.Active && ProfileManager.CurrentProfile.GlobalScaling;
+            switch (graphics.Filter)
             {
                 case 1:
                     _filterMode = "linear";
@@ -444,6 +446,8 @@ namespace ClassicUO.Game.Scenes
 
         public override void Unload()
         {
+            ExplorationMode.Stop();
+            WorldGraphicsPreview.Clear();
             if (IsDestroyed)
             {
                 return;
@@ -826,12 +830,12 @@ namespace ClassicUO.Game.Scenes
 
             GetViewPort();
 
-            bool nameplateChordHeld = Keyboard.Ctrl && Keyboard.Shift;
+            bool nameplateChordHeld = !ExplorationMode.Active && Keyboard.Ctrl && Keyboard.Shift;
             if (nameplateChordHeld && !_nameplateChordHeld && NameOverHeadManager.IsPermaToggled)
                 NameOverHeadManager.Open();
             _nameplateChordHeld = nameplateChordHeld;
 
-            var useObjectHandles = NameOverHeadManager.IsShowing;
+            var useObjectHandles = !ExplorationMode.Active && NameOverHeadManager.IsShowing;
             if (useObjectHandles != _useObjectHandles)
             {
                 _useObjectHandles = useObjectHandles;
@@ -952,6 +956,7 @@ namespace ClassicUO.Game.Scenes
         public override void Update()
         {
             Profile currentProfile = ProfileManager.CurrentProfile;
+            ExplorationMode.Update();
 
             SelectedObject.TranslatedMousePositionByViewport = Camera.MouseToWorldPosition();
 
@@ -1004,7 +1009,7 @@ namespace ClassicUO.Game.Scenes
             WaterEnhancementManager.Update();
             _animatedStaticsManager.Process();
             BoatMovingManager.Update();
-            Pathfinder.ProcessAutoWalk();
+            if (!ExplorationMode.Active) Pathfinder.ProcessAutoWalk();
             DelayedObjectClickManager.Update();
 
             if (
@@ -1036,7 +1041,7 @@ namespace ClassicUO.Game.Scenes
             _moveItemQueue.ProcessQueue();
             GridHighlightData.ProcessQueue();
 
-            if (!MoveCharacterByMouseInput() && !currentProfile.DisableArrowBtn && !MoveCharByController())
+            if (!ExplorationMode.Active && !MoveCharacterByMouseInput() && !currentProfile.DisableArrowBtn && !MoveCharByController())
             {
                 Direction dir = DirectionHelper.DirectionFromKeyboardArrows(
                     _flags[0],
@@ -1051,7 +1056,7 @@ namespace ClassicUO.Game.Scenes
                 }
             }
 
-            if (currentProfile.FollowingMode && SerialHelper.IsMobile(currentProfile.FollowingTarget) && !Pathfinder.AutoWalking)
+            if (!ExplorationMode.Active && currentProfile.FollowingMode && SerialHelper.IsMobile(currentProfile.FollowingTarget) && !Pathfinder.AutoWalking)
             {
                 Mobile follow = World.Mobiles.Get(currentProfile.FollowingTarget);
 
@@ -1222,6 +1227,8 @@ namespace ClassicUO.Game.Scenes
             var profile = ProfileManager.CurrentProfile;
             var gd = batcher.GraphicsDevice;
 
+            if (ExplorationMode.Active && _use_render_target)
+                Camera.Zoom = Math.Min(Camera.Zoom, _max_texture_size / (float)Math.Max(1, Math.Max(Camera.Bounds.Width, Camera.Bounds.Height)));
             Viewport r_viewport = gd.Viewport;
             Viewport camera_viewport = Camera.GetViewport();
             Matrix matrix = Camera.ViewTransformMatrix;
@@ -1240,6 +1247,7 @@ namespace ClassicUO.Game.Scenes
             {
                 _linearEncodedTarget.Dispose(); _linearEncodedTarget = null;
             }
+            MainThreadHangDiagnostics.Mark("Draw: render targets");
             EnsureRenderTargets(gd);
             BeginWorldQuality(gd);
 
@@ -1253,6 +1261,7 @@ namespace ClassicUO.Game.Scenes
             }
 
             // draw lights
+            MainThreadHangDiagnostics.Mark("Draw: light composite");
             if (can_draw_lights && !_linearActive)
             {
                 if (profile.GlobalScaling)
@@ -1282,6 +1291,7 @@ namespace ClassicUO.Game.Scenes
                 hue.Z = 1f;
             }
 
+            MainThreadHangDiagnostics.Mark("Draw: quality pass");
             FinishWorldQuality(batcher);
 
             if (profile.GlobalScaling)
@@ -1289,8 +1299,10 @@ namespace ClassicUO.Game.Scenes
             else
                 batcher.Begin();
 
+            MainThreadHangDiagnostics.Mark("Draw: world overlays");
             DrawOverheads(batcher);
             DrawSelection(batcher);
+            MainThreadHangDiagnostics.Mark("Draw: overlay flush");
             batcher.End();
 
             gd.Viewport = r_viewport;
@@ -1349,7 +1361,7 @@ namespace ClassicUO.Game.Scenes
 
             if (profile.GlobalScaling)
             {
-                Camera.Zoom = 1f;
+                if (!ExplorationMode.Active) Camera.Zoom = 1f;
 
                 camera_viewport.Bounds = new Rectangle(
                     (int)(camera_viewport.Bounds.X * profile.GlobalScale),
@@ -1363,7 +1375,9 @@ namespace ClassicUO.Game.Scenes
                 can_draw_lights = PrepareLightsRendering(batcher, ref worldRTMatrix);
                 gd.Viewport = camera_viewport;
 
-                srcRect = new Rectangle(0, 0, rtW, rtH);
+                int srcW = ExplorationMode.Active ? (int)Math.Floor(vpW * Camera.Zoom) : rtW;
+                int srcH = ExplorationMode.Active ? (int)Math.Floor(vpH * Camera.Zoom) : rtH;
+                srcRect = new Rectangle((rtW - srcW) / 2, (rtH - srcH) / 2, srcW, srcH);
                 destRect = new Rectangle(0, 0, (int)Math.Floor(vpW * scale), (int)Math.Floor(vpH * scale));
             }
             else
@@ -1381,6 +1395,7 @@ namespace ClassicUO.Game.Scenes
                 destRect = new Rectangle(0, 0, vpW, vpH);
             }
             
+            MainThreadHangDiagnostics.Mark("Draw: world composite");
             UpdatePostProcessState(gd);
             Texture2D compositeSource = _world_render_target;
             if (_linearActive && _postFx != null)
@@ -1410,10 +1425,11 @@ namespace ClassicUO.Game.Scenes
             if (encodeHere) _linearComposite.Configure(_light_render_target, can_draw_lights, UseAltLights);
             if (_postFx == _worldQuality && _worldQuality != null)
                 _worldQuality.Configure(srcRect, new Point(compositeSource.Width, compositeSource.Height),
-                    new Point(destRect.Width, destRect.Height), VisualBudget.Settings?.PixelArtSharpness ?? 75, true);
+                    new Point(destRect.Width, destRect.Height), WorldGraphicsPreview.Effective(profile).Sharpness, true);
             batcher.Begin(encodeHere ? _linearComposite : _postFx, Matrix.Identity);
             try { batcher.SetSampler(_postSampler ?? SamplerState.PointClamp); } catch { batcher.SetSampler(SamplerState.PointClamp); }
             batcher.Draw(compositeSource, destRect, srcRect, new Vector3(0, 0, 1));
+            MainThreadHangDiagnostics.Mark("Draw: composite flush");
             batcher.End();
             batcher.SetSampler(null);
             batcher.SetBlendState(null);
@@ -1424,8 +1440,10 @@ namespace ClassicUO.Game.Scenes
         private void DrawWorld(UltimaBatcher2D batcher, ref Matrix matrix, bool use_render_target)
         {
             SelectedObject.Object = null;
+            MainThreadHangDiagnostics.Mark("Draw: collect world objects");
             FillGameObjectList();
 
+            MainThreadHangDiagnostics.Mark("Draw: world preparation");
             if (use_render_target)
             {
                 batcher.GraphicsDevice.SetRenderTarget(_world_render_target);
@@ -1449,12 +1467,25 @@ namespace ClassicUO.Game.Scenes
             batcher.SetBrightlight(ProfileManager.CurrentProfile.TerrainShadowsLevel * 0.1f);
             batcher.SetStencil(DepthStencilState.Default);
 
-            SceneryInteractionManager.DrawBackground(batcher, Camera.Bounds);
-            UI.AmbienceOverlay.DrawBackground(batcher, Camera.Bounds);
-            Weather.DrawBackground(batcher, 0, 0);
+            if (!ExplorationMode.Active)
+            {
+                SceneryInteractionManager.DrawBackground(batcher, Camera.Bounds);
+                UI.AmbienceOverlay.DrawBackground(batcher, Camera.Bounds);
+            }
+            var weatherWindow = new Point(Camera.Bounds.Width, Camera.Bounds.Height);
+            var weatherTarget = use_render_target
+                ? new Point(_world_render_target.Width, _world_render_target.Height) : weatherWindow;
+            float weatherScale = use_render_target
+                ? (ProfileManager.CurrentProfile.GlobalScaling ? (ExplorationMode.Active ? Camera.Zoom : 1f) : GetActiveScale())
+                : (ProfileManager.CurrentProfile.GlobalScaling ? GetActiveScale() : 1f);
+            if (!use_render_target && ProfileManager.CurrentProfile.GlobalScaling)
+                weatherTarget = new Point((int)(weatherWindow.X * weatherScale), (int)(weatherWindow.Y * weatherScale));
+            Matrix weatherProjection = ClassicUO.Game.Weather.ViewportProjection(weatherWindow, weatherTarget, weatherScale);
+            Weather.DrawBackground(batcher, 0, 0, weatherProjection);
             SceneryInteractionManager.BeginLightFrame();
 
             RenderedObjectsCount = 0;
+            MainThreadHangDiagnostics.Mark("Draw: terrain and mobiles");
             RenderedObjectsCount += DrawRenderList(
                 batcher,
                 _renderListStaticsHead,
@@ -1465,14 +1496,19 @@ namespace ClassicUO.Game.Scenes
                 _renderListAnimationsHead,
                 _renderListAnimationCount
             );
+            MainThreadHangDiagnostics.Mark("Draw: terrain materials");
             TerrainMaterialManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather);
             WaterEnhancementManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather, matrix);
 
-            SceneryInteractionManager.DrawContactShadows(batcher, Camera.Bounds);
-            SceneryInteractionManager.DrawFrostEdges(batcher, Weather);
+            if (!ExplorationMode.Active)
+            {
+                SceneryInteractionManager.DrawContactShadows(batcher, Camera.Bounds);
+                SceneryInteractionManager.DrawFrostEdges(batcher, Weather);
+            }
 
             // Material passes alter only captured land/water. Draw effects
             // afterwards so their ground-level pixels cannot be tinted over.
+            MainThreadHangDiagnostics.Mark("Draw: world effects");
             batcher.SetStencil(DepthStencilState.Default);
             RenderedObjectsCount += DrawRenderList(
                 batcher,
@@ -1482,6 +1518,7 @@ namespace ClassicUO.Game.Scenes
 
             if (_renderListTransparentObjectsCount > 0)
             {
+                MainThreadHangDiagnostics.Mark("Draw: transparent objects");
                 batcher.SetStencil(DepthStencilState.DepthRead);
                 RenderedObjectsCount += DrawRenderList(
                     batcher,
@@ -1513,7 +1550,7 @@ namespace ClassicUO.Game.Scenes
                 && TargetManager.TargetingState == CursorTarget.MultiPlacement
             )
             {
-                _multi.Draw(
+                if (!ExplorationMode.Active) _multi.Draw(
                     batcher,
                     _multi.RealScreenPosition.X,
                     _multi.RealScreenPosition.Y,
@@ -1524,13 +1561,16 @@ namespace ClassicUO.Game.Scenes
             batcher.SetSampler(null);
             batcher.SetStencil(null);
 
-            GroundDropPreview.Draw(batcher);
+            if (!ExplorationMode.Active) GroundDropPreview.Draw(batcher);
 
             // draw weather
-            GroundDecals.Draw(batcher, 0, 0);
-            Weather.Draw(batcher, 0, 0, UseAltLights); // TODO: fix the depth
-            SceneryInteractionManager.DrawSelectiveBloom(batcher, Camera.Bounds);
+            MainThreadHangDiagnostics.Mark("Draw: weather and ambience");
+            if (!ExplorationMode.Active) GroundDecals.Draw(batcher, 0, 0);
+            ExplorationMode.DrawBird(batcher, _offset);
+            Weather.Draw(batcher, 0, 0, UseAltLights, weatherProjection);
+            if (!ExplorationMode.Active) SceneryInteractionManager.DrawSelectiveBloom(batcher, Camera.Bounds);
 
+            MainThreadHangDiagnostics.Mark("Draw: world batch flush");
             batcher.End();
             batcher.SetLinearLight(false);
 
@@ -1588,6 +1628,7 @@ namespace ClassicUO.Game.Scenes
                 return false;
             }
 
+            MainThreadHangDiagnostics.Mark("Draw: lights");
             batcher.GraphicsDevice.SetRenderTarget(_light_render_target);
             batcher.GraphicsDevice.Clear(ClearOptions.Target, Color.Black, 0f, 0);
 
@@ -1652,6 +1693,7 @@ namespace ClassicUO.Game.Scenes
             _lightCount = 0;
 
             batcher.SetBlendState(null);
+            MainThreadHangDiagnostics.Mark("Draw: light batch flush");
             batcher.End();
 
             RestoreWorldPresentationTarget(batcher.GraphicsDevice);
@@ -1661,6 +1703,7 @@ namespace ClassicUO.Game.Scenes
 
         public void DrawOverheads(UltimaBatcher2D batcher)
         {
+            if (ExplorationMode.Active) { SelectedObject.Object = null; return; }
             // Draw localized ambience before labels, health bars and
             // interaction overlays so effects never reduce UI readability.
             FeatureDiagnostics.Guard("Ambience", batcher, Camera.Bounds, UI.AmbienceOverlay.DrawWorld);
@@ -1786,8 +1829,9 @@ namespace ClassicUO.Game.Scenes
         private void BeginWorldQuality(GraphicsDevice gd)
         {
             _qualityCapturing = false;
-            if (VisualBudget.Settings?.WorldAntiAliasing != true
-                || VisualBudget.Settings.WorldAntiAliasingStrength <= 0 || !EnsureWorldQualityEffect(gd))
+            var graphics = WorldGraphicsPreview.Effective(ProfileManager.CurrentProfile);
+            if (!graphics.AntiAliasing
+                || graphics.Strength <= 0 || !EnsureWorldQualityEffect(gd))
             {
                 _qualityTarget?.Dispose();
                 _qualityTarget = null;
@@ -1818,7 +1862,8 @@ namespace ClassicUO.Game.Scenes
             Rectangle destination = source;
             destination.Offset(-viewport.X, -viewport.Y);
             _worldQuality.Configure(source, new Point(_qualityTarget.Width, _qualityTarget.Height),
-                new Point(source.Width, source.Height), VisualBudget.Settings.WorldAntiAliasingStrength, false);
+                new Point(source.Width, source.Height), WorldGraphicsPreview.Effective(ProfileManager.CurrentProfile).Strength, false,
+                WorldGraphicsPreview.Effective(ProfileManager.CurrentProfile).DetailProtection);
             // The captured RGB is complete; lighting alpha must not blend it a second time.
             batcher.SetBlendState(BlendState.Opaque);
             batcher.SetSampler(SamplerState.LinearClamp);
@@ -1837,8 +1882,9 @@ namespace ClassicUO.Game.Scenes
 
             int vw = Math.Max(1, Camera.Bounds.Width);
             int vh = Math.Max(1, Camera.Bounds.Height);
-            int rtWidth = Math.Min(profile.GlobalScaling ? vw : (int)Math.Floor(vw * scale), _max_texture_size);
-            int rtHeight = Math.Min(profile.GlobalScaling ? vh : (int)Math.Floor(vh * scale), _max_texture_size);
+            float renderScale = profile.GlobalScaling ? (ExplorationMode.Active ? Camera.Zoom : 1f) : scale;
+            int rtWidth = Math.Min((int)Math.Floor(vw * renderScale), _max_texture_size);
+            int rtHeight = Math.Min((int)Math.Floor(vh * renderScale), _max_texture_size);
             
             if (_use_render_target
                 && (_world_render_target == null
@@ -1876,14 +1922,15 @@ namespace ClassicUO.Game.Scenes
             string mode = (_filterMode ?? "point").ToLowerInvariant();
             Profile profile = ProfileManager.CurrentProfile;
             float scale = GetActiveScale();
+            if (profile.GlobalScaling && ExplorationMode.Active) scale /= Camera.Zoom;
 
             if (
                 ((mode == "xbr" || mode == "pixel art") && scale >= 1.0f && !profile.GlobalScaling) ||
                 ((mode == "xbr" || mode == "pixel art") && scale <= 1.0f && profile.GlobalScaling))
             {
                 _postFx = null;
-                _postSampler = SamplerState.LinearClamp;
-                _currentFilter = "linear";
+                _postSampler = SamplerState.PointClamp;
+                _currentFilter = "point";
                 return;
             }
 

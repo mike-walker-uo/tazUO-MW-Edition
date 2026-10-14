@@ -70,7 +70,8 @@ namespace ClassicUO.Game.Map
 
         public Chunk GetChunk(int x, int y, bool load = true)
         {
-            if (x < 0 || y < 0)
+            if (x < 0 || y < 0 || x >= MapLoader.Instance.MapBlocksSize[Index, 0] * 8
+                || y >= MapLoader.Instance.MapBlocksSize[Index, 1] * 8)
             {
                 return null;
             }
@@ -243,6 +244,9 @@ namespace ClassicUO.Game.Map
 
         public ref IndexMap GetIndex(int blockX, int blockY)
         {
+            if (blockX < 0 || blockY < 0 || blockX >= MapLoader.Instance.MapBlocksSize[Index, 0]
+                || blockY >= MapLoader.Instance.MapBlocksSize[Index, 1])
+                return ref IndexMap.Invalid;
             int block = GetBlock(blockX, blockY);
             int map = Index;
             MapLoader.Instance.SanitizeMapIndex(ref map);

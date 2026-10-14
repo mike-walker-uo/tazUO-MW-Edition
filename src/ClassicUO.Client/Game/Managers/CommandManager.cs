@@ -275,8 +275,22 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new EquipmentGuruGump());
             });
 
-            Register("operations", _ =>
+            Register("operations", s =>
             {
+                var profile = ProfileManager.CurrentProfile;
+                if (!World.InGame || profile == null)
+                { GameActions.Print("Log in to use queued actions.", 0x35); return; }
+                if (s != null && s.Length > 1)
+                {
+                    string action = s[1].ToLowerInvariant();
+                    if (s.Length != 2 || !(action == "on" || action == "off"))
+                    { GameActions.Print("Usage: -operations [on|off] (no argument opens the panel)", 0x35); return; }
+                    profile.AutoOpenQueuedActions = action == "on";
+                    if (!profile.AutoOpenQueuedActions) UIManager.GetGump<QueuedOperationsGump>()?.Dispose();
+                    profile.Save(ProfileManager.ProfilePath, false);
+                    GameActions.Print($"Queued Actions popup: automatic opening {(profile.AutoOpenQueuedActions ? "ON" : "OFF")}.", 0x35);
+                    return;
+                }
                 if (UIManager.GetGump<QueuedOperationsGump>() == null) UIManager.Add(new QueuedOperationsGump());
                 else UIManager.GetGump<QueuedOperationsGump>().BringOnTop();
             });
@@ -314,6 +328,7 @@ namespace ClassicUO.Game.Managers
             });
 
             Register("magnifier", MagnifierManager.Command);
+            Register("fly", ExplorationMode.Command);
 
             Register("chess", (s) =>
             {

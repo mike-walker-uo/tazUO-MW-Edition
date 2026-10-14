@@ -70,7 +70,7 @@ namespace ClassicUO.Game.Managers
 
         public static void Tick()
         {
-            if (TargetSerial == 0) return;
+            if (TargetSerial == 0 || ExplorationMode.Active) return;
             if (World.Player == null || !World.InGame) return;
             if (Time.Ticks < _nextPoll) return;
             _nextPoll = (long)Time.Ticks + POLL_INTERVAL_MS;

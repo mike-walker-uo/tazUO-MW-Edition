@@ -58,7 +58,7 @@ namespace ClassicUO.Game.GameObjects
                 hue = Constants.HIGHLIGHT_CURRENT_OBJECT_HUE;
             }
             else if (
-                ProfileManager.CurrentProfile.NoColorObjectsOutOfRange
+                !ExplorationMode.Active && ProfileManager.CurrentProfile.NoColorObjectsOutOfRange
                 && Distance > World.ClientViewRange
             )
             {
@@ -78,7 +78,7 @@ namespace ClassicUO.Game.GameObjects
                 hue = SpellVisualRangeManager.Instance.ProcessHueForTile(hue, this);
             }
 
-            if (ProfileManager.CurrentProfile.DisplayRadius && Distance == ProfileManager.CurrentProfile.DisplayRadiusDistance)
+            if (!ExplorationMode.Active && ProfileManager.CurrentProfile.DisplayRadius && Distance == ProfileManager.CurrentProfile.DisplayRadiusDistance)
                 hue = ProfileManager.CurrentProfile.DisplayRadiusHue;
 
 

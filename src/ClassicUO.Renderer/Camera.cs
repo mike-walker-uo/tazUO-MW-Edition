@@ -228,6 +228,13 @@ namespace ClassicUO.Renderer
                 _lerpZoom = target;
         }
 
+        public void ResetPeek()
+        {
+            PeekingToMouse = false;
+            _lerpOffset = Vector2.Zero;
+            _updateMatrixes = true;
+        }
+
         private void CalculatePeek(Vector2 origin)
         {
             Vector2 target_offset = new Vector2();

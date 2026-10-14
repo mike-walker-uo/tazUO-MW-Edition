@@ -67,9 +67,9 @@ namespace ClassicUO.Game.Managers
             _serial = serial; AcceptMouseInput = true;
             SetTooltip(text + "\nClick to navigate known parent containers. Right-click closes the gump.");
         }
-        internal void RefreshPath()
+        internal void RefreshPath(string text = null)
         {
-            string path = Path(_serial);
+            string path = text ?? Path(_serial);
             if (Text == path) return;
             Text = path;
             SetTooltip(path + "\nClick to navigate known parent containers. Right-click closes the gump.");
@@ -89,7 +89,8 @@ namespace ClassicUO.Game.Managers
             }
             base.OnMouseUp(x, y, button);
         }
-        internal static string Path(uint serial) =>
+        internal static string Path(uint serial, int? itemCount = null) =>
+            (itemCount.HasValue ? $"({itemCount.Value}) " : "") +
             string.Join(" › ", ContainerBreadcrumbs.Build(serial).Select(step => step.Name));
     }
 }

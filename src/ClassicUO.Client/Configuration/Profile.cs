@@ -136,6 +136,9 @@ namespace ClassicUO.Configuration
         public bool FootstepGraphicsEnabled { get; set; } = true;
         public bool BloodDecalsEnabled { get; set; } = false;
         public bool EnableCombatMusic { get; set; } = true;
+        public int CombatMusicCrossfadeMs { get; set; } = 350;
+        public bool CompactTransferProgress { get; set; }
+        public bool AutoOpenQueuedActions { get; set; }
         public bool ReproduceSoundsInBackground { get; set; }
 
         // fonts and speech

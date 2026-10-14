@@ -63,8 +63,8 @@ namespace ClassicUO.Game.Managers
             Capturing = false;
             if (!World.InGame) _enabled = false;
             // AA also needs a preserved frame: FNA discards the backbuffer on target changes.
-            bool worldAA = World.InGame && VisualBudget.Settings?.WorldAntiAliasing == true
-                && VisualBudget.Settings.WorldAntiAliasingStrength > 0;
+            var graphics = World.InGame ? WorldGraphicsPreview.Effective(ProfileManager.CurrentProfile) : default;
+            bool worldAA = World.InGame && graphics.AntiAliasing && graphics.Strength > 0;
             if (!_enabled && !worldAA)
             {
                 Dispose();

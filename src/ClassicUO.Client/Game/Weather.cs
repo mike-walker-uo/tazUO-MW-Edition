@@ -274,7 +274,8 @@ namespace ClassicUO.Game
             float intensityBlend = 1f - (float)Math.Exp(-elapsed / intensityTau);
             _visualIntensity += (intensityTarget - _visualIntensity) * intensityBlend;
             int particleMultiplier = IsRainFamily(Type) && Type != WeatherType.WT_RAIN ? 3 : 2;
-            float particleTarget = SceneryInteractionManager.ScaleCount(Math.Min(MAX_WEATHER_EFFECT, Count * particleMultiplier));
+            float particleTarget = Math.Min(MAX_WEATHER_EFFECT, SceneryInteractionManager.ScaleCount(ViewportParticleCount(Count * particleMultiplier,
+                new Point(Client.Game.Scene.Camera.Bounds.Width, Client.Game.Scene.Camera.Bounds.Height), MAX_WEATHER_EFFECT)));
             _particleCount += (particleTarget - _particleCount) * (1f - (float)Math.Exp(-elapsed / 1800f));
             if (active && CurrentCount < particleTarget) EnsureParticles((int)Math.Ceiling(particleTarget));
 
@@ -425,7 +426,8 @@ namespace ClassicUO.Game
             // TazUO: denser particles than the server's count — rain doubles,
             // storms triple. Capped by MAX_WEATHER_EFFECT.
             int mult = type == WeatherType.WT_STORM_APPROACH || type == WeatherType.WT_STORM_BREWING ? 3 : 2;
-            int target = SceneryInteractionManager.ScaleCount(Math.Min(MAX_WEATHER_EFFECT, Count * mult));
+            int target = Math.Min(MAX_WEATHER_EFFECT, SceneryInteractionManager.ScaleCount(ViewportParticleCount(Count * mult,
+                new Point(Client.Game.Scene.Camera.Bounds.Width, Client.Game.Scene.Camera.Bounds.Height), MAX_WEATHER_EFFECT)));
 
             _particleCount = preserve ? previousParticles : target;
             EnsureParticles(target);
@@ -433,6 +435,7 @@ namespace ClassicUO.Game
 
         private void EnsureParticles(int target)
         {
+            target = Math.Min(MAX_WEATHER_EFFECT, target);
             while (CurrentCount < target)
             {
                 ref WeatherEffect effect = ref _effects[CurrentCount++];
@@ -573,7 +576,54 @@ namespace ClassicUO.Game
 
         // Far particles and mist render before world objects. Near particles
         // render in Draw after objects, so weather has actual scene depth.
-        public void DrawBackground(UltimaBatcher2D batcher, int x, int y)
+        private Matrix _weatherToWorld = Matrix.Identity, _worldToWeather = Matrix.Identity;
+
+        internal static Matrix ViewportProjection(Point window, Point target, float scale) =>
+            Matrix.CreateScale(scale, scale, 1f) * Matrix.CreateTranslation(
+                (target.X - window.X * scale) / 2f, (target.Y - window.Y * scale) / 2f, 0f);
+
+        internal static int ViewportParticleCount(int count, Point window, int maximum) =>
+            Math.Min(maximum, Math.Max(0, (int)Math.Round(count * Math.Sqrt(
+                Math.Max(1d, window.X * (double)window.Y) / (1920d * 1080d)))));
+
+        private bool BeginViewportWeather(UltimaBatcher2D batcher, Matrix projection)
+        {
+            if (projection == batcher.TransformMatrix)
+            {
+                _weatherToWorld = _worldToWeather = Matrix.Identity;
+                return false;
+            }
+            _weatherToWorld = projection * Matrix.Invert(batcher.TransformMatrix);
+            _worldToWeather = Matrix.Invert(_weatherToWorld);
+            batcher.End(); batcher.Begin(null, projection);
+            return true;
+        }
+        private float WeatherLight(float x, float y, out Color color)
+        {
+            Vector2 world = Vector2.Transform(new Vector2(x, y), _weatherToWorld);
+            return SceneryInteractionManager.GetLightInfluence(world.X, world.Y, out color);
+        }
+        private float WeatherContact(float x, float y, float groundY)
+        {
+            Vector2 world = Vector2.Transform(new Vector2(x, y), _weatherToWorld);
+            float ground = groundY > 0 ? Vector2.Transform(new Vector2(x, groundY), _weatherToWorld).Y : -1;
+            return SceneryInteractionManager.SoftIntersection(world.X, world.Y, ground);
+        }
+        private void WeatherDecal(float x, float y, Point size, byte radius, GroundDecalKind kind)
+        {
+            if (ExplorationMode.Active) return;
+            Vector2 world = Vector2.Transform(new Vector2(x, y), _weatherToWorld);
+            _groundDecals.AddFromScreen(world.X, world.Y, size, radius, kind);
+        }
+        public void DrawBackground(UltimaBatcher2D batcher, int x, int y, Matrix projection)
+        {
+            if (!Fog && CurrentCount == 0) return;
+            Matrix original = batcher.TransformMatrix;
+            bool changed = BeginViewportWeather(batcher, projection);
+            try { DrawBackgroundCore(batcher, x, y); }
+            finally { if (changed) { batcher.End(); batcher.Begin(null, original); } }
+        }
+        private void DrawBackgroundCore(UltimaBatcher2D batcher, int x, int y)
         {
             Point size = new Point(Client.Game.Scene.Camera.Bounds.Width, Client.Game.Scene.Camera.Bounds.Height);
             if (Fog) DrawFogLayer(batcher, x, y, false);
@@ -586,7 +636,7 @@ namespace ClassicUO.Game
                     || !IsInsideWeatherFront(effect.X, size.X, effect.ID)
                     || !SceneryInteractionManager.IsWeatherVisibleAt(effect.X, effect.Y, size.X, size.Y, effect.ID)) continue;
 
-                float light = SceneryInteractionManager.GetLightInfluence(effect.X, effect.Y, out Color lightColor);
+                float light = WeatherLight(effect.X, effect.Y, out Color lightColor);
                 Color color = light > 0.02f
                     ? Color.Lerp(new Color(150, 175, 205, 255), lightColor, Math.Min(0.65f, light))
                     : new Color(150, 175, 205, 255);
@@ -607,10 +657,19 @@ namespace ClassicUO.Game
             }
         }
 
-        public void Draw(UltimaBatcher2D batcher, int x, int y, bool useAlternativeLights)
+        public void Draw(UltimaBatcher2D batcher, int x, int y, bool useAlternativeLights, Matrix projection)
+        {
+            Matrix original = batcher.TransformMatrix;
+            bool changed = BeginViewportWeather(batcher, projection);
+            try { DrawCore(batcher, x, y, useAlternativeLights); }
+            finally { if (changed) { batcher.End(); batcher.Begin(null, original); } }
+        }
+        private void DrawCore(UltimaBatcher2D batcher, int x, int y, bool useAlternativeLights)
         {
             bool removeEffects = false;
             Point winsize = new Point(Client.Game.Scene.Camera.Bounds.Width, Client.Game.Scene.Camera.Bounds.Height);
+            Rectangle coverage = FogCoverageBounds(batcher.TransformMatrix,
+                new Point(batcher.GraphicsDevice.Viewport.Width, batcher.GraphicsDevice.Viewport.Height));
 
             // Alternative lights do not use ApplyLight's ambient target. Apply
             // the same signed weather grade before their point lights are
@@ -622,8 +681,7 @@ namespace ClassicUO.Game
                 Color grade = darken ? new Color(8, 12, 22, 255) : Color.White;
                 batcher.Draw(
                     AtmosphereTextures.GetSolid(grade),
-                    FogCoverageBounds(batcher.TransformMatrix,
-                        new Point(batcher.GraphicsDevice.Viewport.Width, batcher.GraphicsDevice.Viewport.Height)),
+                    coverage,
                     ShaderHueTranslator.GetHueVector(0, false, alpha)
                 );
             }
@@ -759,7 +817,7 @@ namespace ClassicUO.Game
                 float tint = (Tempest ? 0.11f : 0.07f) * _visualIntensity;
                 Vector3 tintHue = ShaderHueTranslator.GetHueVector(0, false, tint);
                 batcher.Draw(AtmosphereTextures.GetSolid(new Color(25, 30, 45, 255)),
-                    new Rectangle(x, y, winsize.X, winsize.Y), tintHue);
+                    coverage, tintHue);
             }
 
             // Blizzard white-out: pale haze over everything, pulsing slightly
@@ -773,7 +831,7 @@ namespace ClassicUO.Game
                 haze *= _visualIntensity;
                 Vector3 hazeHue = ShaderHueTranslator.GetHueVector(0, false, haze);
                 batcher.Draw(AtmosphereTextures.GetSolid(new Color(225, 230, 240, 255)),
-                    new Rectangle(x, y, winsize.X, winsize.Y), hazeHue);
+                    coverage, hazeHue);
             }
 
             // Lightning: double flash (bright → gap → dimmer afterflash).
@@ -792,7 +850,7 @@ namespace ClassicUO.Game
                 {
                     Vector3 flashHue = ShaderHueTranslator.GetHueVector(0, false, flash * 0.5f);
                     batcher.Draw(AtmosphereTextures.GetSolid(new Color(235, 240, 255, 255)),
-                        new Rectangle(x, y, winsize.X, winsize.Y), flashHue);
+                        coverage, flashHue);
 
                     uint boltAge = Time.Ticks - _lightningAt;
                     if (boltAge < 100 && _boltCount > 1)
@@ -1004,7 +1062,7 @@ namespace ClassicUO.Game
 
                         if (!drawForeground) break;
 
-                        float rainLight = SceneryInteractionManager.GetLightInfluence(
+                        float rainLight = WeatherLight(
                             effect.X, effect.Y, out Color rainLightColor);
 
                         // Sleet: ~40% of the drops render as wet flakes.
@@ -1033,7 +1091,7 @@ namespace ClassicUO.Game
                         float tailY = effect.Y - effect.SpeedY / mag * len;
 
                         float rainAlpha = Math.Min(1f, 0.30f + depth * 0.45f + rainLight * 0.22f)
-                            * SceneryInteractionManager.SoftIntersection(effect.X, effect.Y, effect.GroundY);
+                            * WeatherContact(effect.X, effect.Y, effect.GroundY);
                         Vector3 rainHue = ShaderHueTranslator.GetHueVector(0, false, rainAlpha);
                         Color rainColor = Color.Lerp(
                             new Color(170, 195, 230, 255), rainLightColor, Math.Min(0.72f, rainLight));
@@ -1080,7 +1138,7 @@ namespace ClassicUO.Game
                             snowRect.Height = 2;
                             if (drawForeground)
                             {
-                                float hailLight = SceneryInteractionManager.GetLightInfluence(
+                                float hailLight = WeatherLight(
                                     effect.X, effect.Y, out Color hailLightColor);
                                 batcher.Draw(AtmosphereTextures.GetSolid(
                                         Color.Lerp(Color.White, hailLightColor, Math.Min(0.55f, hailLight))),
@@ -1093,7 +1151,7 @@ namespace ClassicUO.Game
                         // Landed? Deposit a ground spot and respawn at top.
                         if (effect.GroundY > 0 && effect.Y >= effect.GroundY && !removeEffects)
                         {
-                            _groundDecals.AddFromScreen(
+                            WeatherDecal(
                                 effect.X,
                                 effect.Y,
                                 winsize,
@@ -1116,12 +1174,12 @@ namespace ClassicUO.Game
                         snowRect.Width = flake;
                         snowRect.Height = flake;
 
-                        float snowLight = SceneryInteractionManager.GetLightInfluence(
+                        float snowLight = WeatherLight(
                             effect.X, effect.Y, out Color snowLightColor);
                         float shimmer = 0.65f + 0.35f * (float) Math.Sin((Time.Ticks + effect.ID * 13) / 280f);
                         shimmer = Math.Min(1f, shimmer + snowLight * 0.18f);
                         Vector3 snowHue = ShaderHueTranslator.GetHueVector(0, false, shimmer
-                            * SceneryInteractionManager.SoftIntersection(effect.X, effect.Y, effect.GroundY));
+                            * WeatherContact(effect.X, effect.Y, effect.GroundY));
 
                         batcher.Draw
                         (
@@ -1156,7 +1214,7 @@ namespace ClassicUO.Game
                     // Every few splashes leave a lingering puddle.
                     if (splashVisible && _splashIdx % 3 == 0)
                     {
-                        _groundDecals.AddFromScreen(
+                        WeatherDecal(
                             sp.X - x,
                             sp.Y - y,
                             winsize,
@@ -1265,7 +1323,10 @@ namespace ClassicUO.Game
 
             Texture2D blob = GetFogBlob();
 
-            int count = SceneryInteractionManager.ScaleCount(10);
+            int count = Math.Min(40, SceneryInteractionManager.ScaleCount(ViewportParticleCount(10, new Point(w, h), 40)));
+            int columns = Math.Max(5, (int)Math.Ceiling(Math.Sqrt(count * 2f)));
+            int rows = Math.Max(2, (count + columns - 1) / columns);
+            int spacing = Math.Max(12, (int)Math.Round(12 * Math.Max(0.01f, Math.Abs(_weatherToWorld.M11))));
             for (int i = 0; i < count; i++)
             {
                 if ((i % 2 == 0) == foreground) continue;
@@ -1275,14 +1336,15 @@ namespace ClassicUO.Game
                 int span = w + bw;
                 int bx = (int)((Time.Ticks * speed + i * 331) % span) - bw;
                 int by = (i * 149) % Math.Max(1, h - bh / 2) - bh / 4;
-                if (VisualBudget.Settings?.WorldAnchoredFog == true)
+                if (VisualBudget.Settings?.WorldAnchoredFog == true && !ExplorationMode.Active)
                 {
                     // Fixed world lattice: camera movement shifts banks with terrain, not the screen.
-                    int tileX = (World.Player.X / 12) * 12 + (i % 5 - 2) * 12;
-                    int tileY = (World.Player.Y / 12) * 12 + (i / 5 - 1) * 12;
+                    int tileX = (World.Player.X / spacing) * spacing + (i % columns - columns / 2) * spacing;
+                    int tileY = (World.Player.Y / spacing) * spacing + (i / columns - rows / 2) * spacing;
                     Point anchor = PathPreview.TileToWorld(tileX, tileY, World.Player.Z);
-                    bx = anchor.X - bw / 2 + (int)(Math.Sin(Time.Ticks / 14000f + tileX * 0.7f + tileY) * 60f * SceneryInteractionManager.SharedWind);
-                    by = anchor.Y - bh / 2;
+                    Vector2 screenAnchor = Vector2.Transform(new Vector2(anchor.X, anchor.Y), _worldToWeather);
+                    bx = (int)screenAnchor.X - bw / 2 + (int)(Math.Sin(Time.Ticks / 14000f + tileX * 0.7f + tileY) * 60f * SceneryInteractionManager.SharedWind);
+                    by = (int)screenAnchor.Y - bh / 2;
                 }
                 int cx = bx + bw / 2;
                 int cy = by + bh / 2;
@@ -1294,9 +1356,9 @@ namespace ClassicUO.Game
                 float alpha = ((foreground ? 0.30f : 0.17f)
                     + 0.08f * (float)Math.Sin(Time.Ticks / 1100f + i * 1.7f))
                     * _visualIntensity * (1f - SceneryInteractionManager.Shelter * 0.72f);
-                alpha *= SceneryInteractionManager.SoftIntersection(cx, cy, -1);
+                alpha *= WeatherContact(cx, cy, -1);
                 Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
-                float light = SceneryInteractionManager.GetLightInfluence(cx, cy, out Color lightColor);
+                float light = WeatherLight(cx, cy, out Color lightColor);
                 Texture2D texture = light > 0.03f ? SceneryInteractionManager.GetColoredSoftLight(lightColor) : blob;
                 if (light > 0.03f) hue = ShaderHueTranslator.GetHueVector(0, false, alpha * (0.35f + light * 0.65f));
                 batcher.Draw(texture, new Rectangle(x + bx, y + by, bw, bh), hue);

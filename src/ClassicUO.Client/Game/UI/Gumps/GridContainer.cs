@@ -667,8 +667,6 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            ((ContainerBreadcrumbLabel)containerNameLabel).RefreshPath();
-
             if (autoSortContainer)
                 overrideSort = true;
 
@@ -682,6 +680,7 @@ namespace ClassicUO.Game.UI.Gumps
                 sortedContents = sortedContents.OrderBy(i => SectionsConfig.Group(i.ItemData, i.Graphic, GridSlotManager.GetItemName(i))).ToList();
             }
             gridSlotManager.RebuildContainer(sortedContents, searchBox.Text, overrideSort);
+            ((ContainerBreadcrumbLabel)containerNameLabel).RefreshPath(GetContainerName());
             InvalidateContents = false;
         }
 
@@ -885,15 +884,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         private string GetContainerName()
         {
-            string containerName = !string.IsNullOrEmpty(container.Name) ? container.Name : "a container";
-
-            if (gridSlotManager != null)
-            {
-                gridSlotManager.UpdateItems();
-                containerName += $" ({gridSlotManager.ContainerContents.Count})";
-            }
-
-            return containerName;
+            // Keep the count first so a long breadcrumb cannot crop it away.
+            return ContainerBreadcrumbLabel.Path(LocalSerial, gridSlotManager?.ContainerContents.Count);
         }
 
         public void OptionsUpdated()

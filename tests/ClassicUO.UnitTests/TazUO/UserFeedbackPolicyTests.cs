@@ -54,12 +54,14 @@ namespace ClassicUO.UnitTests.TazUO
         }
 
         [Theory]
+        [InlineData(0.25f, 220.7f, -110.6f)]
+        [InlineData(0.33f, -170.2f, 90.3f)]
         [InlineData(0.5f, 172.3f, -18.6f)]
         [InlineData(0.75f, -19.7f, 40.2f)]
         [InlineData(1f, 7.6f, -6.5f)]
         [InlineData(2f, -160.2f, 14.9f)]
         [InlineData(4f, 100.7f, 80.6f)]
-        public void Fog_wash_covers_4k_at_zoom_and_camera_offsets(float zoom, float x, float y)
+        public void Weather_washes_cover_4k_at_zoom_and_camera_offsets(float zoom, float x, float y)
         {
             Matrix transform = Matrix.CreateScale(zoom) * Matrix.CreateTranslation(x, y, 0);
             Rectangle coverage = Weather.FogCoverageBounds(transform, new Point(3840, 2160));

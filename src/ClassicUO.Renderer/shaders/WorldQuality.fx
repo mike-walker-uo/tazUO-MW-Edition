@@ -4,6 +4,7 @@ float2 TextureSize;
 float4 SampleBounds;
 float2 Footprint;
 float Strength;
+float DetailProtection;
 sampler WorldSampler : register(s0);
 struct VS_INPUT { float4 Position : POSITION0; float3 Normal : NORMAL0; float3 TexCoord : TEXCOORD0; float3 Hue : TEXCOORD1; };
 struct PS_INPUT { float4 Position : POSITION0; float2 UV : TEXCOORD0; };
@@ -52,7 +53,16 @@ float4 AntiAliasPixel(PS_INPUT input) : COLOR0
     float3 outer = inner * 0.5f + 0.25f * (ReadColor(input.UV - direction * 0.5f) + ReadColor(input.UV + direction * 0.5f));
     float outerLuma = Luma(outer);
     float3 filtered = outerLuma < low || outerLuma > high ? inner : outer;
-    return float4(lerp(center, filtered, Strength), 1.0f);
+    if (DetailProtection <= 0) return float4(lerp(center, filtered, Strength), 1.0f);
+    // An isolated bright/dark texel is artwork detail, not a silhouette edge.
+    float north = Luma(ReadColor(input.UV + float2(0, -texelStep.y)));
+    float south = Luma(ReadColor(input.UV + float2(0, texelStep.y)));
+    float east = Luma(ReadColor(input.UV + float2(texelStep.x, 0)));
+    float west = Luma(ReadColor(input.UV + float2(-texelStep.x, 0)));
+    float ridgeX = (middle - east) * (middle - west) > 0 ? min(abs(middle - east), abs(middle - west)) : 0;
+    float ridgeY = (middle - north) * (middle - south) > 0 ? min(abs(middle - north), abs(middle - south)) : 0;
+    float detail = saturate(max(ridgeX, ridgeY) / max(0.03125f, high - low));
+    return float4(lerp(center, filtered, Strength * (1.0f - DetailProtection * detail)), 1.0f);
 }
 technique PixelArt { pass p0 { VertexShader = compile vs_3_0 Vertex(); PixelShader = compile ps_3_0 PixelArtPixel(); } }
 technique AntiAlias { pass p0 { VertexShader = compile vs_3_0 Vertex(); PixelShader = compile ps_3_0 AntiAliasPixel(); } }

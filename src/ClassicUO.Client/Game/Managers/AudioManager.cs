@@ -57,6 +57,11 @@ namespace ClassicUO.Game.Managers
         private readonly UOMusic[] _currentMusic = { null, null };
         private readonly int[] _currentMusicIndices = { 0, 0 };
         private readonly int[] _requestedMusicIndices = { -1, -1 };
+        private bool _resumePeaceMusic, _peacePausedForWar, _musicPausedByUser, _returningToPeace;
+        private readonly MusicCrossfade _musicFade = new MusicCrossfade();
+        private bool WarMusicActive => _currentMusic[1] != null && !_returningToPeace;
+        private int CrossfadeDuration => ProfileManager.CurrentProfile?.EnableMusic == true && !_musicPausedByUser
+            ? Math.Max(0, Math.Min(1000, ProfileManager.CurrentProfile.CombatMusicCrossfadeMs)) : 0;
         private UORadioMusic _radioMusic;
         private bool _radioPaused;
         public int LoginMusicIndex { get; private set; }
@@ -218,6 +223,23 @@ namespace ClassicUO.Game.Managers
 
             int requestedMusic = music;
 
+            if (iswarmode && ProfileManager.CurrentProfile?.EnableCombatMusic == false)
+            {
+                return;
+            }
+
+            if (!is_login && !bypassSelection && !iswarmode)
+            {
+                // A repeated regional request must not reroll a custom track,
+                // including the server request received on returning to peace.
+                StopWarMusic();
+                if (_currentMusic[0] != null && !_currentMusic[0].IsStopped
+                    && requestedMusic == _requestedMusicIndices[0])
+                {
+                    return;
+                }
+            }
+
             if (!is_login && !bypassSelection)
             {
                 music = SelectMusic(requestedMusic);
@@ -241,11 +263,6 @@ namespace ClassicUO.Game.Managers
                 {
                     volume = currentProfile.MusicVolume / SOUND_DELTA;
                 }
-
-                if (currentProfile != null && !currentProfile.EnableCombatMusic && iswarmode)
-                {
-                    return;
-                }
             }
 
 
@@ -261,20 +278,54 @@ namespace ClassicUO.Game.Managers
                 selectedMusic.Repeat = (ProfileManager.CurrentProfile?.MusicPlaybackMode ?? 0) == 0;
             }
 
-            if (m == null && _currentMusic[0] != null)
+            if (iswarmode && m == _currentMusic[0])
+            {
+                // Music objects are cached by index; one stream cannot occupy
+                // both slots without losing its paused playback position.
+                return;
+            }
+
+            int idx = iswarmode ? 1 : 0;
+            if (m == null && !iswarmode && _currentMusic[0] != null)
             {
                 StopMusic();
             }
-            else if (m != null && (m != _currentMusic[0] || iswarmode || ((UOMusic)m).IsStopped))
+            else if (m != null && (m != _currentMusic[idx] || ((UOMusic)m).IsStopped))
             {
-                StopMusic();
+                if (iswarmode)
+                {
+                    StopMusicSlot(1);
+                    UOMusic peace = _currentMusic[0];
+                    if (peace != null && !peace.IsStopped && !peace.IsPaused && !_musicPausedByUser)
+                        _resumePeaceMusic = _peacePausedForWar = true;
+                    _returningToPeace = false;
+                    _musicFade.Begin(Time.Ticks, CrossfadeDuration, true);
+                }
+                else
+                {
+                    bool paused = _musicPausedByUser;
+                    StopMusic();
+                    _musicPausedByUser = paused;
+                }
 
-                int idx = iswarmode ? 1 : 0;
                 _requestedMusicIndices[idx] = requestedMusic;
                 _currentMusicIndices[idx] = music;
                 _currentMusic[idx] = (UOMusic) m;
 
-                _currentMusic[idx].Play(Time.Ticks, volume);
+                bool played = _currentMusic[idx].Play(Time.Ticks, volume * (iswarmode ? _musicFade.War : 1f));
+                if (!played && iswarmode) StopWarMusic();
+                else
+                {
+                    if (_musicPausedByUser) _currentMusic[idx].PausePlayback();
+                    CompleteMusicFade();
+                    UpdateCurrentMusicVolume(is_login);
+                }
+            }
+            else if (iswarmode && m != null && _returningToPeace)
+            {
+                _returningToPeace = false;
+                _musicFade.Begin(Time.Ticks, CrossfadeDuration, true);
+                if (!_musicPausedByUser) _currentMusic[1].ResumePlayback();
             }
         }
 
@@ -298,7 +349,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            int idx = _currentMusic[1] != null ? 1 : 0;
+            int idx = WarMusicActive ? 1 : 0;
             int requestedMusic = _requestedMusicIndices[idx];
 
             if (requestedMusic < 0)
@@ -319,7 +370,7 @@ namespace ClassicUO.Game.Managers
                     return -1;
                 }
 
-                if (_currentMusic[1] != null)
+                if (WarMusicActive)
                 {
                     return _currentMusicIndices[1];
                 }
@@ -339,7 +390,7 @@ namespace ClassicUO.Game.Managers
                         : _radioMusic.CurrentTitle;
                 }
 
-                int idx = _currentMusic[1] != null ? 1 : 0;
+                int idx = WarMusicActive ? 1 : 0;
                 return _currentMusic[idx]?.Name ?? string.Empty;
             }
         }
@@ -355,7 +406,7 @@ namespace ClassicUO.Game.Managers
                         : _radioMusic.StreamState.ToString().ToUpperInvariant();
                 }
 
-                UOMusic music = _currentMusic[1] ?? _currentMusic[0];
+                UOMusic music = _currentMusic[WarMusicActive ? 1 : 0];
 
                 if (music == null || music.IsStopped)
                 {
@@ -379,7 +430,8 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            UOMusic music = _currentMusic[1] ?? _currentMusic[0];
+            _musicPausedByUser = false;
+            UOMusic music = _currentMusic[WarMusicActive ? 1 : 0];
 
             if (music == null)
             {
@@ -387,6 +439,12 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
+            if (WarMusicActive && _peacePausedForWar)
+            {
+                _resumePeaceMusic = true;
+                if (_musicFade.Active && _musicFade.Peace > 0f) _currentMusic[0]?.ResumePlayback();
+            }
+            UpdateCurrentMusicVolume();
             if (music.IsPaused)
             {
                 music.ResumePlayback();
@@ -397,7 +455,7 @@ namespace ClassicUO.Game.Managers
             {
                 Profile profile = ProfileManager.CurrentProfile;
                 float volume = profile == null || !profile.EnableMusic ? 0 : profile.MusicVolume / SOUND_DELTA;
-                music.Play(Time.Ticks, volume);
+                music.Play(Time.Ticks, volume * (WarMusicActive ? _musicFade.War : _musicFade.Peace));
             }
         }
 
@@ -410,7 +468,9 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            (_currentMusic[1] ?? _currentMusic[0])?.PausePlayback();
+            for (int i = 0; i < _currentMusic.Length; i++) _currentMusic[i]?.PausePlayback();
+            _musicPausedByUser = true;
+            _resumePeaceMusic = false;
         }
 
         public void StopCurrentMusic()
@@ -426,6 +486,8 @@ namespace ClassicUO.Game.Managers
             {
                 _currentMusic[i]?.Stop();
             }
+            _musicPausedByUser = true;
+            _resumePeaceMusic = false;
         }
 
         public void StepCustomMusic(int direction)
@@ -590,12 +652,13 @@ namespace ClassicUO.Game.Managers
         public void PlayCustomMusic(int music)
         {
             StopRadio();
-            int backgroundRequest = _requestedMusicIndices[0];
-            PlayMusic(music, bypassSelection: true);
+            int idx = WarMusicActive ? 1 : 0;
+            int backgroundRequest = _requestedMusicIndices[idx];
+            PlayMusic(music, iswarmode: idx == 1, bypassSelection: true);
 
             if (backgroundRequest >= 0)
             {
-                _requestedMusicIndices[0] = backgroundRequest;
+                _requestedMusicIndices[idx] = backgroundRequest;
             }
         }
 
@@ -689,7 +752,7 @@ namespace ClassicUO.Game.Managers
                         return;
                     }
 
-                    _currentMusic[i].Volume = i == 0 && _currentMusic[1] != null ? 0 : volume;
+                    _currentMusic[i].Volume = volume * (i == 0 ? _musicFade.Peace : _musicFade.War);
                 }
             }
 
@@ -728,22 +791,42 @@ namespace ClassicUO.Game.Managers
         {
             for (int i = 0; i < 2; i++)
             {
-                if (_currentMusic[i] != null)
-                {
-                    _currentMusic[i].Stop();
-                    _currentMusic[i].Dispose();
-                    _currentMusic[i] = null;
-                }
+                StopMusicSlot(i);
             }
 
+            _resumePeaceMusic = _peacePausedForWar = _musicPausedByUser = _returningToPeace = false;
+            _musicFade.Reset();
             StopRadio();
+        }
+
+        private void StopMusicSlot(int index)
+        {
+            if (_currentMusic[index] == null) return;
+            _currentMusic[index].Stop();
+            _currentMusic[index].Dispose();
+            _currentMusic[index] = null;
         }
 
         public void StopWarMusic()
         {
-            PlayMusic(_requestedMusicIndices[0] >= 0
-                ? _requestedMusicIndices[0]
-                : _currentMusicIndices[0]);
+            if (_currentMusic[1] == null || _returningToPeace) return;
+            _returningToPeace = true;
+            _musicFade.Begin(Time.Ticks, CrossfadeDuration, false);
+            UpdateCurrentMusicVolume(); // Set return gain before resuming the saved stream.
+            if (_resumePeaceMusic && !_musicPausedByUser) _currentMusic[0]?.ResumePlayback();
+            CompleteMusicFade();
+        }
+
+        private void CompleteMusicFade()
+        {
+            if (_musicFade.Active) return;
+            if (_returningToPeace)
+            {
+                StopMusicSlot(1);
+                _returningToPeace = _resumePeaceMusic = _peacePausedForWar = false;
+            }
+            else if (WarMusicActive && _peacePausedForWar)
+                _currentMusic[0]?.PausePlayback();
         }
 
         public void StopSounds()
@@ -769,9 +852,11 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            bool runninWarMusic = _currentMusic[1] != null;
             Profile currentProfile = ProfileManager.CurrentProfile;
-            int activeMusic = runninWarMusic ? 1 : 0;
+            if (currentProfile?.EnableCombatMusic == false) StopWarMusic();
+            _musicFade.Update(Time.Ticks);
+            CompleteMusicFade();
+            int activeMusic = WarMusicActive ? 1 : 0;
             bool advanceCustomPlaylist = false;
 
             if (_radioMusic != null && !_radioPaused)
@@ -794,17 +879,9 @@ namespace ClassicUO.Game.Managers
             {
                 if (_currentMusic[i] != null && currentProfile != null)
                 {
-                    if (Client.Game.IsActive)
-                    {
-                        if (!currentProfile.ReproduceSoundsInBackground)
-                        {
-                            _currentMusic[i].Volume = i == 0 && runninWarMusic || !currentProfile.EnableMusic ? 0 : currentProfile.MusicVolume / SOUND_DELTA;
-                        }
-                    }
-                    else if (!currentProfile.ReproduceSoundsInBackground && _currentMusic[i].Volume != 0.0f)
-                    {
-                        _currentMusic[i].Volume = 0;
-                    }
+                    float volume = currentProfile.EnableMusic ? currentProfile.MusicVolume / SOUND_DELTA : 0;
+                    if (!Client.Game.IsActive && !currentProfile.ReproduceSoundsInBackground) volume = 0;
+                    _currentMusic[i].Volume = volume * (i == 0 ? _musicFade.Peace : _musicFade.War);
                 }
 
                 _currentMusic[i]?.Update();
@@ -848,14 +925,8 @@ namespace ClassicUO.Game.Managers
 
         public UOMusic GetCurrentMusic()
         {
-            for (int i = 0; i < 2; i++)
-            {
-                if (_currentMusic[i] != null && _currentMusic[i].IsPlaying(Time.Ticks))
-                {
-                    return _currentMusic[i];
-                }
-            }
-            return null;
+            UOMusic music = _currentMusic[WarMusicActive ? 1 : 0];
+            return music != null && music.IsPlaying(Time.Ticks) ? music : null;
         }
 
         private static bool IsCustomMusic(int music)
