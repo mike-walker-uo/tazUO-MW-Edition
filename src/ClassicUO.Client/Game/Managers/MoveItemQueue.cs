@@ -27,6 +27,11 @@ namespace ClassicUO.Game.Managers
         {
             if (operation?.Cancelled == true) return;
             if (operation != null) operation.Total++;
+            if (!ItemProtectionManager.CanMove(serial, true))
+            {
+                if (operation != null) { operation.Skipped++; operation.Detail = "Protected item skipped"; }
+                return;
+            }
             if(amt == 0)
             {
                 Item i = World.Items.Get(serial);
@@ -56,12 +61,27 @@ namespace ClassicUO.Game.Managers
         }
 
         public void EnqueueEquipSingle(uint serial, Layer layer)
+            => EnqueueEquip(serial, layer, false);
+
+        internal void EnqueueSwitcherEquip(uint serial, Layer layer) => EnqueueEquip(serial, layer, true);
+        internal void EnqueueSwitcherUnequip(uint serial, uint backpack)
+        {
+            if (!ItemProtectionManager.CanSwitch(serial, backpack, Layer.Invalid)) return;
+            _queue.Enqueue(new MoveRequest(serial, backpack, 1, 0xFFFF, 0xFFFF, 0,
+                switcher: true, profile: ProfileManager.CurrentProfile));
+            _isEmpty = false;
+        }
+
+        private void EnqueueEquip(uint serial, Layer layer, bool switcher)
         {
             Item i = World.Items.Get(serial);
 
             if (i == null) return;
+            if (switcher ? !ItemProtectionManager.CanSwitch(serial, uint.MaxValue, layer)
+                : !ItemProtectionManager.CanEquip(serial, layer, World.Player?.Serial ?? 0, true)) return;
 
-            _queue.Enqueue(new MoveRequest(serial, uint.MaxValue, 1, 0xFFFF, 0xFFFF, 0, layer));
+            _queue.Enqueue(new MoveRequest(serial, uint.MaxValue, 1, 0xFFFF, 0xFFFF, 0, layer,
+                switcher: switcher, profile: ProfileManager.CurrentProfile));
             _isEmpty = false;
         }
 
@@ -96,6 +116,18 @@ namespace ClassicUO.Game.Managers
             Item live = World.Items.Get(request.Serial);
             if (request.Operation != null && (live == null || live.IsDestroyed))
             { request.Operation.Skipped++; _isEmpty = _queue.IsEmpty; return; }
+            bool allowed = request.Switcher
+                ? request.Profile == ProfileManager.CurrentProfile && ItemProtectionManager.CanSwitch(request.Serial, request.Destination, request.Layer)
+                : request.Destination == uint.MaxValue
+                    ? ItemProtectionManager.CanEquip(request.Serial, request.Layer, World.Player?.Serial ?? 0, true)
+                    : ItemProtectionManager.CanMove(request.Serial, true);
+            if (!allowed)
+            {
+                if (request.Operation != null) { request.Operation.Skipped++; request.Operation.Detail = "Protected or unavailable item skipped"; }
+                _isEmpty = _queue.IsEmpty; return;
+            }
+            using var authorization = request.Switcher
+                ? ItemProtectionManager.AuthorizeSwitcher(request.Serial, request.Destination, request.Layer) : null;
             AsyncNetClient.Socket.Send_PickUpRequest(request.Serial, request.Amount);
 
             if(request.Destination != uint.MaxValue)
@@ -125,7 +157,8 @@ namespace ClassicUO.Game.Managers
             _isEmpty = true;
         }
 
-        private readonly struct MoveRequest(uint serial, uint destination, ushort amount, int x, int y, int z, Layer layer = Layer.Invalid, QueuedOperation operation = null)
+        private readonly struct MoveRequest(uint serial, uint destination, ushort amount, int x, int y, int z, Layer layer = Layer.Invalid,
+            QueuedOperation operation = null, bool switcher = false, Profile profile = null)
         {
             public uint Serial { get; } = serial;
             public uint Destination { get; } = destination;
@@ -136,6 +169,8 @@ namespace ClassicUO.Game.Managers
 
             public Layer Layer { get; } = layer;
             internal QueuedOperation Operation { get; } = operation;
+            internal bool Switcher { get; } = switcher;
+            internal Profile Profile { get; } = profile;
         }
     }
 }

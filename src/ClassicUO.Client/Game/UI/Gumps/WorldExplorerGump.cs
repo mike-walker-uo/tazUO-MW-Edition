@@ -70,6 +70,8 @@ namespace ClassicUO.Game.UI.Gumps
         private uint _deadline;
         private int _bookIndex;
         private int _atlasPage;
+        private readonly Queue<WorldExplorerPin> _atlasLocations = new Queue<WorldExplorerPin>();
+        private WorldExplorerPin _scanLocation;
         private int _scanFailures;
         private int _travelPage;
         private WorldExplorerPin _travelPin;
@@ -83,6 +85,7 @@ namespace ClassicUO.Game.UI.Gumps
             ScanRunes,
             ScanBook,
             ScanAtlasPage,
+            ScanAtlasSelected,
             TravelBook,
             TravelAtlasPage,
             TravelAtlasSelected
@@ -158,6 +161,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(Button(735, 27, 20, "-", 4));
             Add(new Label("Travel:", true, Ink, font: 1) { X = PinX, Y = 101 });
             Add(Button(90, 94, 78, MethodName(), 3));
+            Add(Button(174, 94, 120, "Travel style", 6));
             Add(new Label("Drag a destination here to pin it.", true, MutedInk, PinWidth, font: 1)
             {
                 X = PinX, Y = 130
@@ -254,6 +258,7 @@ namespace ClassicUO.Game.UI.Gumps
                         DisplayName(pin), 1000 + start + i, Classic, Ink, true);
                     button.SetTooltip(DisplayName(pin) + "\n" + (pin.Kind == "portal"
                         ? "Say: " + pin.Phrase : SourceName(pin) + " / " + pin.Name));
+                    button.PreviewPin = pin;
                     Add(button);
                 }
 
@@ -360,10 +365,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void StampSource(WorldExplorerPin pin, Item source)
         {
+            TravelLocationManager.Restore(pin);
             pin.SourceName = ItemName(source); pin.ObservedHue = source.Hue; pin.LastScannedUtcTicks = DateTime.UtcNow.Ticks;
             foreach (WorldExplorerPin saved in Profile?.WorldExplorerPins ?? new List<WorldExplorerPin>())
                 if (SameLocation(saved, pin) && string.Equals(saved.Name, pin.Name, StringComparison.OrdinalIgnoreCase))
-                { saved.SourceName = pin.SourceName; saved.ObservedHue = pin.ObservedHue; saved.LastScannedUtcTicks = pin.LastScannedUtcTicks; }
+                { saved.SourceName = pin.SourceName; saved.ObservedHue = pin.ObservedHue; saved.LastScannedUtcTicks = pin.LastScannedUtcTicks; saved.Location = pin.Location; }
         }
 
         private static bool SameLocation(WorldExplorerPin a, WorldExplorerPin b) =>
@@ -395,7 +401,8 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Kind = pin.Kind, Serial = pin.Serial, Slot = pin.Slot,
                 Name = pin.Name, CustomName = pin.CustomName, Phrase = pin.Phrase,
-                SourceName = pin.SourceName, ObservedHue = pin.ObservedHue, LastScannedUtcTicks = pin.LastScannedUtcTicks
+                SourceName = pin.SourceName, ObservedHue = pin.ObservedHue, LastScannedUtcTicks = pin.LastScannedUtcTicks,
+                Location = pin.Location, FacetHint = pin.FacetHint
             });
             Save();
             RebuildRows();
@@ -472,7 +479,9 @@ namespace ClassicUO.Game.UI.Gumps
             }
             if (pin.Kind == "portal")
             {
+                TravelLocationManager.Begin(pin);
                 GameActions.Say(pin.Phrase);
+                ShowTravelPopup(pin);
                 Status("Said \"" + pin.Phrase + "\". Stand near the matching portal.");
                 return;
             }
@@ -484,7 +493,9 @@ namespace ClassicUO.Game.UI.Gumps
                     return;
                 }
                 TargetManager.SetAutoTarget(pin.Serial, TargetType.Neutral, CursorTarget.Object);
+                TravelLocationManager.Begin(pin);
                 GameActions.CastSpell(Profile.WorldExplorerTravelMethod == 1 ? 210 : 32);
+                ShowTravelPopup(pin);
                 Status("Casting for " + DisplayName(pin) + ".");
                 return;
             }
@@ -590,7 +601,11 @@ namespace ClassicUO.Game.UI.Gumps
                 if (World.Items.Get(rune.Serial) != null && IsMarkedRune(rune))
                 {
                     var pin = new WorldExplorerPin { Kind = "rune", Serial = rune.Serial, Name = RuneName(rune) };
-                    StampSource(pin, rune); _catalog.Add(pin);
+                    StampSource(pin, rune);
+                    World.OPL.TryGetNameAndData(rune.Serial, out string name, out string data);
+                    pin.FacetHint = TravelLocationManager.FacetFromText(name + " " + data);
+                    TravelLocationManager.Store(pin, TravelLocationManager.Parse(name + " " + data, pin.FacetHint), false);
+                    _catalog.Add(pin);
                 }
             }
             RebuildRows();
@@ -644,6 +659,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
             _atlasPage = 0;
+            _atlasLocations.Clear(); _scanLocation = null;
             CloseBookGumps();
             GameActions.DoubleClick(book.Serial);
             WaitFor(PendingAction.ScanBook);
@@ -682,7 +698,7 @@ namespace ClassicUO.Game.UI.Gumps
             return null;
         }
 
-        private static string BookType(Gump gump)
+        internal static string BookType(Gump gump)
         {
             if (gump.Children.OfType<GumpPicBase>().Any(p => p.Graphic == 39923)
                 || gump.Children.OfType<Button>().Any(b => b.ButtonID >= 100 && b.ButtonID < 148
@@ -706,7 +722,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        private static string ControlText(Control control)
+        internal static string ControlText(Control control)
         {
             string text = control is CroppedText cropped ? cropped.Text
                 : control is Label label ? label.Text
@@ -715,7 +731,7 @@ namespace ClassicUO.Game.UI.Gumps
             return text == null ? null : Regex.Replace(text, "<[^>]*>", string.Empty).Trim();
         }
 
-        private static string RowName(Gump gump, Button button)
+        internal static string RowName(Gump gump, Button button)
         {
             Control text = gump.Children
                 .Where(c => c.Page == button.Page && c != button
@@ -751,7 +767,7 @@ namespace ClassicUO.Game.UI.Gumps
             return columns.SelectMany(column => column).ToArray();
         }
 
-        private static List<Button> AtlasRows(Gump gump)
+        internal static List<Button> AtlasRows(Gump gump)
         {
             List<Button> buttons = gump.Children.OfType<Button>()
                 .Where(b => (b.Page == 0 || b.Page == gump.ActivePage)
@@ -795,6 +811,17 @@ namespace ClassicUO.Game.UI.Gumps
                     Kind = kind, Serial = book.Serial, Slot = slot, Name = name
                 };
                 StampSource(pin, book);
+                Control rowText = gump.Children.FirstOrDefault(c => c.Y >= button.Y - 8 && c.Y <= button.Y + 8
+                    && c.X >= button.X + 12 && c.X <= button.X + 50 && ControlText(c) == name);
+                ushort hue = rowText is Label label ? label.Hue : rowText is CroppedText cropped ? cropped.Hue : (ushort)0;
+                if (rowText?.IsFromServer == true && hue > 0) hue--;
+                pin.FacetHint = TravelLocationManager.FacetFromText(name) ?? TravelLocationManager.FacetFromHue(hue, kind == "atlas");
+                if (kind == "book")
+                {
+                    string coords = string.Join(" ", gump.Children.Where(c => c.Page == 2 + slot / 2
+                        && c.X >= 125 + slot % 2 * 160 && c.X <= 150 + slot % 2 * 160 && c.Y >= 75 && c.Y <= 100).Select(ControlText));
+                    TravelLocationManager.Store(pin, TravelLocationManager.Parse(coords, pin.FacetHint), false);
+                }
                 _catalog.RemoveAll(p => SameLocation(p, pin));
                 _catalog.Add(pin);
                 count++;
@@ -863,7 +890,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (Time.Ticks <= _deadline)
                     return;
-                if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage)
+                if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage || _pending == PendingAction.ScanAtlasSelected)
                 {
                     _scanFailures++;
                     Log.Warn("World Explorer: timed out opening " + ItemName(_books[_bookIndex]));
@@ -880,6 +907,25 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             string kind = BookType(gump);
+            if (_pending == PendingAction.ScanAtlasSelected)
+            {
+                if (kind != "atlas" || _scanLocation == null) return;
+                var scanRows = AtlasRows(gump);
+                bool scanSelected = scanRows.Count == 16 && gump.Children.Any(c => c.Y > scanRows.Max(b => b.Y) + 40
+                    && c.X < scanRows[8].X && string.Equals(ControlText(c), _scanLocation.Name, StringComparison.Ordinal));
+                if (!scanSelected)
+                {
+                    if (Time.Ticks <= _deadline) return;
+                    _scanFailures++;
+                }
+                else
+                {
+                    string coords = string.Join(" ", gump.Children.Where(c => c.Y > scanRows.Max(b => b.Y) + 25 && c.X < scanRows[8].X).Select(ControlText));
+                    TravelLocationManager.Store(_scanLocation, TravelLocationManager.Parse(coords, _scanLocation.FacetHint), false);
+                }
+                ContinueAtlasLocationScan(gump);
+                return;
+            }
             if (_pending == PendingAction.ScanBook || _pending == PendingAction.ScanAtlasPage)
             {
                 Item book = _books[_bookIndex];
@@ -887,12 +933,12 @@ namespace ClassicUO.Game.UI.Gumps
                     || (!IsRunebookGraphic(book.Graphic) && kind != "atlas"))
                     return;
                 ReadBook(gump, book);
-                Button next = kind == "atlas" ? AtlasNextButton(gump) : null;
-                if (next != null && _atlasPage < 2)
+                if (kind == "atlas")
                 {
-                    _atlasPage++;
-                    Reply(gump, next.ButtonID);
-                    WaitFor(PendingAction.ScanAtlasPage);
+                    _atlasLocations.Clear();
+                    foreach (var pin in _catalog.Where(p => p.Serial == book.Serial && p.Slot / 16 == _atlasPage && p.Location == null).OrderBy(p => p.Slot))
+                        _atlasLocations.Enqueue(pin);
+                    ContinueAtlasLocationScan(gump);
                     return;
                 }
                 gump.Dispose();
@@ -931,8 +977,10 @@ namespace ClassicUO.Game.UI.Gumps
                     Status("Selected travel method is unavailable in this book.");
                     return;
                 }
+                TravelLocationManager.Begin(_travelPin);
                 Reply(gump, id);
                 _pending = PendingAction.None;
+                ShowTravelPopup(_travelPin);
                 Status("Travel requested: " + DisplayName(_travelPin) + ".");
                 return;
             }
@@ -975,9 +1023,35 @@ namespace ClassicUO.Game.UI.Gumps
                 Status("Atlas did not confirm this destination or method.");
                 return;
             }
+            TravelLocationManager.Begin(_travelPin);
             Reply(gump, action.ButtonID);
             _pending = PendingAction.None;
+            ShowTravelPopup(_travelPin);
             Status("Travel requested: " + DisplayName(_travelPin) + ".");
+        }
+
+        private void ContinueAtlasLocationScan(Gump gump)
+        {
+            var rows = AtlasRows(gump);
+            while (_atlasLocations.Count > 0)
+            {
+                _scanLocation = _atlasLocations.Dequeue();
+                Button row = rows.ElementAtOrDefault(_scanLocation.Slot % 16);
+                if (row == null || RowName(gump, row) != _scanLocation.Name) continue;
+                Reply(gump, row.ButtonID); // Entry selection only; never a Recall/Journey button.
+                WaitFor(PendingAction.ScanAtlasSelected);
+                return;
+            }
+            _scanLocation = null;
+            Button next = AtlasNextButton(gump);
+            if (next != null && _atlasPage < 2)
+            {
+                _atlasPage++;
+                Reply(gump, next.ButtonID);
+                WaitFor(PendingAction.ScanAtlasPage);
+                return;
+            }
+            gump.Dispose(); _bookIndex++; NextBook();
         }
 
         private int BookTravelButton(int slot)
@@ -1011,6 +1085,9 @@ namespace ClassicUO.Game.UI.Gumps
             else if (_minimized)
                 GameActions.Print(message, 0x35);
         }
+
+        private void ShowTravelPopup(WorldExplorerPin pin) => WorldExplorerTravelGump.Show(
+            DisplayName(pin), WorldExplorerTravelGump.MethodName(pin.Kind, Profile?.WorldExplorerTravelMethod ?? 0));
 
         private void Save() => Profile?.Save(ProfileManager.ProfilePath, false);
 
@@ -1063,6 +1140,11 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                     Build();
                     SetInScreen();
+                    break;
+                case 6:
+                    var styles = UIManager.GetGump<WorldExplorerTravelStyleGump>();
+                    if (styles == null) UIManager.Add(new WorldExplorerTravelStyleGump());
+                    else styles.BringOnTop();
                     break;
                 case 5:
                     int nextColumns = _compactColumns % MaxCompactColumns + 1;
@@ -1289,6 +1371,9 @@ namespace ClassicUO.Game.UI.Gumps
             private readonly bool _pinned;
             private Point _press;
             private bool _pressed;
+            private long _hoverSince;
+            private string _baseTooltip;
+            private TravelDestinationLocation _lastLocation;
 
             internal ExplorerRow(WorldExplorerGump owner, WorldExplorerPin pin, int index,
                 bool pinned, bool available, bool unverified, bool classic, ushort ink)
@@ -1331,8 +1416,24 @@ namespace ClassicUO.Game.UI.Gumps
                     : owner.SourceName(pin) + (pin.Kind == "rune" ? string.Empty : " / slot " + (pin.Slot + 1));
                 if (pinned && !string.IsNullOrWhiteSpace(pin.CustomName))
                     tooltip += " / original: " + pin.Name;
+                _baseTooltip = tooltip; _lastLocation = pin.Location;
                 if (pin.Kind != "portal") tooltip += "\n" + TravelDestinationIdentity.Observation(pin);
                 SetTooltip(tooltip);
+            }
+
+            public override void Update()
+            {
+                base.Update();
+                TravelLocationManager.Restore(_pin);
+                if (_lastLocation != _pin.Location)
+                {
+                    _lastLocation = _pin.Location;
+                    SetTooltip(_baseTooltip + "\n" + TravelDestinationIdentity.Observation(_pin));
+                }
+                if (!WorldExplorerDestinationPreview.IsHovered(this)) { _hoverSince = 0; return; }
+                if (_hoverSince == 0) _hoverSince = Time.Ticks;
+                if (_pin.Location != null && Time.Ticks - _hoverSince >= 350)
+                    WorldExplorerDestinationPreview.Show(this, _pin);
             }
 
             protected override void OnMouseDown(int x, int y, MouseButtonType button)
@@ -1366,8 +1467,21 @@ namespace ClassicUO.Game.UI.Gumps
 
         private sealed class ExplorerButton : NiceButton
         {
+            internal WorldExplorerPin PreviewPin;
+            private long _hoverSince;
             private readonly bool _classic;
             private readonly bool _applyCustomOpacity;
+
+            public override void Update()
+            {
+                base.Update();
+                if (PreviewPin == null) return;
+                TravelLocationManager.Restore(PreviewPin);
+                if (!WorldExplorerDestinationPreview.IsHovered(this)) { _hoverSince = 0; return; }
+                if (_hoverSince == 0) _hoverSince = Time.Ticks;
+                if (PreviewPin.Location != null && Time.Ticks - _hoverSince >= 350)
+                    WorldExplorerDestinationPreview.Show(this, PreviewPin);
+            }
 
             internal ExplorerButton(int x, int y, int width, int height, string text, int id, bool classic, ushort ink,
                 bool applyCustomOpacity = false)

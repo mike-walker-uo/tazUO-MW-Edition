@@ -44,7 +44,7 @@ namespace ClassicUO.Game.Managers
             _startedAt = Time.Ticks;
             _currentLight = -1;
             _currentPhase = null;
-            _previousAmbienceEnabled = AmbienceOverlay.Enabled;
+            _previousAmbienceEnabled = AmbienceOverlay.ConfiguredEnabled;
             AmbienceOverlay.Enabled = true;
             GameActions.Print($"Day cycle ON — {seconds}-second day/dusk/night/dawn loop.", 0x35);
             Update();

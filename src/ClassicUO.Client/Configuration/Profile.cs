@@ -102,12 +102,23 @@ namespace ClassicUO.Configuration
         [JsonConverter(typeof(Point2Converter))] public Point PaperdollToolsPosition { get; set; } = Point.Zero;
         public byte WorldExplorerTravelMethod { get; set; }
         public byte WorldExplorerTheme { get; set; }
+        public byte WorldExplorerTravelStyle { get; set; } = 1;
+        [JsonConverter(typeof(NullablePoint2Converter))] public Point? WorldExplorerTravelPosition { get; set; }
         public bool WorldExplorerMinimized { get; set; }
         public int WorldExplorerCompactWidth { get; set; } = 180;
         public int WorldExplorerCompactHeight { get; set; }
         public byte WorldExplorerCompactColumns { get; set; } = 1;
         public Dictionary<string, string> WorldExplorerPreferredSources { get; set; } = new Dictionary<string, string>();
         public List<WorldExplorerPin> WorldExplorerPins { get; set; } = new List<WorldExplorerPin>();
+        public Dictionary<string, TravelDestinationLocation> WorldExplorerLocations { get; set; } = new Dictionary<string, TravelDestinationLocation>();
+        public bool IllustratedVendorGumps { get; set; } = true;
+        public bool ClutterPickerShortcut { get; set; } = true;
+        public List<VendorLedgerRecord> VendorLedger { get; set; } = new List<VendorLedgerRecord>();
+        public List<VendorListingTemplate> VendorListingTemplates { get; set; } = new List<VendorListingTemplate>();
+        public bool VendorSearchScansEnabled { get; set; } = true;
+        public List<VendorWatchItem> VendorWatchItems { get; set; } = new List<VendorWatchItem>();
+        public decimal VendorListingFeePercent { get; set; } = 5.25m;
+        public decimal VendorRepriceFeePercent { get; set; } = 50m;
         public bool MusicPlayerCompact { get; set; }
         public List<string> FavoriteMusicTracks { get; set; } = new List<string>();
         public byte CustomGumpTheme { get; set; } = (byte)ClassicUO.Game.UI.Gumps.CustomGumpTheme.HdWood;
@@ -127,6 +138,14 @@ namespace ClassicUO.Configuration
         public byte GumpHoverOpacityPercent { get; set; } = 100;
         public byte SlayerBarOpacity { get; set; } = 100;
         public bool SlayerBarCollapsed { get; set; }
+        public bool SlayerBarDetached { get; set; }
+        public List<ProtectedItemRecord> ProtectedItems { get; set; } = new List<ProtectedItemRecord>();
+        public ushort ProtectedItemHue { get; set; }
+        public bool SlayerBarLocked { get; set; }
+        public bool SlayerBarHorizontal { get; set; }
+        [JsonConverter(typeof(NullablePoint2Converter))] public Point? SlayerBarPosition { get; set; }
+        public ushort SlayerBarDefaultHue { get; set; }
+        public Dictionary<string, ushort> SlayerBarSlayerHues { get; set; } = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
         public bool PerfHudCollapsed { get; set; }
         public bool PerfHudTiny { get; set; }
         [JsonConverter(typeof(Point2Converter))] public Point GumpThemeSelectorPosition { get; set; } = new Point(180, 100);

@@ -21,7 +21,14 @@ namespace ClassicUO.Game.UI
 {
     public static class AmbienceOverlay
     {
-        public static bool Enabled = true;
+        private static bool _enabled = true;
+        // Keep the user's setting while suspending every consumer during flight.
+        public static bool Enabled
+        {
+            get => _enabled && !ExplorationMode.Active;
+            set => _enabled = value;
+        }
+        internal static bool ConfiguredEnabled => _enabled;
         public static bool LightsEnabled { get; private set; } = true;
 
         public static void SetLightsEnabled(bool enabled)

@@ -63,6 +63,7 @@ namespace ClassicUO.Game.Scenes
         private readonly bool[] _flags = new bool[5];
         private uint _holdMouse2secOverItemTime;
         private bool _isMouseLeftDown;
+        private bool _clutterPicking;
         private bool _isSelectionActive;
         private Direction _lastBoatDirection;
         private bool _requestedWarMode;
@@ -77,6 +78,7 @@ namespace ClassicUO.Game.Scenes
             Array.Clear(_flags, 0, _flags.Length);
             ExplorationMode.ResetKeys();
             _isMouseLeftDown = _isSelectionActive = _rightMousePressed = _continueRunning = false;
+            _clutterPicking = false;
             _holdMouse2secOverItemTime = 0;
             Camera.PeekingToMouse = false;
             _nameplateChordHeld = false;
@@ -446,6 +448,13 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseDown(MouseButtonType button)
         {
+            if (button == MouseButtonType.Left && Keyboard.Ctrl && Keyboard.Shift && ProfileManager.CurrentProfile.ClutterPickerShortcut && UIManager.IsMouseOverWorld
+                && !ExplorationMode.Active && !Client.Game.GameCursor.ItemHold.Enabled)
+            {
+                ClutterPickerGump.Open();
+                _clutterPicking = true;
+                return true;
+            }
             if (ExplorationMode.Active && UIManager.IsMouseOverWorld)
             {
                 if (button == MouseButtonType.Right) ExplorationMode.SetMouseSteering(true);
@@ -469,6 +478,7 @@ namespace ClassicUO.Game.Scenes
 
         internal override bool OnMouseUp(MouseButtonType button)
         {
+            if (button == MouseButtonType.Left && _clutterPicking) { _clutterPicking = false; return true; }
             if (ExplorationMode.Active && button == MouseButtonType.Right && ExplorationMode.MouseSteering)
             { ExplorationMode.SetMouseSteering(false); return true; }
             if (ExplorationMode.Active && UIManager.IsMouseOverWorld) return true;
@@ -635,6 +645,7 @@ namespace ClassicUO.Game.Scenes
                     case CursorTarget.Internal:
                     case CursorTarget.Grab:
                     case CursorTarget.SetGrabBag:
+                    case CursorTarget.AddLedgerVendor:
                     case CursorTarget.Position:
                     case CursorTarget.Object:
                     case CursorTarget.MultiPlacement when World.CustomHouseManager == null:

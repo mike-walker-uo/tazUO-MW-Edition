@@ -37,7 +37,7 @@ namespace ClassicUO.Game.Managers
         {
             string action = args != null && args.Length > 1 ? args[1].ToLowerInvariant() : "toggle";
             if (args?.Length > 2 || !(action == "on" || action == "off" || action == "toggle" || action == "status"))
-            { GameActions.Print("Usage: -fly [on|off|toggle|status]", 0x35); return; }
+            { GameActions.Print("Usage: -fly / -bird [on|off|toggle|status]", 0x35); return; }
             if (action == "off") Stop();
             else if (action == "on") Start();
             else if (action == "toggle") Toggle();
@@ -67,6 +67,7 @@ namespace ClassicUO.Game.Managers
             FlightZ = _takeoffZ = World.Player.Z;
             _takingOff = true;
             Active = true; _prepareInput = true;
+            RegionalAmbience.Reset();
             _chat?.RefreshInputVisibility();
             scene.UpdateDrawPosition = true; scene.SetPostProcessingSettings();
             UIManager.Add(new ExplorationModeGump());

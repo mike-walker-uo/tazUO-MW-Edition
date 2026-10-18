@@ -131,10 +131,17 @@ namespace ClassicUO.Game.UI
             return new Point(x, y);
         }
 
+        // DrawOverheads keeps the graphics viewport active, so its origin is applied by the GPU.
+        internal static Point TileToViewport(int tx, int ty, int tz)
+        {
+            var camera = Client.Game.Scene.Camera;
+            return camera.WorldToScreen(TileToWorld(tx, ty, tz));
+        }
+
         internal static Point TileToScreen(int tx, int ty, int tz)
         {
             var camera = Client.Game.Scene.Camera;
-            Point p = camera.WorldToScreen(TileToWorld(tx, ty, tz));
+            Point p = TileToViewport(tx, ty, tz);
             p.X += camera.Bounds.X;
             p.Y += camera.Bounds.Y;
             return p;

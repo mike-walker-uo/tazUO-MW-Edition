@@ -1,7 +1,10 @@
 using System.Reflection;
 using System.Runtime.Serialization;
+using ClassicUO.Configuration;
+using ClassicUO.Game;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using SDL3;
@@ -12,6 +15,74 @@ namespace ClassicUO.UnitTests.TazUO
     [Collection("Client session regression")]
     public class ExplorationModeTests
     {
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void Flight_suspends_ambience_without_losing_configuration(bool configured)
+        {
+            var active = typeof(ExplorationMode).GetProperty(nameof(ExplorationMode.Active), BindingFlags.Static | BindingFlags.NonPublic);
+            bool previousActive = ExplorationMode.Active, previousEnabled = AmbienceOverlay.ConfiguredEnabled;
+            try
+            {
+                active.SetValue(null, false);
+                AmbienceOverlay.Enabled = configured;
+                Assert.Equal(configured, AmbienceOverlay.Enabled);
+                active.SetValue(null, true);
+                Assert.False(AmbienceOverlay.Enabled);
+                Assert.Equal(configured, AmbienceOverlay.ConfiguredEnabled);
+                AmbienceOverlay.Tick();
+                AmbienceOverlay.DrawBackground(null, Rectangle.Empty);
+                AmbienceOverlay.DrawWorld(null, Rectangle.Empty);
+                active.SetValue(null, false);
+                Assert.Equal(configured, AmbienceOverlay.Enabled);
+
+                active.SetValue(null, true);
+                AmbienceOverlay.Enabled = !configured;
+                Assert.False(AmbienceOverlay.Enabled);
+                active.SetValue(null, false);
+                Assert.Equal(!configured, AmbienceOverlay.Enabled);
+            }
+            finally { AmbienceOverlay.Enabled = previousEnabled; active.SetValue(null, previousActive); }
+        }
+
+        [Fact]
+        public void Flight_blocks_water_atmosphere_even_when_independently_enabled()
+        {
+            var active = typeof(ExplorationMode).GetProperty(nameof(ExplorationMode.Active), BindingFlags.Static | BindingFlags.NonPublic);
+            var profile = typeof(ProfileManager).GetProperty(nameof(ProfileManager.CurrentProfile));
+            var player = typeof(World).GetProperty(nameof(World.Player));
+            var map = typeof(World).GetProperty(nameof(World.Map));
+            bool previousActive = ExplorationMode.Active, previousEnabled = AmbienceOverlay.ConfiguredEnabled;
+            bool previousAtmosphere = WaterEnhancementManager.AtmosphereEnabled;
+            Profile previousProfile = ProfileManager.CurrentProfile;
+            PlayerMobile previousPlayer = World.Player;
+            var previousMap = World.Map;
+            try
+            {
+                profile.SetValue(null, new Profile { SceneryQuality = SceneryInteractionManager.QUALITY_HIGH });
+                player.SetValue(null, FormatterServices.GetUninitializedObject(typeof(PlayerMobile)));
+                map.SetValue(null, FormatterServices.GetUninitializedObject(typeof(ClassicUO.Game.Map.Map)));
+                AmbienceOverlay.Enabled = false;
+                WaterEnhancementManager.SetAtmosphereEnabled(true);
+                active.SetValue(null, false);
+                Assert.True(WaterEnhancementManager.BeginFrameCapture(true, null));
+                active.SetValue(null, true);
+                Assert.False(WaterEnhancementManager.BeginFrameCapture(true, null));
+                AmbienceOverlay.Enabled = true;
+                Assert.False(WaterEnhancementManager.BeginFrameCapture(true, null));
+                Assert.False(TerrainMaterialManager.BeginFrameCapture(true, null));
+                active.SetValue(null, false);
+                Assert.True(WaterEnhancementManager.BeginFrameCapture(true, null));
+            }
+            finally
+            {
+                WaterEnhancementManager.BeginFrameCapture(false, null);
+                WaterEnhancementManager.SetAtmosphereEnabled(previousAtmosphere);
+                profile.SetValue(null, previousProfile); player.SetValue(null, previousPlayer); map.SetValue(null, previousMap);
+                AmbienceOverlay.Enabled = previousEnabled; active.SetValue(null, previousActive);
+            }
+        }
+
         [Theory]
         [InlineData(-1, 0, -1, 1)]
         [InlineData(1, 0, 1, -1)]

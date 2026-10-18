@@ -47,6 +47,18 @@ namespace ClassicUO.Game.Scenes
 {
     internal partial class GameScene
     {
+        internal System.Collections.Generic.IEnumerable<Entity> ClutterCandidates()
+        {
+            GameObject[] heads = { _renderListStaticsHead, _renderListAnimationsHead, _renderListTransparentObjectsHead };
+            int[] counts = { _renderListStaticsCount, _renderListAnimationCount, _renderListTransparentObjectsCount };
+            for (int list = 0; list < heads.Length; list++)
+            {
+                GameObject obj = heads[list];
+                for (int i = 0; obj != null && i < counts[list]; i++, obj = obj.RenderListNext)
+                    if (obj is Entity entity) yield return entity;
+            }
+        }
+
         private static GameObject[] _foliages = new GameObject[100];
         private static readonly TreeUnion[] _treeInfos =
         {

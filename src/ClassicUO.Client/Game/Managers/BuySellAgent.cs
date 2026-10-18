@@ -202,6 +202,7 @@ namespace ClassicUO.Game.Managers
             }
 
             List<Tuple<uint, ushort>> sellList = new List<Tuple<uint, ushort>>();
+            var protectedSkipped = new HashSet<uint>();
             long val = 0;
             ushort total_count = 0;
             ushort unique_items = 0;
@@ -230,6 +231,7 @@ namespace ClassicUO.Game.Managers
                 foreach (var item in sellPackets[vendorSerial].AvailableItems)
                 {
                     if (!sellConfig.IsMatch(item.Graphic, item.Hue)) continue;
+                    if (!ItemProtectionManager.CanMove(item.Serial)) { protectedSkipped.Add(item.Serial); continue; }
 
                     if (current_count >= sellConfig.MaxAmount) continue;
 
@@ -266,6 +268,7 @@ namespace ClassicUO.Game.Managers
                     
                 total_count += current_count;
             }
+            if (protectedSkipped.Count > 0) GameActions.Print(protectedSkipped.Count + " protected items skipped by Sell Agent.", 0x35);
             sellPackets.Remove(vendorSerial);
 
             if (sellList.Count == 0) return;

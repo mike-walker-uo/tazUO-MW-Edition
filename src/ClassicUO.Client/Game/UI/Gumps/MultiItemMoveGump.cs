@@ -15,8 +15,8 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal class MultiItemMoveGump : NineSliceGump
     {
-        private const int WIDTH = 230;
-        private const int HEIGHT = 150;
+        private const int WIDTH = 270;
+        private const int HEIGHT = 180;
 
         public static int PreferredWidth => UIManager.GetGump<MultiItemMoveGump>()?.Width ?? WIDTH;
         public static int PreferredHeight => UIManager.GetGump<MultiItemMoveGump>()?.Height ?? HEIGHT;
@@ -49,7 +49,7 @@ namespace ClassicUO.Game.UI.Gumps
         // ===== Selection + queue =====
         public static readonly ConcurrentQueue<Item> MoveItems = new ConcurrentQueue<Item>();
         private static readonly ConcurrentDictionary<uint, byte> _selected = new ConcurrentDictionary<uint, byte>();
-        private static int SelectedCount => _selected.Count;
+        internal static int SelectedCount => _selected.Count;
 
         // ===== Processing state =====
         public static int ObjDelay = 1000;
@@ -62,9 +62,17 @@ namespace ClassicUO.Game.UI.Gumps
 
         // ===== UI =====
         private Label _header;
-        private InputField _delayInput;
+        private StbTextBox _delayInput;
+        private CustomGumpTheme _theme;
 
         public static bool IsSelected(uint serial) => _selected.ContainsKey(serial);
+
+        internal static bool TryClearSelection()
+        {
+            if (processing || _operation != null && !_operation.Finished) return false;
+            ClearAll();
+            return true;
+        }
 
         public MultiItemMoveGump(int x, int y)
             // resizable = true, with sensible minimums
@@ -73,7 +81,8 @@ namespace ClassicUO.Game.UI.Gumps
         {
             CanMove = true;
             AcceptMouseInput = true;
-            CanCloseWithRightClick = false;
+            CanCloseWithRightClick = true;
+            DrawNineSliceBackground = false;
 
             ObjDelay = ProfileManager.CurrentProfile.MoveMultiObjectDelay;
 
@@ -88,17 +97,21 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void Build()
         {
+            using var theme = CustomGumpThemeManager.ForWindow(this);
+            _theme = CustomGumpThemeManager.Current;
             Clear();
+            Children.RemoveAll(c => c.IsDisposed);
+            Add(CustomGumpThemeManager.CreateBackground(Width, Height, 0.95f));
 
-            // Content area inside the modern border
-            int cx = BorderSize;
-            int cy = BorderSize;
-            int cw = Width - (BorderSize * 2);
-            int ch = Height - (BorderSize * 2);
+            // Leave room for the active theme's frame.
+            int cx = Math.Max(BorderSize, CustomThemeArt.ContentInset) + 8;
+            int cy = cx;
+            int cw = Width - (cx * 2);
+            int ch = Height - (cy * 2);
             int contentBottom = cy + ch;
 
             // Header
-            Add(_header = new Label(TextForHeader(), true, 0xFFFF, cw, align: TEXT_ALIGN_TYPE.TS_CENTER)
+            Add(_header = new Label(TextForHeader(), true, CustomGumpThemeManager.TitleHue, cw, align: TEXT_ALIGN_TYPE.TS_CENTER)
             {
                 X = cx,
                 Y = cy
@@ -107,17 +120,29 @@ namespace ClassicUO.Game.UI.Gumps
             // "Object delay" + numeric input (right-aligned)
             int delayRowY = cy + _header.Height + 5;
 
-            Add(new Label("Object delay:", true, 0xFFFF, 150)
+            Add(new Label("Object delay:", true, CustomGumpThemeManager.DataTextHue, cw - 62)
             {
                 X = cx,
                 Y = delayRowY
             });
 
-            Add(_delayInput = new InputField(0x0BB8, 0xFF, 0xFFFF, true, 56, 20)
+            var inputBackground = new AlphaBlendControl(0.65f)
             {
-                X = cx + (cw - 56), // right edge of content
+                X = cx + cw - 56,
                 Y = delayRowY,
-                NumbersOnly = true
+                Width = 56,
+                Height = 22
+            };
+            CustomGumpThemeManager.ApplyInputSurface(inputBackground, 0.65f);
+            Add(inputBackground);
+            Add(_delayInput = new StbTextBox(0xFF, -1, 48, true, hue: CustomGumpThemeManager.DataTextHue)
+            {
+                X = inputBackground.X + 4,
+                Y = delayRowY + 2,
+                Width = 48,
+                Height = 20,
+                NumbersOnly = true,
+                Multiline = false
             });
             _delayInput.SetText(ObjDelay.ToString());
             _delayInput.TextChanged += (s, e) =>
@@ -145,6 +170,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             // Move to backpack (full width)
             Add(b = new NiceButton(cx, rowY1, cw, 20, ButtonAction.Activate, "Move to backpack", align: TEXT_ALIGN_TYPE.TS_CENTER));
+            CustomGumpThemeManager.StyleDataButton(b);
             b.SetTooltip("Move selected items to your backpack.");
             b.MouseUp += (s, e) =>
             {
@@ -159,6 +185,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             // Set favorite (left)
             Add(b = new NiceButton(cx, rowY2, halfW, 20, ButtonAction.Activate, "Set favorite bag", align: TEXT_ALIGN_TYPE.TS_CENTER));
+            CustomGumpThemeManager.StyleDataButton(b);
             b.SetTooltip("Set your preferred destination container for future item moves.");
             b.MouseUp += (s, e) =>
             {
@@ -171,6 +198,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             // To favorite (right)
             Add(b = new NiceButton(cx + halfW + GAP, rowY2, halfW, 20, ButtonAction.Activate, "To favorite", align: TEXT_ALIGN_TYPE.TS_CENTER));
+            CustomGumpThemeManager.StyleDataButton(b);
             b.SetTooltip("Move selected items to your favorite container.");
             b.MouseUp += (s, e) =>
             {
@@ -192,17 +220,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             // Cancel (left)
             Add(b = new NiceButton(cx, rowY3, halfW, 20, ButtonAction.Activate, "Cancel", align: TEXT_ALIGN_TYPE.TS_CENTER));
+            CustomGumpThemeManager.StyleDataButton(b);
+            b.SetTooltip("Cancel unsent moves, clear the selection and close. Right-click does the same.");
             b.MouseUp += (s, e) =>
             {
                 if (e.Button == MouseButtonType.Left)
-                {
-                    ClearAll();
-                    Dispose();
-                }
+                    CloseWithRightClick();
             };
 
             // Move to (right)
             Add(b = new NiceButton(cx + halfW + GAP, rowY3, halfW, 20, ButtonAction.Activate, "Move to", align: TEXT_ALIGN_TYPE.TS_CENTER));
+            CustomGumpThemeManager.StyleDataButton(b);
             b.SetTooltip("Select a container or a ground tile to move these items to.");
             b.MouseUp += (s, e) =>
             {
@@ -218,7 +246,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public static bool TrySelect(Item item)
         {
-            if (item == null) return false;
+            if (item == null || !ItemProtectionManager.CanMove(item.Serial)) return false;
             if (!_selected.TryAdd(item.Serial, 1)) return false; // already selected
             MoveItems.Enqueue(item);
             return true;
@@ -237,6 +265,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return false;
             }
 
+            if (!ItemProtectionManager.CanMove(item.Serial)) return false;
             _selected[item.Serial] = 1;
             MoveItems.Enqueue(item);
             return true;
@@ -318,6 +347,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Update()
         {
+            using var theme = CustomGumpThemeManager.ForWindow(this);
+            if (_theme != CustomGumpThemeManager.Current) Build();
             base.Update();
 
             // live header
@@ -405,6 +436,13 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             return base.Draw(batcher, x, y);
+        }
+
+        protected override void CloseWithRightClick()
+        {
+            if (!CanCloseWithRightClick) return;
+            ClearAll();
+            base.CloseWithRightClick();
         }
 
         private static string TextForHeader()

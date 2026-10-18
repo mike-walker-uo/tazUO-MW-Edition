@@ -31,10 +31,11 @@ namespace ClassicUO.UnitTests.TazUO
         {
             SetPlayer(Empty<PlayerMobile>());
             World.Player.Serial = 1;
-            TileDataLoader._staticData = new StaticTiles[5];
+            TileDataLoader._staticData = new StaticTiles[0x0EFB];
             TileDataLoader._staticData[1] = new StaticTiles { Name = "sword", Flags = TileFlag.Weapon, Layer = (byte)Layer.OneHanded };
             TileDataLoader._staticData[2] = new StaticTiles { Name = "shield", Flags = TileFlag.Wearable, Layer = (byte)Layer.TwoHanded };
             TileDataLoader._staticData[3] = new StaticTiles { Name = "bow", Flags = TileFlag.Weapon, Layer = (byte)Layer.TwoHanded };
+            TileDataLoader._staticData[0x0EFA] = new StaticTiles { Name = "spellbook", Flags = TileFlag.Container, Layer = (byte)Layer.OneHanded };
             _backpack = Add(0x40008801, 0, Layer.Backpack, 1);
             _sword = Add(0x40008802, 1, Layer.OneHanded, 1);
             _shield = Add(0x40008803, 2, Layer.TwoHanded, 1);
@@ -84,7 +85,7 @@ namespace ClassicUO.UnitTests.TazUO
             _bow.Container = 1;
             _bow.Layer = Layer.TwoHanded;
             _backpack.Next = _bow;
-            Item book = Add(0x40008806, 4, Layer.Invalid, _backpack.Serial);
+            Item book = Add(0x40008806, 0x0EFA, Layer.Invalid, _backpack.Serial);
 
             Equip(book, "Spellbook");
 

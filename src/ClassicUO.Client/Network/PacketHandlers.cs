@@ -1486,6 +1486,7 @@ namespace ClassicUO.Network
 
             uint serial = p.ReadUInt32BE();
             ushort graphic = p.ReadUInt16BE();
+            VendorLedgerManager.ObserveContainer(serial);
 
             if (graphic == 0xFFFF)
             {
@@ -4699,8 +4700,10 @@ namespace ClassicUO.Network
                 //===========================================================================================
                 //===========================================================================================
                 case 0x14: // display popup/context menu
+                    var vendorPopup = PopupMenuData.Parse(ref p);
+                    if (VendorSearchWatchManager.ObservePopup(vendorPopup)) break;
                     UIManager.ShowGamePopup(
-                        new PopupMenuGump(PopupMenuData.Parse(ref p))
+                        new PopupMenuGump(vendorPopup)
                         {
                             X = DelayedObjectClickManager.LastMouseX,
                             Y = DelayedObjectClickManager.LastMouseY
@@ -6493,6 +6496,7 @@ namespace ClassicUO.Network
             }
 
             container.PushToBack(item);
+            VendorLedgerManager.ObserveContainer(containerSerial);
             ItemFinderManager.NotifyItemUpdated(item);
             InventoryCounts.NotifyChanged(item);
 
@@ -6897,6 +6901,8 @@ namespace ClassicUO.Network
 
                 World.Player.Walker.ResendPacketResync = false;
                 World.Player.CloseRangedGumps();
+                ClientInteractionObserver.Pump();
+                TravelLocationManager.ObservePosition(x, y, z);
                 World.Player.SetInWorldTile(x, y, z);
                 World.Player.UpdateAbilities();
             }
@@ -6947,6 +6953,7 @@ namespace ClassicUO.Network
             string[] lines
         )
         {
+            ClientInteractionObserver.Pump();
             ClassicUO.LegionScripting.ScriptRecorder.Instance.RecordWaitForGump(gumpID.ToString());
             ScriptingInfoGump.AddOrUpdateInfo("Last Gump Opened", gumpID);
             List<string> cmdlist = _parser.GetTokens(layout);
@@ -7553,8 +7560,11 @@ namespace ClassicUO.Network
 
             if (mustBeAdded)
             {
+                TravelLocationManager.ObserveBookGump(gump);
+                VendorGumpArtwork.Enhance(gump);
                 UIManager.Add(gump);
             }
+            else { TravelLocationManager.ObserveBookGump(gump); VendorGumpArtwork.Enhance(gump); }
 
             gump.Update();
             gump.SetInScreen();

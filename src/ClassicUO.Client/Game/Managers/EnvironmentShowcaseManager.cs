@@ -111,7 +111,7 @@ namespace ClassicUO.Game.Managers
             EnvironmentControlManager.ClearLight(false);
             Enabled = true;
             BeautifulEnabled = false;
-            _previousAmbienceEnabled = AmbienceOverlay.Enabled;
+            _previousAmbienceEnabled = AmbienceOverlay.ConfiguredEnabled;
             AmbienceOverlay.Enabled = true;
             _seasonIndex = _seasons.Length;
             _weatherIndex = _weather.Length;
@@ -134,7 +134,7 @@ namespace ClassicUO.Game.Managers
             EnvironmentControlManager.ClearLight(false);
             Enabled = true;
             BeautifulEnabled = true;
-            _previousAmbienceEnabled = AmbienceOverlay.Enabled;
+            _previousAmbienceEnabled = AmbienceOverlay.ConfiguredEnabled;
             AmbienceOverlay.Enabled = true;
             _beautifulIndex = 0;
             _currentLight = -1;

@@ -944,6 +944,12 @@ namespace ClassicUO.Game
 
         public static void Clear()
         {
+            ItemProtectionManager.Reset();
+            TravelLocationManager.Reset();
+            ClientInteractionObserver.Reset();
+            VendorLedgerManager.Reset();
+            VendorRefreshManager.Reset();
+            VendorSearchWatchManager.Reset();
             InventoryCounts.Reset();
             QueuedOperations.Reset();
             foreach (Mobile mobile in Mobiles.Values)

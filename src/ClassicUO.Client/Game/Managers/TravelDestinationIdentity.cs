@@ -13,7 +13,8 @@ namespace ClassicUO.Game.Managers
                 ? new DateTime(pin.LastScannedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("g") : "unknown";
             return $"Source 0x{pin.Serial:X8} / slot {pin.Slot + 1} / observed hue "
                 + (pin.ObservedHue.HasValue ? $"0x{pin.ObservedHue.Value:X4}" : "unknown")
-                + "\nLast scan: " + date + " / facet unknown";
+                + "\nLast scan: " + date + (pin.Location == null ? " / location unknown" : "\n"
+                    + TravelLocationManager.FacetName(pin.Location.Facet) + $" ({pin.Location.X}, {pin.Location.Y}) / " + pin.Location.Source);
         }
     }
 }

@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
@@ -499,7 +500,14 @@ namespace ClassicUO.Network
 
         private static bool RequestMove(int dir, bool run)
         {
-            return World.Player.Walk((Direction)dir, run);
+            // Razor scripts can request movement from worker threads. Tile links
+            // must only change on the game thread, alongside movement and drawing.
+            if (Thread.CurrentThread != CUOEnviroment.GameThread)
+            {
+                return MainThreadQueue.InvokeOnMainThread(() => RequestMove(dir, run));
+            }
+
+            return World.Player?.Walk((Direction)dir, run) ?? false;
         }
 
         private static bool GetPlayerPosition(out int x, out int y, out int z)

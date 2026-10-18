@@ -93,7 +93,7 @@ namespace ClassicUO.Game.UI
                 * OverheadEffectSizeSettings.Scale;
             float rise = 10f * EaseOut(progress);
 
-            Point ground = PathPreview.TileToScreen(
+            Point ground = PathPreview.TileToViewport(
                 World.Player.X,
                 World.Player.Y,
                 World.Player.Z

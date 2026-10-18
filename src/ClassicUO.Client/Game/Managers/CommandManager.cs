@@ -239,6 +239,29 @@ namespace ClassicUO.Game.Managers
                 UIManager.Add(new WorldExplorerGump());
             });
 
+            Register("pick", (s) => ClutterPickerGump.Open());
+
+            Register("vendors", (s) =>
+            {
+                var profile = ProfileManager.CurrentProfile;
+                if (profile == null) return;
+                if (s != null && s.Length > 1)
+                {
+                    if (s[1].Equals("add", StringComparison.OrdinalIgnoreCase)) { VendorLedgerManager.TargetVendor(); return; }
+                    if (s[1].Equals("update", StringComparison.OrdinalIgnoreCase)) { VendorRefreshManager.Start(); return; }
+                    if (s[1].Equals("search", StringComparison.OrdinalIgnoreCase)) { VendorSearchWatchManager.OpenSearch(); return; }
+                    if (s[1].Equals("watch", StringComparison.OrdinalIgnoreCase)) { VendorMarketWatchGump.Open(); return; }
+                    if (!s[1].Equals("on", StringComparison.OrdinalIgnoreCase) && !s[1].Equals("off", StringComparison.OrdinalIgnoreCase))
+                    { GameActions.Print("Use -vendors [add|update|search|watch|on|off].", 0x35); return; }
+                    profile.IllustratedVendorGumps = s[1].Equals("on", StringComparison.OrdinalIgnoreCase);
+                    profile.Save(ProfileManager.ProfilePath, false);
+                    GameActions.Print("Illustrated vendor gumps " + (profile.IllustratedVendorGumps ? "ON" : "OFF") + ". Reopen vendor windows to apply.", 0x35);
+                    return;
+                }
+                VendorLedgerGump.Open();
+            });
+            Register("vendorwatch", _ => VendorMarketWatchGump.Open());
+
             Register("itemfinder", (s) =>
             {
                 string query = s != null && s.Length > 1
@@ -329,6 +352,11 @@ namespace ClassicUO.Game.Managers
 
             Register("magnifier", MagnifierManager.Command);
             Register("fly", ExplorationMode.Command);
+            Register("bird", ExplorationMode.Command);
+            Register("weapons", _ => PaperDollBackpackEquipmentGump.Open());
+            Register("protect", _ => ItemProtectionManager.Target(true));
+            Register("unprotect", _ => ItemProtectionManager.Target(false));
+            Register("protecteditems", _ => ItemProtectionGump.Open());
 
             Register("chess", (s) =>
             {
@@ -2707,14 +2735,14 @@ Register("pathpreview", (s) =>
             Register("ambience", (s) =>
             {
                 bool on = s == null || s.Length < 2
-                    ? !UI.AmbienceOverlay.Enabled
+                    ? !UI.AmbienceOverlay.ConfiguredEnabled
                     : s[1].Trim().Equals("on", System.StringComparison.OrdinalIgnoreCase);
                 UI.AmbienceOverlay.Enabled = on;
                 if (ProfileManager.CurrentProfile != null)
                 {
                     ProfileManager.CurrentProfile.AmbienceOverlayEnabled = on;
                 }
-                GameActions.Print($"Ambience effects {(on ? "ON" : "OFF")}.", (ushort)(on ? 0x35 : 0x21));
+                GameActions.Print($"Ambience effects {(on ? "ON" : "OFF")}.{(on && ExplorationMode.Active ? " Paused during exploration." : "")}", (ushort)(on ? 0x35 : 0x21));
             });
 
             Register("ambientlights", (s) =>

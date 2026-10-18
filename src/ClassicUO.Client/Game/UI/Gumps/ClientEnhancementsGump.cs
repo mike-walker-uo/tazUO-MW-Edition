@@ -86,6 +86,12 @@ namespace ClassicUO.Game.UI.Gumps
             Slider("Interface and text scale (%)", 75, 200, (int)(_profile.InterfaceScale * 100), n => _profile.InterfaceScale = n / 100f, 3);
             Check("Reduce theme decoration, retain palette", _profile.ReducedThemeDecoration, b => _profile.ReducedThemeDecoration = b, 3);
             Check("Rotate gump themes daily", _profile.RotateGumpThemesDaily, CustomGumpThemeManager.SetDailyRotation, 3);
+            Check("Ctrl + Shift + left-click picks through clutter", _profile.ClutterPickerShortcut, b => _profile.ClutterPickerShortcut = b, 3);
+            Note("Use -pick under the world pointer, or bind ClientCommand pick to your preferred macro hotkey. Choices use native sprite hit tests.", 3);
+            Check("Illustrated vendor gumps", _profile.IllustratedVendorGumps, b => _profile.IllustratedVendorGumps = b, 3);
+            Action("Open vendor ledger", () => VendorLedgerGump.Open(), 3);
+            Check("Enable Vendor Search watch scans", _profile.VendorSearchScansEnabled, b => _profile.VendorSearchScansEnabled = b, 3);
+            Action("Open market watch", VendorMarketWatchGump.Open, 3);
             Action("Browse themes and favorites", () => UIManager.Add(new GumpThemeSelectorGump()), 3);
             string[] windows = { "Global chat", "Guild chat", "Nearby speech", "World explorer", "Item finder", "Restock", "Command palette", "Environment controls", "Paperdoll" };
             string[] types = { "GlobalChatGump", "GuildChatGump", "NearbySpeechGump", "WorldExplorerGump", "ItemFinderGump", "RestockAgentGump", "CommandPaletteGump", "EnvironmentControlGump", "PaperDollGump" };

@@ -79,7 +79,7 @@ namespace ClassicUO.Configuration
             return ConfigurationResolver.Load<Profile>(Path.Combine(ProfileRootPath(), "default.json"), ProfileJsonContext.DefaultToUse) ?? new Profile();
         }
 
-        private static string ProfileRootPath()
+        internal static string ProfileRootPath()
         {
             string rootpath;
 

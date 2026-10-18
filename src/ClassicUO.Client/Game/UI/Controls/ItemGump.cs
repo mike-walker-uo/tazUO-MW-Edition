@@ -201,6 +201,7 @@ namespace ClassicUO.Game.UI.Controls
                     Width + 4, Height + 4, markerHue);
             }
 
+            ItemProtectionManager.DrawMarker(batcher, LocalSerial, x + Width - 10, y + 2);
             return true;
         }
 
