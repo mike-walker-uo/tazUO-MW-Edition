@@ -57,7 +57,8 @@ namespace ClassicUO.UnitTests.TazUO
         public void Old_saved_destinations_show_unknown_observation_data_instead_of_guessed_facet()
         {
             string description = TravelDestinationIdentity.Observation(new WorldExplorerPin { Serial = 42 });
-            Assert.Contains("hue unknown", description); Assert.Contains("Last scan: unknown", description); Assert.Contains("facet unknown", description);
+            Assert.Contains("hue unknown", description); Assert.Contains("Last scan: unknown", description); Assert.Contains("location unknown", description);
+            Assert.DoesNotContain("Trammel", description);
         }
         [Fact]
         public void New_settings_and_observed_source_metadata_round_trip_through_profile_JSON()
