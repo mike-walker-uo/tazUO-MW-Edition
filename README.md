@@ -53,8 +53,6 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 - **Less intrusive transfers:** Queued Actions popup defaults off; `-operations on/off` controls it. Optional compact progress indicator.
 - **Fixes:** stale paperdoll weapons, shifted overhead spell effects, World Explorer/travel-style crashes, stuck controls after switching apps and safer Razor movement handling. Added finer freeze diagnostics.
 
-**Known issue:** the reported normal-play rendering freeze remains under investigation. Vendor enhancements are experimental; live-shard behavior and graphics still need player verification.
-
 Windows CI checks tests, shaders and packaging. Razor Enhanced remains the supported assistant. Replace the complete client ZIP. Displayed version **0.6.3-beta**; Windows file version **0.6.3.1**.
 
 See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.3-Beta-Guide).
