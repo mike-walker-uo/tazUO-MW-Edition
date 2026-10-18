@@ -14,7 +14,6 @@ using StbTextEditSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -3984,89 +3983,24 @@ namespace ClassicUO.Game.UI.Gumps
             content.AddToLeft(SubCategoryButton(lang.GetTazUO.SettingsTransfers, page, content.LeftWidth));
             content.ResetRightSide();
 
-            string rootpath;
-
-            if (string.IsNullOrWhiteSpace(Settings.GlobalSettings.ProfilesPath))
-            {
-                rootpath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Profiles");
-            }
-            else
-            {
-                rootpath = Settings.GlobalSettings.ProfilesPath;
-            }
-
-            List<ProfileLocationData> locations = new List<ProfileLocationData>();
-            List<ProfileLocationData> sameServerLocations = new List<ProfileLocationData>();
-            string[] allAccounts = Directory.GetDirectories(rootpath);
-
-            foreach (string account in allAccounts)
-            {
-                string[] allServers = Directory.GetDirectories(account);
-
-                foreach (string server in allServers)
-                {
-                    string[] allCharacters = Directory.GetDirectories(server);
-
-                    foreach (string character in allCharacters)
-                    {
-                        locations.Add(new ProfileLocationData(server, account, character));
-
-                        if (FileSystemHelper.RemoveInvalidChars(profile.ServerName) == FileSystemHelper.RemoveInvalidChars(Path.GetFileName(server)))
-                        {
-                            sameServerLocations.Add(new ProfileLocationData(server, account, character));
-                        }
-                    }
-                }
-            }
-
             content.AddToRight
             (
                 TextBox.GetOne
                 (
-                    string.Format(lang.GetTazUO.SettingsWarning, locations.Count), ThemeSettings.FONT, ThemeSettings.STANDARD_TEXT_SIZE, ThemeSettings.TEXT_FONT_COLOR,
+                    "Pick destination profiles and settings categories. All settings includes macros, skill groups, info bar and layouts. Destination files are backed up before replacement.",
+                    ThemeSettings.FONT, ThemeSettings.STANDARD_TEXT_SIZE, ThemeSettings.TEXT_FONT_COLOR,
                     TextBox.RTLOptions.DefaultCentered(content.RightWidth - 20)
                 ), true, page
             );
 
             content.AddToRight
             (
-                c = new ModernButton
-                    (0, 0, content.RightWidth - 20, 40, ButtonAction.Activate, string.Format(lang.GetTazUO.OverrideAll, locations.Count - 1), ThemeSettings.BUTTON_FONT_COLOR)
-                {
-                    IsSelectable = true,
-                    IsSelected = true
-                }, true, page
+                c = new ModernButton(0, 0, content.RightWidth - 20, 40, ButtonAction.Activate,
+                    "Choose profiles and settings...", ThemeSettings.BUTTON_FONT_COLOR), true, page
             );
-
             c.MouseUp += (s, e) =>
             {
-                if (e.Button == MouseButtonType.Left)
-                {
-                    OverrideAllProfiles(locations);
-                    GameActions.Print(string.Format(lang.GetTazUO.OverrideSuccess, locations.Count - 1), 32, Data.MessageType.System);
-                }
-            };
-
-            content.AddToRight
-            (
-                c = new ModernButton
-                (
-                    0, 0, content.RightWidth - 20, 40, ButtonAction.Activate, string.Format(lang.GetTazUO.OverrideSame, sameServerLocations.Count - 1),
-                    ThemeSettings.BUTTON_FONT_COLOR
-                )
-                {
-                    IsSelectable = true,
-                    IsSelected = true
-                }, true, page
-            );
-
-            c.MouseUp += (s, e) =>
-            {
-                if (e.Button == MouseButtonType.Left)
-                {
-                    OverrideAllProfiles(sameServerLocations);
-                    GameActions.Print(string.Format(lang.GetTazUO.OverrideSuccess, sameServerLocations.Count - 1), 32, Data.MessageType.System);
-                }
+                if (e.Button == MouseButtonType.Left) ProfileTransferGump.Open();
             };
 
             content.AddToRight
@@ -4467,14 +4401,6 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.Dispose();
             ProfileManager.CurrentProfile?.Save(ProfileManager.ProfilePath);
-        }
-
-        private void OverrideAllProfiles(List<ProfileLocationData> allProfiles)
-        {
-            foreach (var profile in allProfiles)
-            {
-                ProfileManager.CurrentProfile.Save(profile.ToString(), false);
-            }
         }
 
         private ComboBoxWithLabel GenerateFontSelector(string label, string selectedFont = "", Action<int, string> onSelect = null)
@@ -5723,25 +5649,6 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         #endregion
-
-        private class ProfileLocationData
-        {
-            public readonly DirectoryInfo Server;
-            public readonly DirectoryInfo Username;
-            public readonly DirectoryInfo Character;
-
-            public ProfileLocationData(string server, string username, string character)
-            {
-                this.Server = new DirectoryInfo(server);
-                this.Username = new DirectoryInfo(username);
-                this.Character = new DirectoryInfo(character);
-            }
-
-            public override string ToString()
-            {
-                return Character.ToString();
-            }
-        }
 
         private enum PAGE
         {

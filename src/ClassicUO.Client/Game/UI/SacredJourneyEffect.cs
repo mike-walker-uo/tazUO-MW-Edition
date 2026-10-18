@@ -126,7 +126,7 @@ namespace ClassicUO.Game.UI
             float sway = 0.025f *
                 (float)Math.Sin(progress * MathHelper.TwoPi * 2.2f);
 
-            Point ground = PathPreview.TileToScreen(
+            Point ground = PathPreview.TileToViewport(
                 World.Player.X,
                 World.Player.Y,
                 World.Player.Z

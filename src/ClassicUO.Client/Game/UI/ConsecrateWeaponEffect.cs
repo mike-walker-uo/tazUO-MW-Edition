@@ -94,7 +94,7 @@ namespace ClassicUO.Game.UI
             float descent = 46f * (1f - EaseOut(appear));
             float rise = 7f * EaseOut(progress);
 
-            Point ground = PathPreview.TileToScreen(
+            Point ground = PathPreview.TileToViewport(
                 World.Player.X,
                 World.Player.Y,
                 World.Player.Z

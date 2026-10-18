@@ -619,6 +619,13 @@ namespace ClassicUO.Network
                 return;
             }
 
+            if (ItemProtectionManager.Active)
+            {
+                bool forwardPlugin = ignorePlugin, forwardEncryption = skipEncryption;
+                if (ItemProtectionManager.Defer(message, bytes => Send(bytes, forwardPlugin, forwardEncryption))) return;
+                if (ItemProtectionManager.NeedsSwitcherBypass(message)) ignorePlugin = true;
+            }
+
             if (!ignorePlugin && !Plugin.ProcessSendPacket(ref message))
             {
                 return;
@@ -626,6 +633,15 @@ namespace ClassicUO.Network
 
             if (message.IsEmpty)
                 return;
+
+            if (ItemProtectionManager.Active)
+            {
+                bool forwardEncryption = skipEncryption;
+                if (ItemProtectionManager.Defer(message, bytes => Send(bytes, true, forwardEncryption))) return;
+                if (!ItemProtectionManager.AllowPacket(message)) return;
+            }
+
+            ClientInteractionObserver.Observe(message);
 
             PacketLogger.Default?.Log(message, true);
 

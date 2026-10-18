@@ -35,28 +35,27 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
-## Version 0.6.3 beta
+## Version 0.6.3 beta — update 1
 
 ## Changes since 0.6.2
 
-- **Exploration flight:** added a local bird camera with a random bird/eagle and hue. Use `-fly [on|off|toggle|status]`, hold right mouse or use WASD/arrows to travel, Q/E to rise/descend, Shift for speed, the wheel to zoom, and Esc to return. Automatic takeoff starts from your character's height; cruising Z stays fixed across terrain. A ToggleExploration macro action is available under Options → Macros.
-- **Flight usability:** keep the bottom chat field visible; Enter or a click enables typing and pauses steering. Preserve drafts and restore chat/zoom on exit. Suspend ambience overlays during flight and clear held controls on focus loss. Map/profile changes, logout and death end exploration.
-- **Flight rendering:** show the bird above scenery with a ground shadow, support world zoom alongside interface scaling, and clamp map boundaries and render-target dimensions. Your real character stays in place and can still be attacked; live entities are available only near it.
-- **Graphics presets:** added Crisp Classic, Balanced and Smooth presets plus Restore previous graphics settings. Live Before/After compares settings in the same viewport; Keep after saves, and Cancel/Esc restores the saved appearance.
-- **Sharper optional filtering:** added Preserve fine detail to FXAA and point-filter fallback when xBR/pixel-art upscaling is unsuitable. Native UO point filtering remains available with AA off; interface text and healthbars remain sharp.
-- **Weather coverage:** corrected fog, lightning, storm flashes, snow and rain projection across zoomed/scaled viewports, including 4K. Keep particle counts bounded and avoid rebuilding unchanged weather transforms.
-- **Music transitions:** resume the previous peace track after war mode instead of skipping tracks. Added configurable local combat crossfades (0–1000 ms, default 350 ms), respecting pause/stop controls and music stream ownership.
-- **Container counts:** restored the grid-container item count alongside its breadcrumb/path label.
-- **Queued Actions popup:** automatic opening now defaults off. `-operations on` enables it; `-operations off` disables and closes the panel without cancelling transfers; `-operations` opens it manually. Save the preference per character. An optional compact corner transfer indicator also defaults off and opens details when clicked.
-- **Paperdoll refresh:** prevent outdated weapon/equipment sprites and drag previews remaining after equipment moves or replacement.
-- **Input cleanup:** clear stuck modifiers, held mouse controls, movement, selection and camera peek after switching apps, while preserving queued actions and Razor Enhanced's normal key-release contract.
-- **Rendering diagnostics:** added finer render-stage markers to session logs so hangs can be narrowed to object collection, terrain/mobiles, effects, weather, lighting, compositing or a batch flush.
+- **Bird mode:** explore with `-fly` or `-bird`. Mouse/keyboard steering, zoom and Q/E height controls. Stable altitude, working chat and ambience paused. Your character stays behind and remains vulnerable.
+- **World Explorer:** saved destination coordinates, unknown locations learned after travel, hover minimaps, four travel-popup styles and remembered popup position.
+- **Vendor enhancements (experimental):** saved vendor list with add/remove and nearby updates; searchable sales history, summaries, gold balances, restock checklists, stale-stock review and named listing templates across one or all shops. Market Watch scans watched searches and records available amounts, prices, sellers and dates. Includes scan comparisons, unit-price/median/range tools, price alerts, fee estimates, CSV exports, charts and Vendor Search/Item Finder shortcuts. Redesigned bronze/gold/dark-green windows with restrained buttons. Fixes vendor targeting, updates, missing history and UI crashes. Data reflects observed server results; missing listings do not prove a sale, and server restrictions/cooldowns still apply.
+- **Item protection:** protect equipment and backpack items from ordinary moves, bulk transfers and selling. Weapon switching still works; padlock colors are customizable.
+- **Container search:** `AND`, `OR`, `NOT`, parentheses, quoted phrases and a search helper. Small `a`/`n` buttons select matches or non-matches, including offscreen items.
+- **Container UI:** live match/selection counts in the title. Move window follows your theme; right-click cancels unsent moves and closes.
+- **Equipment switcher:** search, slayer background colors, Silver/Undead support, color legend, detachable position, rotation and position locking.
+- **Profile transfers:** choose destination characters and categories, including separate skill buttons and spell icons. Backups are created before changes.
+- **Pick through clutter:** choose overlapping world objects with `-pick` or the optional Ctrl+Shift-click shortcut.
+- **Graphics/weather:** Crisp Classic, Balanced and Smooth presets, live Before/After preview, finer FXAA controls and corrected fog/lightning/rain/snow coverage when zoomed.
+- **Music:** peace music resumes after war mode; adjustable combat crossfades.
+- **Less intrusive transfers:** Queued Actions popup defaults off; `-operations on/off` controls it. Optional compact progress indicator.
+- **Fixes:** stale paperdoll weapons, shifted overhead spell effects, World Explorer/travel-style crashes, stuck controls after switching apps and safer Razor movement handling. Added finer freeze diagnostics.
 
-## Beta testing
+**Known issue:** the reported normal-play rendering freeze remains under investigation. Vendor enhancements are experimental; live-shard behavior and graphics still need player verification.
 
-The reported normal-play rendering hang remains unresolved; the new diagnostics help identify a repeat. Windows CI validates tests, shaders and packaging. Live-shard graphics, 4K, music and exploration behavior still need player verification. Razor Enhanced remains the supported assistant.
-
-Replace the complete client ZIP so updated shaders are included. Displayed version: **0.6.3-beta**; Windows file version: **0.6.3.0**.
+Windows CI checks tests, shaders and packaging. Razor Enhanced remains the supported assistant. Replace the complete client ZIP. Displayed version **0.6.3-beta**; Windows file version **0.6.3.1**.
 
 See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.3-Beta-Guide).
 

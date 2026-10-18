@@ -13,5 +13,17 @@ namespace ClassicUO.Configuration
         public ushort? ObservedHue { get; set; }
         public long LastScannedUtcTicks { get; set; }
         public string Phrase { get; set; } = string.Empty;
+        public TravelDestinationLocation Location { get; set; }
+        public int? FacetHint { get; set; }
+    }
+
+    public sealed class TravelDestinationLocation
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int? Z { get; set; }
+        public int Facet { get; set; }
+        public bool Approximate { get; set; }
+        public string Source { get; set; } = string.Empty;
     }
 }

@@ -284,7 +284,7 @@ namespace ClassicUO.Game.Managers
         {
             _maskSpriteCount = 0;
             _captureBounds = Rectangle.Empty;
-            _captureActive = stencilAvailable && World.InGame && World.Player != null
+            _captureActive = !ExplorationMode.Active && stencilAvailable && World.InGame && World.Player != null
                 && (Enabled && (_artworkEnabled && _intensityPercent > 0
                     && SceneryInteractionManager.Quality > SceneryInteractionManager.QUALITY_LOW
                     || WantsSurfaceEvents(weather))

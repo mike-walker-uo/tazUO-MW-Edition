@@ -56,7 +56,8 @@ namespace ClassicUO.Game.UI.Gumps
     {
         #region CONSTANTS
         private const int X_SPACING = 1, Y_SPACING = 1;
-        private const int TOP_BAR_HEIGHT = 20;
+        private const int TOP_BAR_HEIGHT = 22;
+        private const string SEARCH_HELP = "Search names and tooltip properties. Plain text matches a phrase.\nUppercase operators: AND, OR, NOT; precedence: NOT, AND, OR.\nUse parentheses to group and double quotes for literal text.\nExamples: bow AND NOT cursed | (bow OR sword) AND slayer";
         #endregion
 
         #region private static vars
@@ -67,12 +68,12 @@ namespace ClassicUO.Game.UI.Gumps
 
         #region private readonly vars
         private readonly AlphaBlendControl background, searchBackground;
-        private readonly Label containerNameLabel;
+        private readonly ContainerBreadcrumbLabel containerNameLabel;
         private readonly StbTextBox searchBox;
         private readonly GumpPic openRegularGump, sortContents;
         private readonly ResizableStaticPic quickDropBackpack;
         private readonly GumpPicTiled backgroundTexture;
-        private readonly NiceButton setLootBag, searchClearButton, takeAllButton;
+        private readonly NiceButton setLootBag, searchClearButton, takeAllButton, selectAllButton, selectNonMatchesButton, searchHelpButton;
         #endregion
 
         #region private vars
@@ -94,6 +95,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private GridScrollArea scrollArea;
         private GridSlotManager gridSlotManager;
+        private uint nextSearchStatus;
         #endregion
 
         #region private tooltip vars
@@ -132,7 +134,7 @@ namespace ClassicUO.Game.UI.Gumps
         public GridSortMode SortMode { get { return sortMode; } }
         #endregion
 
-        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null, bool corpseContainer = false) : base(GetWidth(), GetHeight(), GetWidth(2) + CustomThemeArt.ContentInset * 2, GetHeight(1) + CustomThemeArt.ContentInset * 2 + (CustomThemeArt.ContentInset == 0 ? 0 : 6), local, 0)
+        public GridContainer(uint local, ushort originalContainerGraphic, bool? useGridStyle = null, bool corpseContainer = false) : base(GetWidth(), GetHeight(), GetWidth(2) + 40 + CustomThemeArt.ContentInset * 2, GetHeight(1) + CustomThemeArt.ContentInset * 2 + (CustomThemeArt.ContentInset == 0 ? 0 : 6), local, 0)
         {
             if (container == null)
             {
@@ -218,7 +220,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Y = -20
             };
 
-            searchBox = new StbTextBox(0xFF, 20, 150, true, FontStyle.None, 0x0481)
+            searchBox = new StbTextBox(0xFF, 256, 150, true, FontStyle.None, 0x0481)
             {
                 X = borderWidth,
                 Y = borderWidth,
@@ -226,7 +228,8 @@ namespace ClassicUO.Game.UI.Gumps
                 Width = 150,
                 Height = 20
             };
-            searchBox.TextChanged += (sender, e) => { UpdateItems(); };
+            searchBox.SetTooltip(SEARCH_HELP);
+            searchBox.TextChanged += (sender, e) => { UpdateSearchFeedback(); UpdateItems(); };
 
             searchClearButton = new NiceButton(searchBox.X + searchBox.Width + 2, searchBox.Y, 16, searchBox.Height, ButtonAction.Default, "X");
             CustomGumpThemeManager.StyleDataButton(searchClearButton);
@@ -239,6 +242,29 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             };
             searchClearButton.SetTooltip("Clear search");
+            searchHelpButton = new NiceButton(0, borderWidth, 18, 20, ButtonAction.Default, "?") { IsSelectable = false };
+            CustomGumpThemeManager.StyleDataButton(searchHelpButton);
+            searchHelpButton.SetTooltip("Search helper: operators, grouping and examples");
+            searchHelpButton.MouseUp += (_, e) =>
+            {
+                if (e.Button == MouseButtonType.Left) ContainerSearchHelpGump.Open(this);
+            };
+            selectAllButton = new NiceButton(0, borderWidth, 18, 20, ButtonAction.Default, "a") { IsSelectable = false };
+            CustomGumpThemeManager.StyleDataButton(selectAllButton);
+            selectAllButton.SetTooltip("Select every item in this container, or only search matches when searching.\nIncludes items below the scroll area. Replaces the previous multi-move selection.\nThen use Move to and target a container or trash barrel.");
+            selectAllButton.MouseUp += (sender, e) =>
+            {
+                if (e.Button == MouseButtonType.Left)
+                    SelectAllItems();
+            };
+            selectNonMatchesButton = new NiceButton(0, borderWidth, 18, 20, ButtonAction.Default, "n") { IsSelectable = false };
+            CustomGumpThemeManager.StyleDataButton(selectNonMatchesButton);
+            selectNonMatchesButton.SetTooltip("Select items that do NOT match the current search. Enter a search first.\nIncludes hidden/offscreen items. Replaces the previous multi-move selection.\nThen use Move to and target a container or trash barrel.");
+            selectNonMatchesButton.MouseUp += (sender, e) =>
+            {
+                if (e.Button == MouseButtonType.Left)
+                    SelectNonMatches();
+            };
 
             var regularGumpIcon = Client.Game.Gumps.GetGump(5839).Texture;
             openRegularGump = new GumpPic(background.Width - 25 - borderWidth, borderWidth, regularGumpIcon == null ? (ushort)1209 : (ushort)5839, 0);
@@ -387,6 +413,9 @@ namespace ClassicUO.Game.UI.Gumps
             searchBox.Add(searchBackground);
             Add(searchBox);
             Add(searchClearButton);
+            Add(searchHelpButton);
+            Add(selectAllButton);
+            Add(selectNonMatchesButton);
             Add(openRegularGump);
             Add(quickDropBackpack);
             Add(sortContents);
@@ -406,6 +435,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             BuildBorder();
             ResizeWindow(savedSize);
+            EventSink.OPLOnReceive += OnSearchPropertiesReceived;
         }
 
         public override GumpType GumpType => GumpType.GridContainer;
@@ -453,7 +483,8 @@ namespace ClassicUO.Game.UI.Gumps
             sections.Add(new ContextMenuItemEntry("Disabled", () => { gridContainerEntry.SectionsOverride = 0; RefreshSections(); }, true, gridContainerEntry.SectionsOverride == 0));
             control.Add(sections);
             var select = new ContextMenuItemEntry("Multi Move");
-            select.Add(new ContextMenuItemEntry("Select all", () => SelectItems(_ => true)));
+            select.Add(new ContextMenuItemEntry("Select all", SelectAllItems));
+            select.Add(new ContextMenuItemEntry("Select non-matches", SelectNonMatches));
             var layers = new ContextMenuItemEntry("Select by equipment layer");
             var graphics = new ContextMenuItemEntry("Select by graphic");
             var names = new ContextMenuItemEntry("Select by name");
@@ -486,23 +517,99 @@ namespace ClassicUO.Game.UI.Gumps
             return control;
         }
 
-        internal static int SelectForMultiMove(uint containerSerial, IEnumerable<Item> items, Func<Item, bool> matches)
+        internal static int SelectForMultiMove(uint containerSerial, IEnumerable<Item> items, Func<Item, bool> matches, string search = null, bool negateSearch = false)
         {
+            ContainerSearchQuery query = ContainerSearchQuery.Parse(search);
+            if (!query.IsValid) return 0;
             int selected = 0;
             foreach (Item item in items)
                 if (item != null && !item.IsDestroyed && item.Container == containerSerial && matches(item)
+                    && query.Includes(item, negateSearch)
                     && MultiItemMoveGump.TrySelect(item)) selected++;
             return selected;
         }
 
-        private void SelectItems(Func<Item, bool> matches)
+        private void UpdateSearchFeedback()
+        {
+            var query = ContainerSearchQuery.Parse(searchBox.Text);
+            searchBox.Hue = query.IsValid ? CustomGumpThemeManager.DataTextHue : (ushort)0x0021;
+            searchBox.SetTooltip(query.IsValid ? SEARCH_HELP : "Invalid search: " + query.Error + "\n" + SEARCH_HELP);
+        }
+
+        internal void SetSearchQuery(string text) => searchBox.SetText(text);
+        internal string SearchText => searchBox.Text;
+
+        internal static (int Matches, int Total, int Pending, int Selected, int OutsideSearch) SearchCounts(
+            IEnumerable<Item> items, ContainerSearchQuery query, Func<uint, bool> selected)
+        {
+            int matches = 0, total = 0, pending = 0, selection = 0, outside = 0;
+            foreach (Item item in items)
+            {
+                if (item == null || item.IsDestroyed) continue;
+                total++;
+                var state = query.Evaluate(item);
+                if (state == ContainerSearchQuery.MatchState.Match) matches++;
+                else if (state == ContainerSearchQuery.MatchState.Pending) pending++;
+                if (selected(item.Serial)) { selection++; if (state != ContainerSearchQuery.MatchState.Match) outside++; }
+            }
+            return (matches, total, pending, selection, outside);
+        }
+
+        private void UpdateSearchStatus()
+        {
+            if (gridSlotManager == null) return;
+            var query = ContainerSearchQuery.Parse(searchBox.Text);
+            var counts = SearchCounts(gridSlotManager.ContainerContents, query, MultiItemMoveGump.IsSelected);
+            int selected = MultiItemMoveGump.SelectedCount;
+            string detail = $"{counts.Matches} matches / {counts.Total} items · {selected} selected";
+            if (counts.Pending > 0) detail += $" · {counts.Pending} properties pending";
+            detail += $"\nSelected here: {counts.Selected}; outside this search: {counts.OutsideSearch}; elsewhere: {Math.Max(0, selected - counts.Selected)}.";
+            detail += "\nPending items are excluded from both search selections. Results refresh when tooltip properties arrive.";
+            string status = !query.IsValid ? "Invalid search (?)"
+                : $"{counts.Matches}/{counts.Total} · {selected} sel" + (counts.Pending > 0 ? $" · {counts.Pending}?" : "");
+            string path = ContainerBreadcrumbLabel.Path(LocalSerial);
+            containerNameLabel.RefreshPath($"[{status}] {path}");
+            containerNameLabel.SetTooltip(path + "\n" + (query.IsValid ? detail : query.Error + "\n" + SEARCH_HELP)
+                + "\nClick to navigate known parent containers. Right-click closes the gump.");
+            containerNameLabel.Hue = query.IsValid ? CustomGumpThemeManager.DataTextHue : (ushort)0x0021;
+        }
+
+        private void OnSearchPropertiesReceived(object sender, OPLEventArgs args)
+        {
+            if (!IsDisposed && World.Items.Get(args.Serial)?.Container == LocalSerial && !string.IsNullOrWhiteSpace(searchBox.Text))
+                RequestUpdateContents();
+        }
+
+        private void SelectAllItems() => SelectItems(_ => true, replace: true);
+        private void SelectNonMatches() => SelectItems(_ => true, negateSearch: true, replace: true);
+
+        private void SelectItems(Func<Item, bool> matches, bool negateSearch = false, bool replace = false)
         {
             if (!World.InGame || container == null || gridSlotManager == null) return;
-            SelectForMultiMove(LocalSerial, GridSlotManager.GetItemsInContainer(container), matches);
+            var query = ContainerSearchQuery.Parse(searchBox.Text);
+            if (!query.IsValid) { GameActions.Print("Invalid search: " + query.Error); return; }
+            if (negateSearch && string.IsNullOrWhiteSpace(searchBox.Text))
+            { GameActions.Print("Enter a search before selecting non-matches."); return; }
+            if (replace && !MultiItemMoveGump.TryClearSelection())
+            { GameActions.Print("Finish or cancel the current item move before selecting items."); return; }
+            var items = GridSlotManager.GetItemsInContainer(container);
+            int selected = SelectForMultiMove(LocalSerial, items, matches, searchBox.Text, negateSearch);
             foreach (var slot in gridSlotManager.GridSlots.Values)
                 slot.SelectHighlight = slot.SlotItem != null && MultiItemMoveGump.IsSelected(slot.SlotItem.Serial);
             MultiItemMoveGump.ShowNextTo(this);
+            UpdateSearchStatus();
+            if (selected == 0)
+                GameActions.Print("No new items match this selection.");
+            else if (negateSearch)
+                GameActions.Print(selected + " non-matching items selected, including hidden items.");
+            int pending = SearchCounts(items, query, MultiItemMoveGump.IsSelected).Pending;
+            if (pending > 0) GameActions.Print(pending + " items skipped: tooltip properties are pending. Select again after they load.");
+            int protectedCount = items.Count(i => matches(i) && query.Includes(i, negateSearch) && !ItemProtectionManager.CanMove(i.Serial));
+            if (protectedCount > 0) GameActions.Print(protectedCount + " protected items or containers skipped.");
         }
+
+        // Grid buttons are local actions, not replies to server-owned gumps.
+        public override void OnButtonClick(int buttonID) { }
 
         private ContextMenuControl GenSortContextMenu()
         {
@@ -670,9 +777,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (autoSortContainer)
                 overrideSort = true;
 
-            List<Item> sortedContents = ProfileManager.CurrentProfile is null || ProfileManager.CurrentProfile.GridContainerSearchMode == 0
-                ? gridSlotManager.SearchResults(searchBox.Text)
-                : GridSlotManager.GetItemsInContainer(container, sortMode);
+            List<Item> sortedContents = gridSlotManager.SearchResults(searchBox.Text);
 
             if (SectionsEnabled)
             {
@@ -680,8 +785,8 @@ namespace ClassicUO.Game.UI.Gumps
                 sortedContents = sortedContents.OrderBy(i => SectionsConfig.Group(i.ItemData, i.Graphic, GridSlotManager.GetItemName(i))).ToList();
             }
             gridSlotManager.RebuildContainer(sortedContents, searchBox.Text, overrideSort);
-            ((ContainerBreadcrumbLabel)containerNameLabel).RefreshPath(GetContainerName());
             InvalidateContents = false;
+            UpdateSearchStatus();
         }
 
         protected override void UpdateContents()
@@ -715,6 +820,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
+            EventSink.OPLOnReceive -= OnSearchPropertiesReceived;
             TrackCorpsePosition();
             SaveCorpsePosition();
 
@@ -759,6 +865,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (IsDisposed)
                 return;
+
+            if (Time.Ticks >= nextSearchStatus)
+            {
+                nextSearchStatus = Time.Ticks + 250;
+                UpdateSearchStatus();
+            }
 
             Item item = container;
 
@@ -882,12 +994,6 @@ namespace ClassicUO.Game.UI.Gumps
             return false;
         }
 
-        private string GetContainerName()
-        {
-            // Keep the count first so a long breadcrumb cannot crop it away.
-            return ContainerBreadcrumbLabel.Path(LocalSerial, gridSlotManager?.ContainerContents.Count);
-        }
-
         public void OptionsUpdated()
         {
             float newAlpha = GetBackgroundOpacity();
@@ -905,8 +1011,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             CustomGumpThemeManager.ApplyInputSurface(searchBackground, 0.5f, false);
             containerNameLabel.Hue = CustomGumpThemeManager.DataTextHue;
-            searchBox.Hue = CustomGumpThemeManager.DataTextHue;
+            UpdateSearchFeedback();
             CustomGumpThemeManager.StyleDataButton(searchClearButton);
+            CustomGumpThemeManager.StyleDataButton(selectAllButton);
+            CustomGumpThemeManager.StyleDataButton(selectNonMatchesButton);
+            CustomGumpThemeManager.StyleDataButton(searchHelpButton);
             CustomGumpThemeManager.StyleDataButton(setLootBag);
             CustomGumpThemeManager.StyleDataButton(takeAllButton);
 
@@ -1029,10 +1138,17 @@ namespace ClassicUO.Game.UI.Gumps
             openRegularGump.X = Width - openRegularGump.Width - contentInset;
             quickDropBackpack.X = openRegularGump.X - quickDropBackpack.Width;
             sortContents.X = quickDropBackpack.X - sortContents.Width;
-            searchBox.Width = Math.Max(20, Math.Min(150, sortContents.X - contentInset - 20));
+            searchBox.Width = Math.Max(20, Math.Min(150, sortContents.X - contentInset - 80));
             searchBackground.Width = searchBox.Width;
             searchClearButton.X = searchBox.X + searchBox.Width + 2;
             searchClearButton.Y = contentInset + topOffset;
+            selectAllButton.X = searchClearButton.X + searchClearButton.Width + 2;
+            selectAllButton.Y = searchClearButton.Y;
+            selectNonMatchesButton.X = selectAllButton.X + selectAllButton.Width + 2;
+            selectNonMatchesButton.Y = selectAllButton.Y;
+            searchHelpButton.X = selectNonMatchesButton.X + selectNonMatchesButton.Width + 2;
+            searchHelpButton.Y = searchClearButton.Y;
+            UpdateSearchStatus();
             quickDropBackpack.Y = sortContents.Y = openRegularGump.Y = contentInset + topOffset;
             setLootBag.X = contentInset == borderWidth ? 0 : contentInset;
             takeAllButton.X = setLootBag.X + 102;
@@ -1691,6 +1807,7 @@ namespace ClassicUO.Game.UI.Gumps
                     batcher.DrawRectangle(marker, x + 4, y + 4,
                         Width - 8, Height - 8, markerHue);
                 }
+                if (!itemNull) ItemProtectionManager.DrawMarker(batcher, _item.Serial, x + Width - 11, y + 2);
                 return true;
             }
 
@@ -1846,13 +1963,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                 GridItems.Clear();
 
+                ContainerSearchQuery query = ContainerSearchQuery.Parse(searchText);
                 foreach (var slot in gridSlots)
                 {
+                    slot.Value.Highlight = false;
                     slot.Value.IsVisible = !(!string.IsNullOrWhiteSpace(searchText) && ProfileManager.CurrentProfile.GridContainerSearchMode == 0);
                     if (slot.Value.SlotItem != null && !string.IsNullOrWhiteSpace(searchText))
                     {
                         GridItems[slot.Value.SlotItem.Serial] = slot.Value;
-                        if (SearchItemNameAndProps(searchText, slot.Value.SlotItem))
+                        if (query.Matches(slot.Value.SlotItem))
                         {
                             slot.Value.Highlight = ProfileManager.CurrentProfile.GridContainerSearchMode == 1;
                             slot.Value.IsVisible = true;
@@ -1940,11 +2059,11 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     if (ProfileManager.CurrentProfile.GridContainerSearchMode == 0) //Hide search mode
                     {
-                        string searchLower = search.ToLowerInvariant();
+                        ContainerSearchQuery query = ContainerSearchQuery.Parse(search);
                         List<Item> filteredContents = new List<Item>();
                         foreach (Item i in containerContents)
                         {
-                            if (SearchItemNameAndProps(searchLower, i))
+                            if (query.Matches(i))
                                 filteredContents.Add(i);
                         }
                         return filteredContents;
@@ -1953,30 +2072,8 @@ namespace ClassicUO.Game.UI.Gumps
                 return containerContents;
             }
 
-            // search MUST be pre-lowered (invariant); avoids per-item allocations.
-            private bool SearchItemNameAndProps(string search, Item item)
-            {
-                if (item == null)
-                    return false;
-
-                if (World.OPL.TryGetNameAndData(item.Serial, out string name, out string data))
-                {
-                    if (name != null && name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return true;
-                    if (data != null && data.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return true;
-                }
-                else
-                {
-                    if (item.Name != null && item.Name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return true;
-
-                    if (item.ItemData.Name != null && item.ItemData.Name.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return true;
-                }
-
-                return false;
-            }
+            internal static bool SearchItemNameAndProps(string search, Item item)
+                => ContainerSearchQuery.Parse(search).Matches(item);
 
             public void UpdateItems()
             {

@@ -213,7 +213,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _followThemePanel?.Dispose();
             _followThemePanel = null;
-            _backpackEquipmentStrip?.Dispose();
+            _backpackEquipmentStrip?.ReleaseOwner(this);
             _backpackEquipmentStrip = null;
 
             UIManager.SavePosition(LocalSerial, Location);
@@ -247,7 +247,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void BuildGump()
         {
-            _backpackEquipmentStrip?.Dispose();
+            _backpackEquipmentStrip?.ReleaseOwner(this);
             _backpackEquipmentStrip = null;
             _picBase?.Dispose();
             _hitBox?.Dispose();
@@ -615,10 +615,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (LocalSerial == World.Player)
             {
-                if (_backpackEquipmentStrip == null || _backpackEquipmentStrip.IsDisposed)
+                if (!ProfileManager.CurrentProfile.SlayerBarDetached && (_backpackEquipmentStrip == null || _backpackEquipmentStrip.IsDisposed))
                 {
-                    _backpackEquipmentStrip = new PaperDollBackpackEquipmentGump(this);
-                    UIManager.Add(_backpackEquipmentStrip);
+                    _backpackEquipmentStrip = PaperDollBackpackEquipmentGump.EnsureFor(this);
                 }
 
                 // This is to update the state of the war mode button.

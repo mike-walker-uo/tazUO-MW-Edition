@@ -11,24 +11,25 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
-            "[0.6.3 beta]\n" +
+            "[0.6.3 beta update 1]\n" +
             """
             Changes since 0.6.2
-            - Exploration bird camera: -fly on/off/toggle/status. Right mouse / WASD / arrows steer; Q rises, E descends, Shift speeds up, wheel zooms and Esc returns.
-            - Automatic takeoff and fixed cruising Z. Your character stays in place and remains vulnerable; live entities are available only near it.
-            - Preserve the chat field and drafts while flying; Enter/click types. Restore previous chat and zoom on exit. Disable ambience overlays in flight.
-            - End exploration on logout, map/profile changes or death; clear controls on focus loss. Assign ToggleExploration under Options > Macros.
-            - Added Crisp Classic, Balanced and Smooth graphics presets, previous-settings restore and live Before/After with Keep after or Cancel.
-            - Added FXAA fine-detail protection and point fallback for unsuitable upscaling; UI and healthbars stay sharp.
-            - Fixed weather coverage across zoom/scaling, including fog, lightning, storm flashes, snow and rain. Bounded particles and reused unchanged transforms.
-            - Resume peace music after war mode. Configurable local combat crossfade: 0-1000 ms, default 350 ms; respects pause/stop.
-            - Restored grid-container item counts beside breadcrumbs.
-            - Queued Actions auto-popup defaults off. -operations on enables, -operations off disables/closes, -operations opens manually. Transfers continue when closed.
-            - Optional compact transfer indicator defaults off; click opens details.
-            - Fixed stale paperdoll equipment and drag-preview sprites after weapon/item changes.
-            - Clear stuck input and peek when switching apps; preserve queued actions and Razor Enhanced key-release behavior.
-            - Added detailed render-stage logging for hangs. The reported normal-play rendering hang remains unresolved.
-            - Live-shard graphics, music, 4K and exploration behavior still need player verification.
+
+            - Bird mode: explore with -fly or -bird. Mouse/keyboard steering, zoom and Q/E height controls. Stable altitude, working chat and ambience paused. Your character stays behind and remains vulnerable.
+            - World Explorer: saved destination coordinates, unknown locations learned after travel, hover minimaps, four travel-popup styles and remembered popup position.
+            - Vendor enhancements (experimental): saved vendor list with add/remove and nearby updates; searchable sales history, summaries, gold balances, restock checklists, stale-stock review and named listing templates across one or all shops. Market Watch scans watched searches and records available amounts, prices, sellers and dates. Includes scan comparisons, unit-price/median/range tools, price alerts, fee estimates, CSV exports, charts and Vendor Search/Item Finder shortcuts. Redesigned bronze/gold/dark-green windows with restrained buttons. Fixes vendor targeting, updates, missing history and UI crashes. Data reflects observed server results; missing listings do not prove a sale, and server restrictions/cooldowns still apply.
+            - Item protection: protect equipment and backpack items from ordinary moves, bulk transfers and selling. Weapon switching still works; padlock colors are customizable.
+            - Container search: AND, OR, NOT, parentheses, quoted phrases and a search helper. Small a/n buttons select matches or non-matches, including offscreen items.
+            - Container UI: live match/selection counts in the title. Move window follows your theme; right-click cancels unsent moves and closes.
+            - Equipment switcher: search, slayer background colors, Silver/Undead support, color legend, detachable position, rotation and position locking.
+            - Profile transfers: choose destination characters and categories, including separate skill buttons and spell icons. Backups are created before changes.
+            - Pick through clutter: choose overlapping world objects with -pick or the optional Ctrl+Shift-click shortcut.
+            - Graphics/weather: Crisp Classic, Balanced and Smooth presets, live Before/After preview, finer FXAA controls and corrected fog/lightning/rain/snow coverage when zoomed.
+            - Music: peace music resumes after war mode; adjustable combat crossfades.
+            - Less intrusive transfers: Queued Actions popup defaults off; -operations on/off controls it. Optional compact progress indicator.
+            - Fixes: stale paperdoll weapons, shifted overhead spell effects, World Explorer/travel-style crashes, stuck controls after switching apps and safer Razor movement handling. Added finer freeze diagnostics.
+
+            Known issue: the reported normal-play rendering freeze remains under investigation. Vendor enhancements are experimental; live-shard behavior and graphics still need player verification.
             """ +
             "\n",
             "[0.6.2 update 1]\n" +

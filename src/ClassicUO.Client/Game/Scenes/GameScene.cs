@@ -261,6 +261,8 @@ namespace ClassicUO.Game.Scenes
             }
 
             CommandManager.Initialize();
+            ItemProtectionManager.Update();
+            PaperDollBackpackEquipmentGump.RestoreDetached();
 
             if (UIManager.GetGump<MusicPlayerGump>() == null)
             {
@@ -999,6 +1001,11 @@ namespace ClassicUO.Game.Scenes
             }
 
             World.Update();
+            ItemProtectionManager.Update();
+            ClientInteractionObserver.Pump();
+            VendorLedgerManager.Update();
+            VendorRefreshManager.Update();
+            VendorSearchWatchManager.Update();
             TithingManager.Update();
             DayCyclePreviewManager.Update();
             EnvironmentControlManager.Update();

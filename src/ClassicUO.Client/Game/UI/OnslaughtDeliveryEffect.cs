@@ -110,7 +110,7 @@ namespace ClassicUO.Game.UI
                 (2f + 25f * EaseOut(breakProgress)) * sizeScale;
             float rise = 12f * EaseOut(progress);
 
-            Point ground = PathPreview.TileToScreen(
+            Point ground = PathPreview.TileToViewport(
                 World.Player.X,
                 World.Player.Y,
                 World.Player.Z

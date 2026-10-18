@@ -64,6 +64,9 @@ namespace ClassicUO.Game.Managers
         MoveItemContainer,
         Internal,
         SetFavoriteMoveBag,
+        AddLedgerVendor,
+        ProtectItem,
+        UnprotectItem,
     }
 
     public class CursorType
@@ -305,6 +308,11 @@ namespace ClassicUO.Game.Managers
 
         public static void CancelTarget()
         {
+            if (TargetingState == CursorTarget.AddLedgerVendor || TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                return;
+            }
             if (TargetingState == CursorTarget.MultiPlacement)
             {
                 World.HouseManager.Remove(0);
@@ -375,6 +383,18 @@ namespace ClassicUO.Game.Managers
                         LastTargetInfo.SetEntity(serial);
                         ClearTargetingWithoutTargetCancelPacket();
                         Mouse.CancelDoubleClick = true;
+                        break;
+                    case CursorTarget.AddLedgerVendor:
+                        ClearTargetingWithoutTargetCancelPacket();
+                        Mouse.CancelDoubleClick = true;
+                        VendorLedgerManager.AddTarget(entity);
+                        break;
+                    case CursorTarget.ProtectItem:
+                    case CursorTarget.UnprotectItem:
+                        bool protect = TargetingState == CursorTarget.ProtectItem;
+                        ClearTargetingWithoutTargetCancelPacket();
+                        Mouse.CancelDoubleClick = true;
+                        ItemProtectionManager.TargetItem(entity, protect);
                         break;
                     case CursorTarget.MultiPlacement:
                     case CursorTarget.Position:
@@ -572,6 +592,15 @@ namespace ClassicUO.Game.Managers
                 // Handle cases where entity is null but we still want to use the serial
                 switch (TargetingState)
                 {
+                    case CursorTarget.ProtectItem:
+                    case CursorTarget.UnprotectItem:
+                        ClearTargetingWithoutTargetCancelPacket();
+                        GameActions.Print("Item is no longer visible. Target it again, or remove protection through -protecteditems.", 0x35);
+                        return;
+                    case CursorTarget.AddLedgerVendor:
+                        ClearTargetingWithoutTargetCancelPacket();
+                        GameActions.Print("Vendor is no longer visible. Target it again nearby.", 0x35);
+                        return;
                     case CursorTarget.SetMount:
                         if (SerialHelper.IsMobile(serial))
                         {
@@ -592,6 +621,19 @@ namespace ClassicUO.Game.Managers
         {
             if (!IsTargeting)
             {
+                return;
+            }
+
+            if (TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                GameActions.Print("Target an item.", 0x35);
+                return;
+            }
+            if (TargetingState == CursorTarget.AddLedgerVendor)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                GameActions.Print("Target a vendor mobile.", 0x35);
                 return;
             }
 
@@ -637,6 +679,9 @@ namespace ClassicUO.Game.Managers
             {
                 return;
             }
+
+            if (TargetingState == CursorTarget.AddLedgerVendor || TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
+            { Target(LastTargetInfo.Serial); return; }
 
             _lastDataBuffer[0] = 0x6C;
             _lastDataBuffer[1] = (byte)TargetingState;

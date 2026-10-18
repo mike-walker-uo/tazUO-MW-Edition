@@ -58,7 +58,8 @@ namespace ClassicUO.Game.UI.Gumps
 
         public string PacketGumpText { get; set; } = string.Empty;
 
-        public virtual bool ShouldBeSaved => true;
+        internal bool SuppressPersistence { get; set; }
+        public virtual bool ShouldBeSaved => !SuppressPersistence;
 
         public bool CanBeSaved => ShouldBeSaved && (GumpType != Gumps.GumpType.None || ServerSerial != 0);
 

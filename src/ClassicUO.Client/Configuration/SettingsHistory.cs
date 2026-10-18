@@ -72,9 +72,11 @@ namespace ClassicUO.Configuration
             foreach (JsonProperty property in after.EnumerateObject())
                 if (before.TryGetProperty(property.Name, out JsonElement old) && old.GetRawText() != property.Value.GetRawText())
                 {
-                    // Runtime placement and the daily rotation stamp are not option edits.
+                    // Runtime placement, observed data and rotation stamps are not option edits.
                     if (property.Name.StartsWith("game_window_") || property.Name.EndsWith("_position")
-                        || property.Name == "last_gump_theme_rotation_day") continue;
+                        || property.Name == "last_gump_theme_rotation_day"
+                        || property.Name == "world_explorer_locations" || property.Name == "vendor_ledger"
+                        || property.Name == "vendor_watch_items" || property.Name == "protected_items") continue;
                     entry.Before[property.Name] = old.GetRawText();
                     entry.After[property.Name] = property.Value.GetRawText();
                 }

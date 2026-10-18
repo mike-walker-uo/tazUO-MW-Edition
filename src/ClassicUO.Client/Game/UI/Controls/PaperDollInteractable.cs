@@ -37,6 +37,7 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
+using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
@@ -511,6 +512,13 @@ namespace ClassicUO.Game.UI.Controls
             }
 
             public bool CanLift { get; set; }
+
+            public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+            {
+                bool drawn = base.Draw(batcher, x, y);
+                if (drawn && MouseIsOver) ItemProtectionManager.DrawMarker(batcher, LocalSerial, x + Width - 10, y + 2);
+                return drawn;
+            }
 
             protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
             {

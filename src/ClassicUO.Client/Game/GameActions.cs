@@ -839,6 +839,8 @@ namespace ClassicUO.Game
                 return false;
             }
 
+            if (!ItemProtectionManager.CanMove(serial, true)) return false;
+
             if (amount <= -1 && item.Amount > 1 && item.ItemData.IsStackable)
             {
                 if (ProfileManager.CurrentProfile.HoldShiftToSplitStack == Keyboard.Shift)
@@ -889,6 +891,7 @@ namespace ClassicUO.Game
 
         public static void DropItem(uint serial, int x, int y, int z, uint container, bool force = false)
         {
+            if (!ItemProtectionManager.CanDrop(serial, container, true)) return;
             if (force || (Client.Game.GameCursor.ItemHold.Enabled && !Client.Game.GameCursor.ItemHold.IsFixedPosition && (Client.Game.GameCursor.ItemHold.Serial != container || Client.Game.GameCursor.ItemHold.ItemData.IsStackable)))
             {
                 // Record action for script recording
@@ -929,6 +932,9 @@ namespace ClassicUO.Game
 
                 // Record action for script recording
                 ClassicUO.LegionScripting.ScriptRecorder.Instance.RecordEquipItem(Client.Game.GameCursor.ItemHold.Serial, (Layer)Client.Game.GameCursor.ItemHold.ItemData.Layer);
+
+                if (!ItemProtectionManager.CanEquip(Client.Game.GameCursor.ItemHold.Serial,
+                    (Layer)Client.Game.GameCursor.ItemHold.ItemData.Layer, container, true)) return;
 
                 Socket.Send_EquipRequest(Client.Game.GameCursor.ItemHold.Serial, (Layer)Client.Game.GameCursor.ItemHold.ItemData.Layer, container);
 
@@ -1290,7 +1296,7 @@ namespace ClassicUO.Game
                 bag = backpack.Serial;
             }
 
-            PickUp(serial, 0, 0, amount);
+            if (!PickUp(serial, 0, 0, amount)) return;
 
             if (stack)
                 DropItem

@@ -446,6 +446,7 @@ namespace ClassicUO.Game.UI.Gumps
                         case CursorTarget.Object:
                         case CursorTarget.Grab:
                         case CursorTarget.SetGrabBag:
+                        case CursorTarget.AddLedgerVendor:
                             TargetManager.Target(LocalSerial);
                             Mouse.LastLeftButtonClickTime = 0;
 

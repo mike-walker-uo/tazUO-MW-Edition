@@ -41,6 +41,11 @@ namespace ClassicUO.Game.UI.Controls
         private readonly RenderedText _gameText;
 
         internal string Text => _gameText.Text;
+        internal ushort Hue
+        {
+            get => _gameText.Hue;
+            set { if (_gameText.Hue != value) { _gameText.Hue = value; _gameText.CreateTexture(); } }
+        }
 
         public CroppedText(string text, ushort hue, int maxWidth = 0)
         {

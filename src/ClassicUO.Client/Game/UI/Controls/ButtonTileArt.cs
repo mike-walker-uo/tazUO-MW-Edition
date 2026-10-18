@@ -45,6 +45,8 @@ namespace ClassicUO.Game.UI.Controls
         private readonly int _tileX, _tileY;
         private ushort _graphic;
         private Vector3 hueVector;
+        internal ushort ItemGraphic => _graphic;
+        internal ushort ItemHue => _hue;
 
         public ButtonTileArt(List<string> gparams) : base(gparams)
         {
