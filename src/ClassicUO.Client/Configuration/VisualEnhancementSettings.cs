@@ -38,6 +38,9 @@ namespace ClassicUO.Configuration
         public bool SeasonalDetails { get; set; } = true;
         public Dictionary<int, int> MapParticleIntensity { get; set; } = new Dictionary<int, int>();
         public Dictionary<string, EffectDetailSettings> Effects { get; set; } = new Dictionary<string, EffectDetailSettings>();
+        public bool LightningGroundEnabled { get; set; } = true;
+        public int LightningGroundSize { get; set; } = 100;
+        public int LightningGroundOpacity { get; set; } = 65;
         public bool PrioritizeCombatEffects { get; set; } = true;
     }
 }

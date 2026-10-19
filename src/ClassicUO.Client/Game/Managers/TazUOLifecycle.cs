@@ -190,6 +190,7 @@ namespace ClassicUO.Game.Managers
             ClassicUO.Game.GameObjects.EnhancedSpellVisualTrigger.ResetSession();
             UI.MobileCache.Clear();
             UI.EnemyRadar.ResetSession();
+            ClassicUO.Game.GameObjects.LightningEffect.ResetGroundResources();
             UI.EffectsBundle.ResetSession();
             UI.GhostFadeOverlay.ResetSession();
             UI.MobBloodOverlay.ResetSession();

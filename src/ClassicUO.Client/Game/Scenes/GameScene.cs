@@ -1502,6 +1502,7 @@ namespace ClassicUO.Game.Scenes
             // front half. All mobile sprites are drawn afterwards, above it.
             if (UI.EnemyRadar.Enabled)
                 FeatureDiagnostics.Guard("EnemyRadar", batcher, UI.EnemyRadar.Draw);
+            FeatureDiagnostics.Guard("LightningGround", batcher, DrawLightningGroundEffects);
             RenderedObjectsCount += DrawRenderList(
                 batcher,
                 _renderListAnimationsHead,
@@ -1599,6 +1600,30 @@ namespace ClassicUO.Game.Scenes
             //hueVec = Vector3.Zero;
             //batcher.DrawString(Fonts.Bold, s, 200 + 1, 200 - 1, ref hueVec);
             //batcher.End();
+        }
+
+        private void DrawLightningGroundEffects(UltimaBatcher2D batcher)
+        {
+            if (ExplorationMode.Active || VisualBudget.Settings?.LightningGroundEnabled != true
+                || !SpellAbilityEffectSettings.CustomEffectsEnabled) return;
+            batcher.SetStencil(DepthStencilState.None);
+            batcher.SetBlendState(BlendState.Additive);
+            try
+            {
+                GameObject effect = _renderListEffectsHead;
+                int drawn = 0;
+                for (int i = 0; i < _renderListEffectCount && effect != null && drawn < 16; i++)
+                {
+                    if (!effect.IsDestroyed && effect.Z <= _maxGroundZ && effect is LightningEffect lightning
+                        && lightning.DrawGround(batcher)) drawn++;
+                    effect = effect.RenderListNext;
+                }
+            }
+            finally
+            {
+                batcher.SetBlendState(null);
+                batcher.SetStencil(DepthStencilState.Default);
+            }
         }
 
         private int DrawRenderList(UltimaBatcher2D batcher, GameObject obj, int count)

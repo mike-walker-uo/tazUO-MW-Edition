@@ -38,6 +38,7 @@ namespace ClassicUO.Game.GameObjects
     {
         private readonly bool _forceEnhanced;
         private readonly bool _enhancedAdmitted;
+        private readonly uint _groundStarted;
 
         public LightningEffect(
             EffectManager manager,
@@ -50,6 +51,7 @@ namespace ClassicUO.Game.GameObjects
             : base(manager, 0x4E20, hue, 400, 0)
         {
             _forceEnhanced = forceEnhanced;
+            _groundStarted = Time.Ticks;
             _enhancedAdmitted = EffectPresentation.Admit("Lightning", src, x, y);
             IsEnabled = true;
             AnimIndex = 0;

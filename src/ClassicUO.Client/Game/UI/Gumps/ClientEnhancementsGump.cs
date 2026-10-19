@@ -124,6 +124,13 @@ namespace ClassicUO.Game.UI.Gumps
                 Slider("Intensity", 0, 200, settings.Intensity, n => { settings.Intensity = n; _visual.Effects[key] = settings; }, 5);
                 Slider("Density", 0, 200, settings.Density, n => { settings.Density = n; _visual.Effects[key] = settings; }, 5);
                 Slider("Glow", 0, 200, settings.Glow, n => { settings.Glow = n; _visual.Effects[key] = settings; }, 5);
+                if (entry.Id == SpellAbilityEffectId.Lightning)
+                {
+                    Check("Lightning ground glow", _visual.LightningGroundEnabled, b => _visual.LightningGroundEnabled = b, 5);
+                    Slider("Ground glow size (%)", 50, 200, _visual.LightningGroundSize, n => _visual.LightningGroundSize = n, 5);
+                    Slider("Ground glow intensity (%)", 0, 100, _visual.LightningGroundOpacity, n => _visual.LightningGroundOpacity = n, 5);
+                    Action("Preview Lightning", () => SpellAbilityEffectSettings.Preview(SpellAbilityEffectId.Lightning), 5);
+                }
             }
             Note("Last 50 saved option edits. Undo restores only fields in that edit. Window positions are excluded.", 6);
             foreach (SettingsHistory.Entry entry in SettingsHistory.Read(ProfileManager.ProfilePath).AsEnumerable().Reverse())
