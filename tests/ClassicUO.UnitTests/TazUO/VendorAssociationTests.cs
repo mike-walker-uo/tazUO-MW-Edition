@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
 using Xunit;
 
@@ -206,6 +208,97 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.Contains("Luck 100", formatted);
             Assert.Equal(1, formatted.Split(new[] { "Arcane ring" }, StringSplitOptions.None).Length - 1);
             Assert.Equal(raw, sale.PropertyText);
+        }
+
+        [Theory]
+        [InlineData("<BASEFONT COLOR=#Ff8000>major Artifact</BASEFONT>")]
+        [InlineData("&lt;BASEFONT COLOR=#Ff8000&gt;major Artifact&lt;/BASEFONT&gt;")]
+        [InlineData("BASEFONT COLOR=#Ff8000major Artifact")]
+        public void Artifact_colors_survive_vendor_tooltip_conversion_without_leaking_markup(string artifact)
+        {
+            string raw = "ring\nFire Resist 1%\nDurability 255 / 255\n" + artifact;
+            var sale = new VendorSaleRecord { ItemName = "ring", PropertyText = raw };
+            string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(VendorLedgerManager.SaleTooltip(sale));
+            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            Assert.Contains("/c[red]Fire Resist 1%", rendered);
+            Assert.Contains("Durability 255 / 255", rendered);
+            Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
+            Assert.Equal(raw, sale.PropertyText);
+        }
+
+        [Theory]
+        [InlineData("\n")]
+        [InlineData("<br>")]
+        [InlineData("<BR/>")]
+        public void Original_vendor_tooltip_repairs_bracketless_artifact_color(string separator)
+        {
+            string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(
+                string.Join(separator, "Ring", "Fire Resist 2%", "BASEFONT COLOR=#Ff8000major Artifact"));
+            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            Assert.Contains("Fire Resist 2%", rendered);
+            Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
+        }
+
+        [Fact]
+        public void Reported_saved_ring_keeps_every_property_and_its_actual_resistance_value()
+        {
+            const string json = """
+                { "vendor_ledger": [{ "sales": [{
+                  "item_name": "ring", "buyer": "BIump", "price": 99000,
+                  "list_date": "05/12", "sell_date": "06/28",
+                  "property_text": "Description: No description available\u003Cbr\u003ERing\u003Cbr\u003ECursed\u003Cbr\u003EWeight: 1 Stone\u003Cbr\u003EBushido \u002B20\u003Cbr\u003EParrying \u002B10\u003Cbr\u003ENight Sight\u003Cbr\u003EMana Increase 4\u003Cbr\u003EEnhance Potions 20%\u003Cbr\u003EHit Chance Increase 11%\u003Cbr\u003EDefense Chance Increase 20%\u003Cbr\u003ELower Mana Cost 6%\u003Cbr\u003EFire Resist 2%\u003Cbr\u003ECold Resist 15%\u003Cbr\u003EDurability 255 / 255\u003Cbr\u003EBASEFONT COLOR=#Ff8000major Artifact",
+                  "property_layer": null
+                }] }] }
+                """;
+            var restored = JsonSerializer.Deserialize(json, ProfileJsonContext.DefaultToUse.Profile);
+            var sale = Assert.Single(Assert.Single(restored.VendorLedger).Sales);
+            string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(VendorLedgerManager.SaleTooltip(sale));
+            string plain = Regex.Replace(rendered, @"/c\[[^\]]*\]|/cd", "");
+            Assert.Equal(17, plain.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries).Length);
+            Assert.Contains("Bushido +20", rendered);
+            Assert.Contains("Parrying +10", rendered);
+            Assert.Contains("Hit Chance Increase 11%", rendered);
+            Assert.Contains("Defense Chance Increase 20%", rendered);
+            Assert.Contains("Lower Mana Cost 6%", rendered);
+            Assert.Contains("/c[red]Fire Resist 2%", rendered);
+            Assert.Contains("/c[teal]Cold Resist 15%", rendered);
+            Assert.Contains("Durability 255 / 255", rendered);
+            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
+        }
+
+        [Theory]
+        [InlineData("\n", true)]
+        [InlineData("\r\n", true)]
+        [InlineData("<BR/>", true)]
+        [InlineData("&lt;br /&gt;", true)]
+        [InlineData("\n", false)]
+        public void Complete_server_sale_properties_survive_capture_save_and_display(string separator, bool overrides)
+        {
+            if (!overrides) _profile.ToolTipOverride_SearchText.Clear();
+            string[] properties = { "Description: No description available", "Ring", "Cursed", "Weight: 1 Stone",
+                "Bushido +20", "Parrying +10", "Night Sight", "Mana Increase 4", "Enhance Potions 20%",
+                "Hit Chance Increase 11%", "Defense Chance Increase 20%", "Lower Mana Cost 6%",
+                "Fire Resist 2%", "Cold Resist 15%", "Durability 255 / 255", "BASEFONT COLOR=#Ff8000major Artifact" };
+            string raw = string.Join(separator, properties);
+            string[] headers = { "Item Name", "Buyer", "Sell Price", "List Date", "Sell Date" };
+            string[] values = { "ring", "Blump", "150,000", "05/12", "10/13" };
+            var cells = new List<VendorLedgerManager.Cell>();
+            for (int i = 0; i < headers.Length; i++)
+            {
+                cells.Add(new VendorLedgerManager.Cell { Text = headers[i], X = i * 100, Y = 100 });
+                cells.Add(new VendorLedgerManager.Cell { Text = values[i], X = i * 100, Y = 130,
+                    Tooltip = i == 0 ? raw : null });
+            }
+            var captured = Assert.Single(VendorLedgerManager.ParseSales(cells));
+            var saved = JsonSerializer.Deserialize<VendorSaleRecord>(JsonSerializer.Serialize(captured));
+            string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(VendorLedgerManager.SaleTooltip(saved));
+            foreach (string property in properties)
+                Assert.Contains(property == properties[properties.Length - 1] ? "major Artifact" : property, rendered);
+            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            if (overrides) Assert.Contains("/c[red]Fire Resist 2%", rendered);
+            Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
+            Assert.Equal(raw, saved.PropertyText);
         }
 
         [Theory]

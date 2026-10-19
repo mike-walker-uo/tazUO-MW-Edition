@@ -329,6 +329,8 @@ namespace ClassicUO.Game.UI.Controls
         }
 
         private static readonly Regex _baseFontColorRegex = RegexHelper.GetRegex("<basefont color=\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+        private static readonly Regex _htmlLineBreakRegex = RegexHelper.GetRegex(@"<br\s*/?>", RegexOptions.IgnoreCase);
+        private static readonly Regex _bareBaseFontColorRegex = RegexHelper.GetRegex(@"(?im)^[ \t]*BASEFONT[ \t]+COLOR[ \t]*=[ \t]*[""']?(?<color>#[0-9a-f]{6})[""']?[ \t]*>?", RegexOptions.IgnoreCase);
         private static readonly Regex _bodyTextColorRegex = RegexHelper.GetRegex("<bodytextcolor\"?'?(?<color>.*?)\"?'?>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
         public static string ConvertHTMLColorsToFSS(string text)
@@ -336,7 +338,9 @@ namespace ClassicUO.Game.UI.Controls
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
 
-            string finalString = _baseFontColorRegex.Replace(text, " /c[${color}]");
+            string finalString = _htmlLineBreakRegex.Replace(text, "\n");
+            finalString = _bareBaseFontColorRegex.Replace(finalString, "/c[${color}]");
+            finalString = _baseFontColorRegex.Replace(finalString, " /c[${color}]");
             finalString = _bodyTextColorRegex.Replace(finalString, " /c[${color}]");
             finalString = finalString.Replace("</basefont>", "/cd").Replace("</BASEFONT>", "/cd").Replace("\n", "\n/cd").Replace("<BASEFONT>", "");
 
