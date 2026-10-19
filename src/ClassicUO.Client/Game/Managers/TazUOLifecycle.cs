@@ -189,6 +189,7 @@ namespace ClassicUO.Game.Managers
             UI.LegendaryCreatureAlert.ResetSession();
             ClassicUO.Game.GameObjects.EnhancedSpellVisualTrigger.ResetSession();
             UI.MobileCache.Clear();
+            UI.EnemyRadar.ResetSession();
             UI.EffectsBundle.ResetSession();
             UI.GhostFadeOverlay.ResetSession();
             UI.MobBloodOverlay.ResetSession();

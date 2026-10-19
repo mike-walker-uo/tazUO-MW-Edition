@@ -68,6 +68,7 @@ namespace ClassicUO.Game.Managers
                 typeof(UI.HostileEdgeHighlight), typeof(UI.LastTargetHighlight), typeof(UI.LowHpScreenTint),
                 typeof(UI.LowHpVignette), typeof(UI.MobBloodOverlay), typeof(UI.MoveTrailOverlay),
                 typeof(UI.NearestHostileLine), typeof(UI.NotorietyDotOverlay), typeof(UI.OffscreenEnemyArrow),
+                typeof(UI.EnemyRadar),
                 typeof(UI.OpenContainerBadge), typeof(UI.PetHpBarsOverlay), typeof(UI.PingHudOverlay),
                 typeof(UI.QuestArrowLine), typeof(UI.ScreenflashOnHit), typeof(UI.TargetCrosshair),
                 typeof(UI.TargetingYouAura), typeof(UI.TileHoverLiftOverlay), typeof(UI.TimerStackHud),
@@ -125,6 +126,11 @@ namespace ClassicUO.Game.Managers
             Bind(typeof(UI.MoveTrailOverlay), "Style");
             Bind(typeof(UI.MoveTrailOverlay), "IntensityPercent");
             Bind(typeof(UI.MoveTrailOverlay), "LifetimeMs");
+            Bind(typeof(UI.EnemyRadar), "Style");
+            Bind(typeof(UI.EnemyRadar), "Size");
+            Bind(typeof(UI.EnemyRadar), "Opacity");
+            Bind(typeof(UI.EnemyRadar), "Range");
+            Bind(typeof(UI.EnemyRadar), "IncludeNeutral");
         }
 
         private static void BindEnabled(params Type[] types)

@@ -59,6 +59,7 @@ namespace ClassicUO.Game.Managers
             { "smartcast",     new Entry { Category="Combat", Description="Smart-cast: auto-target last enemy after cast.", Usage="on|off" } },
             { "cast",          new Entry { Category="Combat", Description="Cast a spell by name.", Usage="<spell name>" } },
             { "hostileline",   new Entry { Category="Combat", Description="Draw a line to the nearest hostile.", Usage="on|off" } },
+            { "radar",         new Entry { Category="Combat", Description="Discreet enemy radar at your feet. Open options to choose ring, density or fading beams.", Usage="[on|off|ring|density|beams|options]" } },
             { "arrowline",     new Entry { Category="Combat", Description="Draw a green line to tracking arrows.", Usage="on|off" } },
             { "targetingyou",  new Entry { Category="Combat", Description="Show an aura over mobs targeting you.", Usage="on|off" } },
             { "dmgsourceline", new Entry { Category="Combat", Description="Draw a line from incoming damage source.", Usage="on|off" } },

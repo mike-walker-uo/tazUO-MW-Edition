@@ -11,6 +11,9 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.3 beta hotfix 1]\n" +
+            "Vendor enhancements (experimental): restored complete sold-item hover stats with item names, values and configured tooltip colors. Captured stats stay saved.\n\n" +
+            "Enemy radar: ring, density and fading-beam styles, improved visibility and saved controls. Off by default; use -radar options.\n\n",
             "[0.6.3 beta update 1]\n" +
             """
             Changes since 0.6.2
@@ -373,6 +376,9 @@ namespace ClassicUO.Game.UI.Gumps
             _scrollArea = new ScrollArea(0, 0, contentWidth, System.Math.Max(1, footerTop - pos.Y - 6), true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways };
             _vBoxContainer = new VBoxContainer(_scrollArea.Width - _scrollArea.ScrollBarWidth());
             _scrollArea.Add(_vBoxContainer);
+
+            _vBoxContainer.Add(TextBox.GetOne("Disable the new vendor windows: -vendors off.\nReopen vendor windows to apply.\n",
+                "Roboto-Bold", 15, textColor, TextBox.RTLOptions.Default(_scrollArea.Width - _scrollArea.ScrollBarWidth())));
 
             foreach (string s in updateTexts)
             {
