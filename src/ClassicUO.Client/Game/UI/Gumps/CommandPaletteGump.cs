@@ -662,6 +662,7 @@ namespace ClassicUO.Game.UI.Gumps
                 case "ghostfade": return UI.GhostFadeOverlay.Enabled;
                 case "hitflash": return UI.ScreenflashOnHit.Enabled;
                 case "hostileline": return UI.NearestHostileLine.Enabled;
+                case "radar": return UI.EnemyRadar.Enabled;
                 case "mobblood": return UI.MobBloodOverlay.Enabled;
                 case "pethp": return UI.PetHpBarsOverlay.Enabled;
                 case "reflectcount": return ReflectCounterManager.Enabled;

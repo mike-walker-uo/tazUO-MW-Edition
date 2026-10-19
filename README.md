@@ -35,7 +35,14 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
-## Version 0.6.3 beta — update 1
+## Version 0.6.3 beta — hotfix 1
+
+## Hotfix 1
+
+- **Vendor enhancements (experimental):** complete sold-item hover stats with item names, values and existing tooltip colors; captured stats stay saved.
+- **Enemy radar:** ring, density and fading-beam styles, improved visibility and saved controls. **Off by default**; use `-radar options`.
+
+**Disable the new vendor windows with `-vendors off`. Reopen vendor windows to apply.**
 
 ## Changes since 0.6.2
 
@@ -53,7 +60,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 - **Less intrusive transfers:** Queued Actions popup defaults off; `-operations on/off` controls it. Optional compact progress indicator.
 - **Fixes:** stale paperdoll weapons, shifted overhead spell effects, World Explorer/travel-style crashes, stuck controls after switching apps and safer Razor movement handling. Added finer freeze diagnostics.
 
-Windows CI checks tests, shaders and packaging. Razor Enhanced remains the supported assistant. Replace the complete client ZIP. Displayed version **0.6.3-beta**; Windows file version **0.6.3.1**.
+Windows CI checks tests, shaders and packaging. Razor Enhanced remains the supported assistant. Replace the complete client ZIP. Displayed version **0.6.3-beta**; Windows file version **0.6.3.2**.
 
 See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.3-Beta-Guide).
 

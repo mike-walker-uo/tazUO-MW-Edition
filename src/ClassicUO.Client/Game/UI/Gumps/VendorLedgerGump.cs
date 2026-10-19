@@ -88,6 +88,15 @@ namespace ClassicUO.Game.UI.Gumps
             label.SetTooltip(text); _body.Add(label);
         }
         private static string Gold(decimal value) => value.ToString("N0", CultureInfo.InvariantCulture);
+        private void SaleItem(VendorSaleRecord sale, int x, int y, int width)
+        {
+            var label = new Label(sale.ItemName, true, 0x0481, width, font: 1, style: FontStyle.Cropped)
+                { X = x, Y = y, AcceptMouseInput = true };
+            if (!string.IsNullOrEmpty(sale.PropertyText)) label.SetTooltip(VendorLedgerManager.SaleTooltip(sale));
+            else if (sale.PropertySerial != 0) label.SetTooltip(sale.PropertySerial);
+            else label.SetTooltip(sale.ItemName + "\nItem stats were not captured. Reopen the vendor's sales history to refresh.");
+            _body.Add(label);
+        }
         private static string Stamp(long ticks) => ticks > 0 && ticks <= DateTime.MaxValue.Ticks
             ? new DateTime(ticks, DateTimeKind.Utc).ToLocalTime().ToString("g") : "not observed";
         private bool Match(string text) => (text ?? "").IndexOf(_query.Trim(), StringComparison.OrdinalIgnoreCase) >= 0;
@@ -157,12 +166,12 @@ namespace ClassicUO.Game.UI.Gumps
                 var row = rows[i].Sale; int y = 34 + (i - start) * 30;
                 if (all)
                 {
-                    Line(rows[i].Vendor.ShopName, 4, y, 155); Line(row.ItemName, 169, y, 235); Line(row.Buyer, 414, y, 125);
+                    Line(rows[i].Vendor.ShopName, 4, y, 155); SaleItem(row, 169, y, 235); Line(row.Buyer, 414, y, 125);
                     Line(Gold(row.Price), 549, y, 100); Line(row.ListDate, 659, y, 80); Line(row.SellDate, 749, y, 80);
                 }
                 else
                 {
-                    Line(row.ItemName, 4, y, 300); Line(row.Buyer, 310, y, 140); Line(Gold(row.Price), 460, y, 120);
+                    SaleItem(row, 4, y, 300); Line(row.Buyer, 310, y, 140); Line(Gold(row.Price), 460, y, 120);
                     Line(row.ListDate, 590, y, 100); Line(row.SellDate, 705, y, 100);
                 }
             }

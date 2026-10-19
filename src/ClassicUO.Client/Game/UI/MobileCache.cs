@@ -33,6 +33,7 @@ namespace ClassicUO.Game.UI
 
         private static bool NeedsHostiles =>
             HostileEdgeHighlight.Enabled
+            || EnemyRadar.Enabled
             || OffscreenEnemyArrow.Enabled
             || NearestHostileLine.Enabled
             || CombatMobHpBars.Range > 0

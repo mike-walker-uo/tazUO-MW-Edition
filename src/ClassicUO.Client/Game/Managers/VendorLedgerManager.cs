@@ -16,20 +16,21 @@ namespace ClassicUO.Game.Managers
 
     internal static class VendorLedgerManager
     {
-        internal sealed class Cell { internal string Text; internal int X, Y; }
+        internal sealed class Cell { internal string Text; internal int X, Y; internal object Tooltip; }
         private static Profile _profile;
         private static uint _lastMobile;
         private static long _lastInteraction, _saveAt, _stockAt;
         private static VendorLedgerRecord _active;
         internal static int Revision { get; private set; }
         private static readonly HashSet<uint> _stockDirty = new HashSet<uint>();
+        private static readonly Dictionary<uint, List<VendorSaleRecord>> _pendingProperties = new Dictionary<uint, List<VendorSaleRecord>>();
 
         internal static string Plain(string text) => WebUtility.HtmlDecode(Regex.Replace(Regex.Replace(text ?? "", @"<br\s*/?>", "\n", RegexOptions.IgnoreCase), "<[^>]*>", " ")).Trim();
         internal static string Text(Control control) => Plain(control is Label label ? label.Text
             : control is CroppedText cropped ? cropped.Text : control is HtmlControl html ? html.Text : "");
         internal static List<Cell> Cells(Gump gump) => gump.Children.Where(c => c.IsFromServer && !c.IsDisposed && Text(c).Length > 0)
             .SelectMany(c => Text(c).Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select((line, i) => new Cell { Text = line.Trim(), X = c.X, Y = c.Y + i * 18 })).ToList();
+                .Select((line, i) => new Cell { Text = line.Trim(), X = c.X, Y = c.Y + i * 18, Tooltip = c.Tooltip })).ToList();
 
         internal static VendorGumpKind Recognize(string text)
         {
@@ -64,8 +65,15 @@ namespace ClassicUO.Game.Managers
                 row = row.OrderBy(c => c.X).ToList();
                 if (row.Count != 5) { if (row.Any(c => DateText(c.Text))) return null; continue; }
                 if (!Money(row[2].Text, out long price) || !DateText(row[3].Text) || !DateText(row[4].Text)) return null;
-                sales.Add(new VendorSaleRecord { ItemName = row[0].Text, Buyer = row[1].Text, Price = price,
-                    ListDate = row[3].Text, SellDate = row[4].Text });
+                var sale = new VendorSaleRecord { ItemName = row[0].Text, Buyer = row[1].Text, Price = price,
+                    ListDate = row[3].Text, SellDate = row[4].Text,
+                    PropertyText = row[0].Tooltip as string ?? string.Empty,
+                    PropertySerial = row[0].Tooltip is uint serial ? serial : 0 };
+                var item = sale.PropertySerial == 0 ? null : World.Items.Get(sale.PropertySerial);
+                if (item != null) sale.PropertyLayer = item.ItemData.Layer;
+                if (sale.PropertySerial != 0 && World.OPL.TryGetNameAndData(sale.PropertySerial, out string name, out string data)
+                    && !string.IsNullOrWhiteSpace(data)) sale.PropertyText = name + "\n" + data;
+                sales.Add(sale);
                 if (sales.Count >= 2000) break;
             }
             return sales;
@@ -74,6 +82,19 @@ namespace ClassicUO.Game.Managers
         private static bool DateText(string text) => Regex.IsMatch(text ?? "", @"^\d{1,4}[/.-]\d{1,2}(?:[/.-]\d{2,4})?(?:\s+.*)?$");
         internal static decimal Gross(IEnumerable<VendorSaleRecord> sales) => sales.Sum(s => (decimal)s.Price);
         internal static string SaleIdentity(VendorSaleRecord sale) => sale.ItemName + "|" + sale.Buyer + "|" + sale.Price + "|" + sale.ListDate + "|" + sale.SellDate;
+        internal static string SaleTooltip(VendorSaleRecord sale)
+        {
+            if (string.IsNullOrWhiteSpace(sale.PropertyText)) return null;
+            // Server tooltips may contain HTML breaks or properties without a name.
+            // The shared formatter needs a separate name line before the stat lines.
+            string name = Plain(sale.ItemName);
+            string text = Plain(sale.PropertyText).Replace("\r\n", "\n").Replace('\r', '\n');
+            text = Regex.Replace(text, @"/c\[[^\]]*\]|/cd", "", RegexOptions.IgnoreCase);
+            var lines = text.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+            if (lines.Count > 0 && string.Equals(lines[0], name, StringComparison.OrdinalIgnoreCase)) lines.RemoveAt(0);
+            string properties = name + "\n" + string.Join("\n", lines);
+            return ToolTipOverrideData.ProcessTooltipText(properties, sale.PropertyLayer ?? (byte)TooltipLayers.Any) ?? properties;
+        }
         internal static bool Matches(VendorSaleRecord sale, string query) => Has(sale.ItemName + " " + sale.Buyer + " "
             + sale.Price.ToString(CultureInfo.InvariantCulture) + " " + sale.ListDate + " " + sale.SellDate, query.Trim());
 
@@ -101,6 +122,7 @@ namespace ClassicUO.Game.Managers
         {
             if (_profile == ProfileManager.CurrentProfile) return;
             Reset(); _profile = ProfileManager.CurrentProfile;
+            if (_profile != null) EventSink.OPLOnReceive += PropertiesReceived;
         }
         internal static List<VendorLedgerRecord> Records
         {
@@ -153,6 +175,7 @@ namespace ClassicUO.Game.Managers
         {
             EnsureProfile();
             if (vendor == null || _profile?.VendorLedger == null || !_profile.VendorLedger.Remove(vendor)) return false;
+            TrackProperties(vendor.Sales, Enumerable.Empty<VendorSaleRecord>());
             if (VendorRefreshManager.Active) VendorRefreshManager.Stop();
             if (_active == vendor) _active = null;
             if (_lastMobile == vendor.VendorSerial) { _lastMobile = 0; _lastInteraction = 0; }
@@ -232,12 +255,39 @@ namespace ClassicUO.Game.Managers
                 foreach (string name in _active.RestockedNames.ToArray())
                     if (string.Join("\n", _active.Sales.Where(s => s.ItemName == name).Select(SaleIdentity).OrderBy(s => s, StringComparer.Ordinal))
                         != string.Join("\n", sales.Where(s => s.ItemName == name).Select(SaleIdentity).OrderBy(s => s, StringComparer.Ordinal))) _active.RestockedNames.Remove(name);
+                TrackProperties(_active.Sales, sales);
                 _active.Sales = sales;
                 _active.LastHistoryUtcTicks = DateTime.UtcNow.Ticks;
             }
             Changed();
             VendorRefreshManager.ObserveGump(gump, kind, _active);
             return _active;
+        }
+
+        private static void TrackProperties(IEnumerable<VendorSaleRecord> previous, IEnumerable<VendorSaleRecord> current)
+        {
+            foreach (var sale in previous)
+                if (_pendingProperties.TryGetValue(sale.PropertySerial, out var previousPending))
+                {
+                    previousPending.Remove(sale);
+                    if (previousPending.Count == 0) _pendingProperties.Remove(sale.PropertySerial);
+                }
+            foreach (var sale in current)
+                if (sale.PropertySerial != 0 && string.IsNullOrEmpty(sale.PropertyText))
+                {
+                    if (!_pendingProperties.TryGetValue(sale.PropertySerial, out var currentPending))
+                        _pendingProperties[sale.PropertySerial] = currentPending = new List<VendorSaleRecord>();
+                    currentPending.Add(sale);
+                }
+        }
+
+        private static void PropertiesReceived(object sender, OPLEventArgs e)
+        {
+            if (_profile == null || _profile != ProfileManager.CurrentProfile) return;
+            if (!_pendingProperties.TryGetValue(e.Serial, out var pending) || string.IsNullOrWhiteSpace(e.Data)) return;
+            foreach (var sale in pending) sale.PropertyText = e.Name + "\n" + e.Data;
+            _pendingProperties.Remove(e.Serial);
+            Changed();
         }
 
         internal static void ObserveContainer(uint container)
@@ -305,6 +355,8 @@ namespace ClassicUO.Game.Managers
 
         internal static void Reset()
         {
+            EventSink.OPLOnReceive -= PropertiesReceived;
+            _pendingProperties.Clear();
             _profile = null; _lastMobile = 0; _lastInteraction = 0; _active = null; _stockDirty.Clear(); _saveAt = _stockAt = 0;
         }
     }

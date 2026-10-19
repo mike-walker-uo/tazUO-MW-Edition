@@ -1498,6 +1498,10 @@ namespace ClassicUO.Game.Scenes
                 _renderListStaticsHead,
                 _renderListStaticsCount
             );
+            // Compact radar is a ground overlay: terrain must not depth-clip its
+            // front half. All mobile sprites are drawn afterwards, above it.
+            if (UI.EnemyRadar.Enabled)
+                FeatureDiagnostics.Guard("EnemyRadar", batcher, UI.EnemyRadar.Draw);
             RenderedObjectsCount += DrawRenderList(
                 batcher,
                 _renderListAnimationsHead,

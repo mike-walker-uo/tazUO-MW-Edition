@@ -88,6 +88,11 @@ namespace ClassicUO.Game.UI.Gumps
             Check("Rotate gump themes daily", _profile.RotateGumpThemesDaily, CustomGumpThemeManager.SetDailyRotation, 3);
             Check("Ctrl + Shift + left-click picks through clutter", _profile.ClutterPickerShortcut, b => _profile.ClutterPickerShortcut = b, 3);
             Note("Use -pick under the world pointer, or bind ClientCommand pick to your preferred macro hotkey. Choices use native sprite hit tests.", 3);
+            Action("Enemy radar styles and settings", () =>
+            {
+                UIManager.GetGump<EnemyRadarGump>()?.Dispose();
+                UIManager.Add(new EnemyRadarGump());
+            }, 3);
             Check("Illustrated vendor gumps", _profile.IllustratedVendorGumps, b => _profile.IllustratedVendorGumps = b, 3);
             Action("Open vendor ledger", () => VendorLedgerGump.Open(), 3);
             Check("Enable Vendor Search watch scans", _profile.VendorSearchScansEnabled, b => _profile.VendorSearchScansEnabled = b, 3);

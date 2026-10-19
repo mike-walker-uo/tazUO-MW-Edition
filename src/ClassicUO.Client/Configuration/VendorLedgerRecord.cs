@@ -26,6 +26,9 @@ namespace ClassicUO.Configuration
         public long Price { get; set; }
         public string ListDate { get; set; } = string.Empty;
         public string SellDate { get; set; } = string.Empty;
+        public string PropertyText { get; set; } = string.Empty;
+        public byte? PropertyLayer { get; set; }
+        [JsonIgnore] public uint PropertySerial { get; set; }
     }
 
     public sealed class VendorStockRecord

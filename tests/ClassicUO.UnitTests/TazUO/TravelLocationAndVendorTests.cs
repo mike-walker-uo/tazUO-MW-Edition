@@ -84,7 +84,8 @@ namespace ClassicUO.UnitTests.TazUO
             var profile = new Profile();
             profile.WorldExplorerLocations["rune:1"] = new TravelDestinationLocation { X = 100, Y = 200, Facet = 1, Source = "Observed arrival" };
             profile.VendorLedger.Add(new VendorLedgerRecord { ShopName = "Crafting Finest", GoldHeld = 23827772,
-                Sales = new List<VendorSaleRecord> { new VendorSaleRecord { ItemName = "Ring", Buyer = "Ners", Price = 75000, SellDate = "09/24" } },
+                Sales = new List<VendorSaleRecord> { new VendorSaleRecord { ItemName = "Ring", Buyer = "Ners", Price = 75000, SellDate = "09/24",
+                    PropertyText = "Ring\nFire Resist 15%", PropertyLayer = 8, PropertySerial = 0x40001234 } },
                 Stock = new List<VendorStockRecord> { new VendorStockRecord { Serial = 42, FirstSeenUtcTicks = 123, LastSeenUtcTicks = 456 } } });
             profile.VendorListingTemplates.Add(new VendorListingTemplate { Name = "Pearls", Price = "150000", Description = "Ten pearls" });
             var restored = JsonSerializer.Deserialize(JsonSerializer.Serialize(profile, ProfileJsonContext.DefaultToUse.Profile), ProfileJsonContext.DefaultToUse.Profile);
@@ -92,6 +93,9 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.Null(restored.WorldExplorerLocations["rune:1"].Z);
             Assert.Equal(75000, restored.VendorLedger[0].Sales[0].Price);
             Assert.Equal("09/24", restored.VendorLedger[0].Sales[0].SellDate);
+            Assert.Equal("Ring\nFire Resist 15%", restored.VendorLedger[0].Sales[0].PropertyText);
+            Assert.Equal((byte)8, restored.VendorLedger[0].Sales[0].PropertyLayer);
+            Assert.Equal(0u, restored.VendorLedger[0].Sales[0].PropertySerial);
             Assert.Equal(123, restored.VendorLedger[0].Stock[0].FirstSeenUtcTicks);
             Assert.Equal("Ten pearls", restored.VendorListingTemplates[0].Description);
         }
@@ -118,6 +122,20 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.True(VendorLedgerManager.Matches(rows[0], "kable"));
             Assert.True(VendorLedgerManager.Matches(rows[0], "pearl"));
             Assert.False(VendorLedgerManager.Matches(rows[0], "slayer"));
+        }
+
+        [Fact]
+        public void Sales_tooltips_stay_attached_to_individual_rows_with_identical_names()
+        {
+            var cells = SalesTable();
+            cells[5].Tooltip = "10 White Pearl\nWeight 1";
+            cells[10].Tooltip = "10 White Pearl\nWeight 2";
+            var rows = VendorLedgerManager.ParseSales(cells);
+            Assert.Equal("10 White Pearl\nWeight 1", rows[0].PropertyText);
+            Assert.Equal("10 White Pearl\nWeight 2", rows[1].PropertyText);
+            cells[10].Tooltip = null;
+            rows = VendorLedgerManager.ParseSales(cells);
+            Assert.Equal("", rows[1].PropertyText);
         }
 
         [Fact]

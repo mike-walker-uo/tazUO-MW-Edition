@@ -2342,6 +2342,29 @@ Register("pathpreview", (s) =>
                 LastSpellRecastManager.Recast(lt);
             });
 
+            Register("radar", (s) =>
+            {
+                string action = s != null && s.Length > 1 ? s[1].Trim().ToLowerInvariant() : "toggle";
+                switch (action)
+                {
+                    case "options":
+                        UIManager.GetGump<EnemyRadarGump>()?.Dispose();
+                        UIManager.Add(new EnemyRadarGump());
+                        return;
+                    case "toggle": UI.EnemyRadar.Enabled = !UI.EnemyRadar.Enabled; break;
+                    case "on": UI.EnemyRadar.Enabled = true; break;
+                    case "off": UI.EnemyRadar.Enabled = false; break;
+                    case "ring": UI.EnemyRadar.Style = 0; UI.EnemyRadar.Enabled = true; break;
+                    case "density": UI.EnemyRadar.Style = 1; UI.EnemyRadar.Enabled = true; break;
+                    case "beams": UI.EnemyRadar.Style = 2; UI.EnemyRadar.Enabled = true; break;
+                    default:
+                        GameActions.Print("Usage: -radar [on|off|ring|density|beams|options]", 0x21);
+                        return;
+                }
+                TazUOFeatureSettings.Save();
+                GameActions.Print($"Enemy radar {(UI.EnemyRadar.Enabled ? "ON" : "OFF")}. Settings: -radar options", 0x35);
+            });
+
             Register("hostileline", (s) =>
             {
                 bool on = s == null || s.Length < 2
