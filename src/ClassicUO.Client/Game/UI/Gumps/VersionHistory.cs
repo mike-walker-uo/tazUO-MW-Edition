@@ -12,7 +12,7 @@ namespace ClassicUO.Game.UI.Gumps
         private static readonly string[] updateTexts =
         {
             "[0.6.3 beta hotfix 1]\n" +
-            "Vendor enhancements (experimental): restored complete sold-item hover stats with item names, values and configured tooltip colors. Captured stats stay saved.\n\n" +
+            "Vendor enhancements (experimental): restored complete sold-item hover stats with item names, values and configured tooltip colors. Captured stats stay saved. Repairs server artifact color tags and capitalizes Major Artifact / Greater Artifacts. If old tooltips remain, use Update vendors.\n\n" +
             "Enemy radar: ring, density and fading-beam styles, improved visibility and saved controls. Off by default; use -radar options.\n\n",
             "[0.6.3 beta update 1]\n" +
             """
