@@ -211,15 +211,16 @@ namespace ClassicUO.UnitTests.TazUO
         }
 
         [Theory]
-        [InlineData("<BASEFONT COLOR=#Ff8000>major Artifact</BASEFONT>")]
-        [InlineData("&lt;BASEFONT COLOR=#Ff8000&gt;major Artifact&lt;/BASEFONT&gt;")]
-        [InlineData("BASEFONT COLOR=#Ff8000major Artifact")]
-        public void Artifact_colors_survive_vendor_tooltip_conversion_without_leaking_markup(string artifact)
+        [InlineData("<BASEFONT COLOR=#Ff8000>major Artifact</BASEFONT>", "Major Artifact")]
+        [InlineData("&lt;BASEFONT COLOR=#Ff8000&gt;major Artifact&lt;/BASEFONT&gt;", "Major Artifact")]
+        [InlineData("BASEFONT COLOR=#Ff8000major Artifact", "Major Artifact")]
+        [InlineData("BASEFONT COLOR=#Ff8000greater Artifacts", "Greater Artifacts")]
+        public void Artifact_colors_survive_vendor_tooltip_conversion_without_leaking_markup(string artifact, string label)
         {
             string raw = "ring\nFire Resist 1%\nDurability 255 / 255\n" + artifact;
             var sale = new VendorSaleRecord { ItemName = "ring", PropertyText = raw };
             string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(VendorLedgerManager.SaleTooltip(sale));
-            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            Assert.Contains("/c[#Ff8000]" + label, rendered);
             Assert.Contains("/c[red]Fire Resist 1%", rendered);
             Assert.Contains("Durability 255 / 255", rendered);
             Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
@@ -239,9 +240,29 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
         }
 
-        [Fact]
-        public void Reported_saved_ring_keeps_every_property_and_its_actual_resistance_value()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Reported_saved_ring_keeps_every_property_and_its_actual_resistance_value(bool customPalette)
         {
+            if (customPalette)
+            {
+                _profile.ToolTipOverride_SearchText.Clear();
+                var rules = new[] {
+                    ("Fire Res", "/c[red]Fire Resist {1}%", (byte)TooltipLayers.Any),
+                    ("Cold Res", "/c[blue]Cold Resist {1}%", (byte)TooltipLayers.Any),
+                    ("Hit Chance Increase", "/c[#ffa703]Hit Chance Increase {1}%", (byte)TooltipLayers.Any),
+                    ("Lower Mana Cost", "/c[#8945ff]Lower Mana Cost {1}%", (byte)TooltipLayers.Any),
+                    ("Defense Chance Increase", "/c[#ffa703]Defense Chance Increase {1}%", (byte)TooltipLayers.Any),
+                    ("Mana Increase", "/c[blue]Mana Increase {1}", (byte)TooltipLayers.Any),
+                    ("Night Sight", "/c[#808080]Night Sight", (byte)TooltipLayers.Any),
+                    ("Bushido", @"/c[#ff6183]Bushido \u002B{1}", (byte)TooltipLayers.Any),
+                    ("Parrying", @"/c[#ff6183]Parrying \u002B{1}", (byte)TooltipLayers.Jewelry_Group),
+                    ("Enhance Potions", "/c[#808080]Enhance Potions {1}", (byte)TooltipLayers.Any) };
+                foreach (var rule in rules)
+                    new ToolTipOverrideData(_profile.ToolTipOverride_SearchText.Count, rule.Item1,
+                        rule.Item2, -1, 999, -1, 99, rule.Item3).Save();
+            }
             const string json = """
                 { "vendor_ledger": [{ "sales": [{
                   "item_name": "ring", "buyer": "BIump", "price": 99000,
@@ -261,9 +282,10 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.Contains("Defense Chance Increase 20%", rendered);
             Assert.Contains("Lower Mana Cost 6%", rendered);
             Assert.Contains("/c[red]Fire Resist 2%", rendered);
-            Assert.Contains("/c[teal]Cold Resist 15%", rendered);
+            Assert.Contains((customPalette ? "/c[blue]" : "/c[teal]") + "Cold Resist 15%", rendered);
             Assert.Contains("Durability 255 / 255", rendered);
-            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+            Assert.Contains("/c[#Ff8000]Major Artifact", rendered);
+            if (customPalette) Assert.Contains("/c[#ff6183]Bushido +20", rendered);
             Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
         }
 
@@ -294,8 +316,8 @@ namespace ClassicUO.UnitTests.TazUO
             var saved = JsonSerializer.Deserialize<VendorSaleRecord>(JsonSerializer.Serialize(captured));
             string rendered = TextBox.ConvertHtmlToFontStashSharpCommand(VendorLedgerManager.SaleTooltip(saved));
             foreach (string property in properties)
-                Assert.Contains(property == properties[properties.Length - 1] ? "major Artifact" : property, rendered);
-            Assert.Contains("/c[#Ff8000]major Artifact", rendered);
+                Assert.Contains(property == properties[properties.Length - 1] ? "Major Artifact" : property, rendered);
+            Assert.Contains("/c[#Ff8000]Major Artifact", rendered);
             if (overrides) Assert.Contains("/c[red]Fire Resist 2%", rendered);
             Assert.DoesNotContain("BASEFONT", rendered.ToUpperInvariant());
             Assert.Equal(raw, saved.PropertyText);
