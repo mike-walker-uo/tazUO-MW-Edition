@@ -88,10 +88,13 @@ namespace ClassicUO.Game.Managers
             // Server tooltips may contain HTML breaks or properties without a name.
             // The shared formatter needs a separate name line before the stat lines.
             string name = Plain(sale.ItemName);
-            string text = Plain(sale.PropertyText).Replace("\r\n", "\n").Replace('\r', '\n');
-            text = Regex.Replace(text, @"/c\[[^\]]*\]|/cd", "", RegexOptions.IgnoreCase);
+            // Split HTML lines before converting colors so each property reaches
+            // the shared formatter separately. Keep the server's fallback colors.
+            string text = WebUtility.HtmlDecode(sale.PropertyText).Replace("\r\n", "\n").Replace('\r', '\n');
+            text = Plain(TextBox.ConvertHTMLColorsToFSS(text));
+            text = text.Replace("major Artifact", "Major Artifact").Replace("greater Artifact", "Greater Artifact");
             var lines = text.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
-            if (lines.Count > 0 && string.Equals(lines[0], name, StringComparison.OrdinalIgnoreCase)) lines.RemoveAt(0);
+            if (lines.Count > 0 && string.Equals(Regex.Replace(lines[0], @"/c\[[^\]]*\]|/cd", "", RegexOptions.IgnoreCase).Trim(), name, StringComparison.OrdinalIgnoreCase)) lines.RemoveAt(0);
             string properties = name + "\n" + string.Join("\n", lines);
             return ToolTipOverrideData.ProcessTooltipText(properties, sale.PropertyLayer ?? (byte)TooltipLayers.Any) ?? properties;
         }
