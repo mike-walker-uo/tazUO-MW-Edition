@@ -131,6 +131,13 @@ namespace ClassicUO.Game.UI.Gumps
                     Slider("Ground glow intensity (%)", 0, 100, _visual.LightningGroundOpacity, n => _visual.LightningGroundOpacity = n, 5);
                     Action("Preview Lightning", () => SpellAbilityEffectSettings.Preview(SpellAbilityEffectId.Lightning), 5);
                 }
+                if (entry.Id == SpellAbilityEffectId.Fireball)
+                {
+                    Check("Fireball ground glow", _visual.FireballGroundEnabled, b => _visual.FireballGroundEnabled = b, 5);
+                    Slider("Ground glow size (%)", 50, 200, _visual.FireballGroundSize, n => _visual.FireballGroundSize = n, 5);
+                    Slider("Ground glow intensity (%)", 0, 100, _visual.FireballGroundOpacity, n => _visual.FireballGroundOpacity = n, 5);
+                    Action("Preview Fireball", () => SpellAbilityEffectSettings.Preview(SpellAbilityEffectId.Fireball), 5);
+                }
             }
             Note("Last 50 saved option edits. Undo restores only fields in that edit. Window positions are excluded.", 6);
             foreach (SettingsHistory.Entry entry in SettingsHistory.Read(ProfileManager.ProfilePath).AsEnumerable().Reverse())

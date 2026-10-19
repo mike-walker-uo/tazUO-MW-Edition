@@ -41,6 +41,9 @@ namespace ClassicUO.Configuration
         public bool LightningGroundEnabled { get; set; } = true;
         public int LightningGroundSize { get; set; } = 100;
         public int LightningGroundOpacity { get; set; } = 65;
+        public bool FireballGroundEnabled { get; set; } = true;
+        public int FireballGroundSize { get; set; } = 100;
+        public int FireballGroundOpacity { get; set; } = 55;
         public bool PrioritizeCombatEffects { get; set; } = true;
     }
 }

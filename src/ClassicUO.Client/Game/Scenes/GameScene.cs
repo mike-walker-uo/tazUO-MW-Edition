@@ -1502,7 +1502,7 @@ namespace ClassicUO.Game.Scenes
             // front half. All mobile sprites are drawn afterwards, above it.
             if (UI.EnemyRadar.Enabled)
                 FeatureDiagnostics.Guard("EnemyRadar", batcher, UI.EnemyRadar.Draw);
-            FeatureDiagnostics.Guard("LightningGround", batcher, DrawLightningGroundEffects);
+            FeatureDiagnostics.Guard("SpellGround", batcher, DrawSpellGroundEffects);
             RenderedObjectsCount += DrawRenderList(
                 batcher,
                 _renderListAnimationsHead,
@@ -1602,9 +1602,11 @@ namespace ClassicUO.Game.Scenes
             //batcher.End();
         }
 
-        private void DrawLightningGroundEffects(UltimaBatcher2D batcher)
+        private void DrawSpellGroundEffects(UltimaBatcher2D batcher)
         {
-            if (ExplorationMode.Active || VisualBudget.Settings?.LightningGroundEnabled != true
+            var settings = VisualBudget.Settings;
+            if (ExplorationMode.Active || settings == null
+                || !settings.LightningGroundEnabled && !settings.FireballGroundEnabled
                 || !SpellAbilityEffectSettings.CustomEffectsEnabled) return;
             batcher.SetStencil(DepthStencilState.None);
             batcher.SetBlendState(BlendState.Additive);
@@ -1614,8 +1616,12 @@ namespace ClassicUO.Game.Scenes
                 int drawn = 0;
                 for (int i = 0; i < _renderListEffectCount && effect != null && drawn < 16; i++)
                 {
-                    if (!effect.IsDestroyed && effect.Z <= _maxGroundZ && effect is LightningEffect lightning
-                        && lightning.DrawGround(batcher)) drawn++;
+                    if (!effect.IsDestroyed && effect.Z <= _maxGroundZ)
+                    {
+                        bool visible = effect is LightningEffect lightning ? lightning.DrawGround(batcher)
+                            : effect is MovingEffect moving && moving.DrawGround(batcher);
+                        if (visible) drawn++;
+                    }
                     effect = effect.RenderListNext;
                 }
             }

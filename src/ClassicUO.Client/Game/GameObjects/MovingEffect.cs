@@ -38,7 +38,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace ClassicUO.Game.GameObjects
 {
-    internal sealed class MovingEffect : GameEffect
+    internal sealed partial class MovingEffect : GameEffect
     {        
         public MovingEffect
         (
@@ -59,6 +59,7 @@ namespace ClassicUO.Game.GameObjects
         ) : base(manager, graphic, hue, 0, speed)
         {
             FixedDir = fixedDir;
+            _groundStarted = Time.Ticks;
 
             // we override interval time with speed
             var d = Constants.ITEM_EFFECT_ANIMATION_DELAY * 2;
@@ -92,6 +93,7 @@ namespace ClassicUO.Game.GameObjects
             }
         }
 
+        private readonly uint _groundStarted;
         public readonly bool FixedDir;
         public CombatVisualKind CombatVisual;
         public EnhancedSpellVisualKind EnhancedSpellVisual;
