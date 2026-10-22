@@ -7,6 +7,9 @@ namespace ClassicUO.Configuration
         public int Intensity { get; set; } = 100;
         public int Density { get; set; } = 100;
         public int Glow { get; set; } = 100;
+        public bool GroundEnabled { get; set; } = true;
+        public int GroundSize { get; set; } = 100;
+        public int GroundOpacity { get; set; } = 55;
     }
 
     public sealed class VisualEnhancementSettings
@@ -38,6 +41,13 @@ namespace ClassicUO.Configuration
         public bool SeasonalDetails { get; set; } = true;
         public Dictionary<int, int> MapParticleIntensity { get; set; } = new Dictionary<int, int>();
         public Dictionary<string, EffectDetailSettings> Effects { get; set; } = new Dictionary<string, EffectDetailSettings>();
+        public bool SpellGroundEffectsEnabled { get; set; }
+        public bool LightningGroundEnabled { get; set; } = true;
+        public int LightningGroundSize { get; set; } = 100;
+        public int LightningGroundOpacity { get; set; } = 65;
+        public bool FireballGroundEnabled { get; set; } = true;
+        public int FireballGroundSize { get; set; } = 100;
+        public int FireballGroundOpacity { get; set; } = 55;
         public bool PrioritizeCombatEffects { get; set; } = true;
     }
 }

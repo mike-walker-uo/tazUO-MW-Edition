@@ -15,7 +15,7 @@ namespace ClassicUO.Game.UI
     /// Shows a rearing horse above the player when Sacred Journey is confirmed
     /// by its server-sent travel sound.
     /// </summary>
-    public static class SacredJourneyEffect
+    public static partial class SacredJourneyEffect
     {
         internal const int SACRED_JOURNEY_SPELL_ID = 210;
         internal const ushort SACRED_JOURNEY_SOUND = 0x01FC;
@@ -113,10 +113,8 @@ namespace ClassicUO.Game.UI
 
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.14f);
-            float fade = progress < 0.68f
-                ? 1f
-                : Math.Max(0f, (1f - progress) / 0.32f);
-            float pulse = 0.96f + 0.055f *
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.38f);
+            float pulse = 0.96f + 0.02f *
                 (float)Math.Sin(progress * MathHelper.TwoPi * 3.2f);
             float scale =
                 (0.68f + 0.34f * EaseOut(appear))

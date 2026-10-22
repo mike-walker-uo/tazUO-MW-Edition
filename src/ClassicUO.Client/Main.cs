@@ -156,9 +156,11 @@ namespace ClassicUO
 
             Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + ";" + Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Plugins"));
 
+            FastLoginManager.ApplyStartupSettingsPath();
             string globalSettingsPath = Settings.GetSettingsFilepath();
 
-            if (!Directory.Exists(Path.GetDirectoryName(globalSettingsPath)) || !File.Exists(globalSettingsPath))
+            if (!FastLoginManager.UsingStartupSnapshot &&
+                (!Directory.Exists(Path.GetDirectoryName(globalSettingsPath)) || !File.Exists(globalSettingsPath)))
             {
                 // settings specified in path does not exists, make new one
                 {
@@ -167,7 +169,8 @@ namespace ClassicUO
                 }
             }
 
-            Settings.GlobalSettings = ConfigurationResolver.Load<Settings>(globalSettingsPath, SettingsJsonContext.Default);
+            Settings.GlobalSettings = FastLoginManager.UsingStartupSnapshot ? FastLoginManager.StartupSettings()
+                : ConfigurationResolver.Load<Settings>(globalSettingsPath, SettingsJsonContext.Default);
             if (Settings.GlobalSettings == null)
             {
                 Settings.GlobalSettings = new Settings();
@@ -176,6 +179,7 @@ namespace ClassicUO
             CUOEnviroment.IsOutlands = Settings.GlobalSettings.ShardType == 2;
 
             ReadSettingsFromArgs(args);
+            Settings.GlobalSettings.FastLoginSnapshot = FastLoginManager.UsingStartupSnapshot;
 
             if (CUOEnviroment.SafeGraphicsMode)
             {
@@ -369,10 +373,13 @@ namespace ClassicUO
                     }
                 }
 
-                Log.Trace($"ARG: {cmd}, VALUE: {value}");
+                Log.Trace($"ARG: {cmd}, VALUE: {(cmd == "password" || cmd == "password_enc" ? "<redacted>" : value)}");
 
                 switch (cmd)
                 {
+                    case "fastlogin":
+                        FastLoginManager.SetStartupSlot(value);
+                        break;
                     // Here we have it! Using `-settings` option we can now set the filepath that will be used 
                     // to load and save ClassicUO main settings instead of default `./settings.json`
                     // NOTE: All individual settings like `username`, `password`, etc passed in command-line options

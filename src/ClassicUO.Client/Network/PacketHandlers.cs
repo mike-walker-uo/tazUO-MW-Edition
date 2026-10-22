@@ -2479,6 +2479,8 @@ namespace ClassicUO.Network
             ushort y = p.ReadUInt16BE();
             short z = (short)p.ReadUInt16BE();
 
+            PetEffectProbe.CaptureSound(index, x, y, z);
+            PetBuffMonitor.CaptureSound(index, x, y, z);
             CombatVisualTrigger.OnSound(index, x, y);
             EnhancedSpellVisualTrigger.OnSound(
                 index,
@@ -2502,6 +2504,7 @@ namespace ClassicUO.Network
         {
             if (World.Player != null && Client.Game.Scene is LoginScene)
             {
+                FastLoginManager.CaptureSuccessfulLogin((LoginScene)Client.Game.Scene);
                 var scene = new GameScene();
                 Client.Game.SetScene(scene);
 
@@ -2728,6 +2731,8 @@ namespace ClassicUO.Network
                 return;
             }
 
+            PetEffectProbe.CaptureEffect(ref p);
+            PetBuffMonitor.CaptureEffect(ref p);
             GraphicEffectType type = (GraphicEffectType)p.ReadUInt8();
 
             if (type > GraphicEffectType.FixedFrom)
@@ -5870,10 +5875,14 @@ namespace ClassicUO.Network
                 return;
             }
 
+            PetEffectProbe.CaptureBuff(ref p);
+            PetBuffMonitor.CaptureBuff(ref p);
             const ushort BUFF_ICON_START = 0x03E9;
             const ushort BUFF_ICON_START_NEW = 0x466;
 
             uint serial = p.ReadUInt32BE();
+            // A shard may report a pet's buff here; it must not alter the player's buff bar.
+            if (serial != World.Player.Serial) return;
             BuffIconType ic = (BuffIconType)p.ReadUInt16BE();
 
             ushort iconID =

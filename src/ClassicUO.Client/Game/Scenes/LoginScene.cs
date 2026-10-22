@@ -89,6 +89,25 @@ namespace ClassicUO.Game.Scenes
         public static string Account { get; internal set; }
         public string Password { get; private set; }
         public bool CanAutologin => _autoLogin || Reconnect;
+        private Settings _fastLoginSettings;
+        internal Settings ConnectionSettings => _fastLoginSettings ?? Settings.GlobalSettings;
+        internal string SelectedCharacterName { get; private set; }
+
+        internal bool LoginSlot(int slot, out string error)
+        {
+            error = null;
+            if (CurrentLoginStep != LoginSteps.Main || _connectionAttemptInProgress)
+            { error = "Finish or cancel the current login first."; return false; }
+            if (!FastLoginManager.Prepare(slot, out Settings saved, out error)) return false;
+            string password;
+            try { password = Crypter.Decrypt(saved.Password); }
+            catch (Exception) { error = "Saved password could not be read. Save this slot again."; return false; }
+            if (string.IsNullOrEmpty(password)) { error = "Saved password is empty. Save this slot again."; return false; }
+            _fastLoginSettings = saved;
+            _autoLogin = true; Reconnect = false;
+            Connect(saved.Username, password);
+            return true;
+        }
 
 
         public override void Load()
@@ -142,7 +161,13 @@ namespace ClassicUO.Game.Scenes
 
             Client.Game.Audio.PlayMusic(Client.Game.Audio.LoginMusicIndex, false, true);
 
-            if (CanAutologin && CurrentLoginStep != LoginSteps.Main || CUOEnviroment.SkipLoginScreen && _currentGump != null)
+            if (FastLoginManager.ConsumeStartupSlot(out int startupSlot))
+            {
+                CUOEnviroment.SkipLoginScreen = false;
+                _autoLogin = false;
+                if (_currentGump is LoginGump login) login.LoginSlot(startupSlot);
+            }
+            else if (CanAutologin && CurrentLoginStep != LoginSteps.Main || CUOEnviroment.SkipLoginScreen && _currentGump != null)
             {
                 if (!string.IsNullOrEmpty(Settings.GlobalSettings.Username))
                 {
@@ -203,9 +228,10 @@ namespace ClassicUO.Game.Scenes
             {
                 if (_reconnectTime < Time.Ticks)
                 {
+                    if (_fastLoginSettings == null) _fastLoginSettings = FastLoginManager.ReconnectSettings(Account);
                     if (!string.IsNullOrEmpty(Account))
                     {
-                        Connect(Account, Crypter.Decrypt(Settings.GlobalSettings.Password));
+                        Connect(Account, Crypter.Decrypt(ConnectionSettings.Password));
                     }
                     else if (!string.IsNullOrEmpty(Settings.GlobalSettings.Username))
                     {
@@ -256,6 +282,8 @@ namespace ClassicUO.Game.Scenes
             {
                 case LoginSteps.Main:
                     PopupMessage = null;
+                    if (_fastLoginSettings != null)
+                    { _fastLoginSettings = null; _autoLogin = false; Reconnect = false; }
 
                     return new LoginGump(this);
 
@@ -359,7 +387,7 @@ namespace ClassicUO.Game.Scenes
             Password = password;
 
             // Save credentials to config file
-            if (Settings.GlobalSettings.SaveAccount)
+            if (_fastLoginSettings == null && Settings.GlobalSettings.SaveAccount)
             {
                 Settings.GlobalSettings.Username = Account;
                 Settings.GlobalSettings.Password = Crypter.Encrypt(Password);
@@ -373,7 +401,7 @@ namespace ClassicUO.Game.Scenes
                 }
             }
 
-            Log.Trace($"Start login to: {Settings.GlobalSettings.IP},{Settings.GlobalSettings.Port}");
+            Log.Trace($"Start login to: {ConnectionSettings.IP},{ConnectionSettings.Port}");
 
 
             if (!Reconnect)
@@ -387,7 +415,7 @@ namespace ClassicUO.Game.Scenes
             //    Log.Error("No Internet Access");
             //};
 
-            _ = ConnectAsync(Settings.GlobalSettings.IP, Settings.GlobalSettings.Port).Catch();
+            _ = ConnectAsync(ConnectionSettings.IP, ConnectionSettings.Port).Catch();
         }
 
         private async System.Threading.Tasks.Task ConnectAsync(string ip, ushort port)
@@ -435,12 +463,12 @@ namespace ClassicUO.Game.Scenes
 
         public int GetServerIndexFromSettings()
         {
-            string name = Settings.GlobalSettings.LastServerName;
+            string name = ConnectionSettings.LastServerName;
             int index = GetServerIndexByName(name);
 
             if (index == -1)
             {
-                index = Settings.GlobalSettings.LastServerNum;
+                index = ConnectionSettings.LastServerNum;
             }
 
             if (index < 0 || index >= Servers.Length)
@@ -465,9 +493,9 @@ namespace ClassicUO.Game.Scenes
                     }
                 }
 
-                Settings.GlobalSettings.LastServerNum = (ushort)(1 + ServerIndex);
-                Settings.GlobalSettings.LastServerName = Servers[ServerIndex].Name;
-                Settings.GlobalSettings.Save();
+                ConnectionSettings.LastServerNum = (ushort)(1 + ServerIndex);
+                ConnectionSettings.LastServerName = Servers[ServerIndex].Name;
+                if (_fastLoginSettings == null) Settings.GlobalSettings.Save();
 
                 CurrentLoginStep = LoginSteps.LoginInToServer;
 
@@ -481,6 +509,7 @@ namespace ClassicUO.Game.Scenes
         {
             if (CurrentLoginStep == LoginSteps.CharacterSelection)
             {
+                SelectedCharacterName = Characters[index];
                 LastCharacterManager.Save(Account, World.ServerName, Characters[index]);
 
                 CurrentLoginStep = LoginSteps.EnteringBritania;
@@ -498,6 +527,7 @@ namespace ClassicUO.Game.Scenes
 
         public void CreateCharacter(PlayerMobile character, int cityIndex, byte profession)
         {
+            SelectedCharacterName = character.Name;
             int i = 0;
 
             for (; i < Characters.Length; i++)
@@ -589,7 +619,7 @@ namespace ClassicUO.Game.Scenes
 
             uint address = NetClient.Socket.LocalIP;
 
-            EncryptionHelper.Initialize(true, address, (ENCRYPTION_TYPE)Settings.GlobalSettings.Encryption);
+            EncryptionHelper.Initialize(true, address, (ENCRYPTION_TYPE)ConnectionSettings.Encryption);
 
             if (Client.Version >= ClientVersion.CV_6040)
             {
@@ -660,6 +690,13 @@ namespace ClassicUO.Game.Scenes
 
             if (CanAutologin)
             {
+                if (_fastLoginSettings != null)
+                {
+                    int selected = GetServerIndexByName(_fastLoginSettings.LastServerName);
+                    if (selected < 0) { FailFastLogin("Saved server was not found. Log in normally or update this fast login slot."); return; }
+                    SelectServer((byte)Servers[selected].Index);
+                    return;
+                }
                 if (Servers.Length != 0)
                 {
                     int index = GetServerIndexFromSettings();
@@ -700,9 +737,7 @@ namespace ClassicUO.Game.Scenes
             World.ClientFeatures.SetFlags((CharacterListFlags)p.ReadUInt32BE());
             CurrentLoginStep = LoginSteps.CharacterSelection;
 
-            uint charToSelect = 0;
-
-            bool haveAnyCharacter = false;
+            bool haveAnyCharacter = FastLoginManager.FindCharacter(Characters, null) >= 0;
             bool canLogin = CanAutologin;
 
             if (_autoLogin)
@@ -710,26 +745,17 @@ namespace ClassicUO.Game.Scenes
                 _autoLogin = false;
             }
 
-            string lastCharName = LastCharacterManager.GetLastCharacter(Account, World.ServerName);
+            string lastCharName = _fastLoginSettings?.FastLoginCharacter;
+            if (string.IsNullOrEmpty(lastCharName)) lastCharName = Settings.GlobalSettings.FastLoginCharacter;
+            if (string.IsNullOrEmpty(lastCharName)) lastCharName = LastCharacterManager.GetLastCharacter(Account, World.ServerName);
+            int charToSelect = FastLoginManager.FindCharacter(Characters, lastCharName);
 
-            for (byte i = 0; i < Characters.Length; i++)
-            {
-                if (Characters[i].Length > 0)
-                {
-                    haveAnyCharacter = true;
-
-                    if (Characters[i] == lastCharName)
-                    {
-                        charToSelect = i;
-
-                        break;
-                    }
-                }
-            }
+            if (canLogin && charToSelect < 0 && (_fastLoginSettings != null || !string.IsNullOrEmpty(lastCharName)))
+            { FailFastLogin("Saved character was not found. Log in normally to select a character, then update the slot."); return; }
 
             if (canLogin && haveAnyCharacter)
             {
-                SelectCharacter(charToSelect);
+                SelectCharacter((uint)charToSelect);
             }
             else if (!haveAnyCharacter)
             {
@@ -742,6 +768,14 @@ namespace ClassicUO.Game.Scenes
             byte code = p.ReadUInt8();
 
             PopupMessage = ServerErrorMessages.GetError(p[0], code);
+            CurrentLoginStep = LoginSteps.PopUpMessage;
+        }
+
+        private void FailFastLogin(string message)
+        {
+            _autoLogin = Reconnect = false;
+            Characters = null;
+            PopupMessage = message;
             CurrentLoginStep = LoginSteps.PopUpMessage;
         }
 
@@ -771,7 +805,7 @@ namespace ClassicUO.Game.Scenes
                     previous.Dispose();
                     AsyncNetClient.Socket = next;
                     next.Disconnected += OnNetClientDisconnected;
-                    EncryptionHelper.Initialize(false, seed, (ENCRYPTION_TYPE)Settings.GlobalSettings.Encryption);
+                    EncryptionHelper.Initialize(false, seed, (ENCRYPTION_TYPE)ConnectionSettings.Encryption);
                 });
 
                 await next.Connect(new IPAddress(ip).ToString(), port);

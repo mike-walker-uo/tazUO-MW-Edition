@@ -1502,6 +1502,7 @@ namespace ClassicUO.Game.Scenes
             // front half. All mobile sprites are drawn afterwards, above it.
             if (UI.EnemyRadar.Enabled)
                 FeatureDiagnostics.Guard("EnemyRadar", batcher, UI.EnemyRadar.Draw);
+            FeatureDiagnostics.Guard("SpellGround", batcher, DrawSpellGroundEffects);
             RenderedObjectsCount += DrawRenderList(
                 batcher,
                 _renderListAnimationsHead,
@@ -1599,6 +1600,45 @@ namespace ClassicUO.Game.Scenes
             //hueVec = Vector3.Zero;
             //batcher.DrawString(Fonts.Bold, s, 200 + 1, 200 - 1, ref hueVec);
             //batcher.End();
+        }
+
+        private void DrawSpellGroundEffects(UltimaBatcher2D batcher)
+        {
+            var settings = VisualBudget.Settings;
+            if (ExplorationMode.Active || settings?.SpellGroundEffectsEnabled != true
+                || !SpellAbilityEffectSettings.CustomEffectsEnabled) return;
+            batcher.SetStencil(DepthStencilState.None);
+            batcher.SetBlendState(BlendState.Additive);
+            try
+            {
+                GameObject effect = _renderListEffectsHead;
+                int drawn = 0;
+                for (int i = 0; i < _renderListEffectCount && effect != null && drawn < 16; i++)
+                {
+                    if (!effect.IsDestroyed && effect.Z <= _maxGroundZ)
+                    {
+                        bool visible = effect is LightningEffect lightning ? lightning.DrawGround(batcher)
+                            : effect is MovingEffect moving ? moving.DrawGround(batcher)
+                            : effect is CombatVisualEffect combat ? combat.DrawGround(batcher)
+                            : effect is EnhancedSpellVisualEffect spell ? spell.DrawGround(batcher)
+                            : effect is HitAreaEffect area ? area.DrawGround(batcher)
+                            : effect is NetherBlastVortexEffect vortex ? vortex.DrawGround(batcher)
+                            : effect is DeathRayLinkEffect ray && ray.DrawGround(batcher);
+                        if (visible) drawn++;
+                    }
+                    effect = effect.RenderListNext;
+                }
+                if (drawn < 16 && UI.OnslaughtDeliveryEffect.DrawGround(batcher)) drawn++;
+                if (drawn < 16 && UI.ConsecrateWeaponEffect.DrawGround(batcher)) drawn++;
+                if (drawn < 16 && UI.DivineFuryEffect.DrawGround(batcher)) drawn++;
+                if (drawn < 16 && UI.SacredJourneyEffect.DrawGround(batcher)) drawn++;
+                if (drawn < 16) UI.AbilityOverheadEffect.DrawGround(batcher);
+            }
+            finally
+            {
+                batcher.SetBlendState(null);
+                batcher.SetStencil(DepthStencilState.Default);
+            }
         }
 
         private int DrawRenderList(UltimaBatcher2D batcher, GameObject obj, int count)
@@ -1753,6 +1793,7 @@ namespace ClassicUO.Game.Scenes
             FeatureDiagnostics.Guard("TileHoverLift", batcher, UI.TileHoverLiftOverlay.DrawWorld);
             // 4.2 torch flicker removed.
             FeatureDiagnostics.Guard("PetHpBars", batcher, UI.PetHpBarsOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("PetBuffIcons", batcher, UI.PetBuffIconsOverlay.DrawWorld);
             FeatureDiagnostics.Guard("CorpseFade", batcher, UI.CorpseFadeOverlay.DrawWorld);
             FeatureDiagnostics.Guard("MobBlood", batcher, UI.MobBloodOverlay.DrawWorld);
             FeatureDiagnostics.Guard("GhostFade", batcher, UI.GhostFadeOverlay.DrawWorld);
@@ -1764,7 +1805,6 @@ namespace ClassicUO.Game.Scenes
             FeatureDiagnostics.Guard("PingHud", batcher, Camera.Bounds, UI.PingHudOverlay.DrawWorld);
             FeatureDiagnostics.Guard("CompactBars", batcher, Camera.Bounds, UI.CompactBarsOverlay.DrawWorld);
             FeatureDiagnostics.Guard("OpenContainerBadge", batcher, Camera.Bounds, UI.OpenContainerBadge.DrawWorld);
-            FeatureDiagnostics.Guard("CompactPartyHud", batcher, Camera.Bounds, UI.CompactPartyHud.DrawWorld);
             FeatureDiagnostics.Guard("RangeIndicator", batcher, UI.RangeIndicator.DrawWorld);
             FeatureDiagnostics.Guard("CursorDistance", batcher, UI.CursorDistanceOverlay.DrawWorld);
             FeatureDiagnostics.Guard("GroundLootFinder", batcher, UI.GroundLootFinder.DrawWorld);

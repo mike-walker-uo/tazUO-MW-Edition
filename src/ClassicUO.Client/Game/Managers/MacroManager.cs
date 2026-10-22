@@ -2297,6 +2297,10 @@ namespace ClassicUO.Game.Managers
                     AsyncNetClient.Socket.Send_Resync();
                     break;
 
+                case MacroType.ToggleRazorScripts:
+                    RazorScriptsGump.Toggle();
+                    break;
+
                 case MacroType.ToggleExploration:
                     ExplorationMode.Toggle();
                     break;
@@ -2944,6 +2948,7 @@ namespace ClassicUO.Game.Managers
         RazorEnhancedHotkey,
         ContextAction,
         ToggleExploration,
+        ToggleRazorScripts,
     }
 
     public enum MacroSubType

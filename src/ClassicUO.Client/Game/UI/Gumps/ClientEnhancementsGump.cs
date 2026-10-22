@@ -114,6 +114,7 @@ namespace ClassicUO.Game.UI.Gumps
             Text("Words (comma-separated)", _profile.ChatMentionWords, s => _profile.ChatMentionWords = s, 4);
             Note("Your character name is included automatically. Highlights retain channel and player colors.", 4);
             Check("Prioritize player and target effects", _visual.PrioritizeCombatEffects, b => _visual.PrioritizeCombatEffects = b, 5);
+            Check("Spell ground effects", _visual.SpellGroundEffectsEnabled, b => _visual.SpellGroundEffectsEnabled = b, 5);
             Action("Compare classic and enhanced effects", () => UIManager.Add(new EffectComparisonGump()), 5);
             foreach (SpellAbilityEffectEntry entry in SpellAbilityEffectSettings.Entries)
             {
@@ -124,6 +125,25 @@ namespace ClassicUO.Game.UI.Gumps
                 Slider("Intensity", 0, 200, settings.Intensity, n => { settings.Intensity = n; _visual.Effects[key] = settings; }, 5);
                 Slider("Density", 0, 200, settings.Density, n => { settings.Density = n; _visual.Effects[key] = settings; }, 5);
                 Slider("Glow", 0, 200, settings.Glow, n => { settings.Glow = n; _visual.Effects[key] = settings; }, 5);
+                if (entry.Id == SpellAbilityEffectId.Lightning)
+                {
+                    Check("Lightning ground glow", _visual.LightningGroundEnabled, b => _visual.LightningGroundEnabled = b, 5);
+                    Slider("Ground glow size (%)", 50, 200, _visual.LightningGroundSize, n => _visual.LightningGroundSize = n, 5);
+                    Slider("Ground glow intensity (%)", 0, 100, _visual.LightningGroundOpacity, n => _visual.LightningGroundOpacity = n, 5);
+                }
+                else if (entry.Id == SpellAbilityEffectId.Fireball)
+                {
+                    Check("Fireball ground glow", _visual.FireballGroundEnabled, b => _visual.FireballGroundEnabled = b, 5);
+                    Slider("Ground glow size (%)", 50, 200, _visual.FireballGroundSize, n => _visual.FireballGroundSize = n, 5);
+                    Slider("Ground glow intensity (%)", 0, 100, _visual.FireballGroundOpacity, n => _visual.FireballGroundOpacity = n, 5);
+                }
+                else
+                {
+                    Check("Ground glow", settings.GroundEnabled, b => { settings.GroundEnabled = b; _visual.Effects[key] = settings; }, 5);
+                    Slider("Ground glow size (%)", 50, 200, settings.GroundSize, n => { settings.GroundSize = n; _visual.Effects[key] = settings; }, 5);
+                    Slider("Ground glow intensity (%)", 0, 100, settings.GroundOpacity, n => { settings.GroundOpacity = n; _visual.Effects[key] = settings; }, 5);
+                }
+                Action("Preview " + entry.Name, () => SpellAbilityEffectSettings.Preview(entry.Id), 5);
             }
             Note("Last 50 saved option edits. Undo restores only fields in that edit. Window positions are excluded.", 6);
             foreach (SettingsHistory.Entry entry in SettingsHistory.Read(ProfileManager.ProfilePath).AsEnumerable().Reverse())

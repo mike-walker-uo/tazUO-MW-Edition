@@ -30,7 +30,7 @@ namespace ClassicUO.Game.UI
     /// Confirmed-use overhead symbols for Chivalry and Bushido abilities.
     /// Prepared Lightning/Momentum buffs are deliberately not treated as hits.
     /// </summary>
-    public static class AbilityOverheadEffect
+    public static partial class AbilityOverheadEffect
     {
         internal const uint LIGHTNING_STRIKE_HIT_CLILOC = 1063168;
         internal const uint MOMENTUM_STRIKE_HIT_CLILOC = 1063171;
@@ -244,10 +244,8 @@ namespace ClassicUO.Game.UI
             using var presentation = EffectPresentation.For(detailId);
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.13f);
-            float fade = progress < 0.7f
-                ? 1f
-                : Math.Max(0f, (1f - progress) / 0.3f);
-            float pulse = 0.94f + 0.08f *
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.38f);
+            float pulse = 0.94f + 0.025f *
                 (float)Math.Sin(progress * MathHelper.TwoPi * 3.1f);
             float scale =
                 (0.7f + 0.3f * EaseOut(appear))
@@ -703,7 +701,7 @@ namespace ClassicUO.Game.UI
                 scale
             );
 
-            for (int shard = 0; shard < EffectPresentation.Count(10); shard++)
+            for (int shard = 0; shard < EffectPresentation.Count(6); shard++)
             {
                 float angle =
                     shard * MathHelper.TwoPi / 10f + progress * 0.7f;
@@ -1234,8 +1232,8 @@ namespace ClassicUO.Game.UI
                 start,
                 end,
                 body,
-                alpha * 0.9f,
-                Math.Max(3f, 11f * scale)
+                alpha * 0.85f,
+                Math.Max(2.5f, 8f * scale)
             );
 
             batcher.SetBlendState(BlendState.Additive);
@@ -1244,16 +1242,16 @@ namespace ClassicUO.Game.UI
                 start,
                 end,
                 highlight,
-                alpha * 0.88f,
-                Math.Max(1.7f, 5.2f * scale)
+                alpha * 0.62f,
+                Math.Max(1.2f, 3.2f * scale)
             );
             Line(
                 batcher,
-                start,
-                end,
-                Color.Lerp(highlight, Color.White, 0.72f),
+                start + new Vector2(-0.5f, -0.6f) * scale,
+                end + new Vector2(-0.5f, -0.6f) * scale,
+                Color.Lerp(highlight, new Color(255, 247, 223), 0.45f),
                 alpha * 0.72f,
-                Math.Max(0.9f, 1.8f * scale)
+                Math.Max(0.7f, 1.2f * scale)
             );
         }
 
@@ -1278,8 +1276,8 @@ namespace ClassicUO.Game.UI
                 start,
                 end,
                 body,
-                alpha * 0.9f,
-                Math.Max(3f, 11f * scale)
+                alpha * 0.85f,
+                Math.Max(2.5f, 8f * scale)
             );
 
             batcher.SetBlendState(BlendState.Additive);
@@ -1291,19 +1289,19 @@ namespace ClassicUO.Game.UI
                 start,
                 end,
                 highlight,
-                alpha * 0.88f,
-                Math.Max(1.7f, 5.2f * scale)
+                alpha * 0.62f,
+                Math.Max(1.2f, 3.2f * scale)
             );
             DrawArc(
                 batcher,
-                center,
+                center + new Vector2(-0.5f, -0.6f) * scale,
                 radiusX,
                 radiusY,
                 start,
                 end,
-                Color.Lerp(highlight, Color.White, 0.72f),
+                Color.Lerp(highlight, new Color(255, 247, 223), 0.45f),
                 alpha * 0.7f,
-                Math.Max(0.9f, 1.8f * scale)
+                Math.Max(0.7f, 1.2f * scale)
             );
         }
 
@@ -1322,8 +1320,8 @@ namespace ClassicUO.Game.UI
                 center,
                 points,
                 body,
-                alpha * 0.9f,
-                Math.Max(3f, 11f * scale)
+                alpha * 0.85f,
+                Math.Max(2.5f, 8f * scale)
             );
 
             batcher.SetBlendState(BlendState.Additive);
@@ -1332,16 +1330,16 @@ namespace ClassicUO.Game.UI
                 center,
                 points,
                 highlight,
-                alpha * 0.88f,
-                Math.Max(1.7f, 5.2f * scale)
+                alpha * 0.62f,
+                Math.Max(1.2f, 3.2f * scale)
             );
             DrawPath(
                 batcher,
-                center,
+                center + new Vector2(-0.5f, -0.6f) * scale,
                 points,
-                Color.Lerp(highlight, Color.White, 0.72f),
+                Color.Lerp(highlight, new Color(255, 247, 223), 0.45f),
                 alpha * 0.7f,
-                Math.Max(0.9f, 1.8f * scale)
+                Math.Max(0.7f, 1.2f * scale)
             );
         }
 
@@ -1393,7 +1391,7 @@ namespace ClassicUO.Game.UI
             Color coreColor)
         {
             float burst = Math.Max(0f, 1f - progress / 0.36f) * fade;
-            for (int i = 0; i < EffectPresentation.Count(10); i++)
+            for (int i = 0; i < EffectPresentation.Count(6); i++)
             {
                 float angle = i * MathHelper.TwoPi / 10f + progress;
                 Vector2 d = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
@@ -1417,9 +1415,9 @@ namespace ClassicUO.Game.UI
             Color first,
             Color second)
         {
-            for (int i = 0; i < EffectPresentation.Count(14); i++)
+            for (int i = 0; i < EffectPresentation.Count(7); i++)
             {
-                float phase = progress * 10f + i * 1.83f;
+                float phase = progress * 5.5f + i * 1.83f;
                 float travel = (progress * 1.6f + i * 0.143f) % 1f;
                 Vector2 position = center + new Vector2(
                     (float)Math.Sin(phase) * (29f + travel * 22f) * scale,

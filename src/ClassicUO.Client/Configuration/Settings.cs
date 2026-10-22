@@ -57,6 +57,7 @@ namespace ClassicUO.Configuration
         public const string SETTINGS_FILENAME = "settings.json";
         public static Settings GlobalSettings = new Settings();
         public static string CustomSettingsFilepath = null;
+        [JsonIgnore] internal bool FastLoginSnapshot { get; set; }
 
 
         [JsonPropertyName("username")] public string Username { get; set; } = string.Empty;
@@ -90,6 +91,7 @@ namespace ClassicUO.Configuration
         [JsonPropertyName("saveaccount")] public bool SaveAccount { get; set; } = true;
 
         [JsonPropertyName("autologin")] public bool AutoLogin { get; set; }
+        [JsonPropertyName("fast_login_character")] public string FastLoginCharacter { get; set; } = string.Empty;
 
         [JsonPropertyName("reconnect")] public bool Reconnect { get; set; }
 
@@ -151,6 +153,8 @@ namespace ClassicUO.Configuration
 
         public void Save()
         {
+            // Fast-login snapshots are updated only by an explicit Save/Replace in their manager.
+            if (FastLoginSnapshot) return;
             // Make a copy of the settings object that we will use in the saving process
             var json = JsonSerializer.Serialize(this, typeof(Settings), SettingsJsonContext.Default);
             var settingsToSave = JsonSerializer.Deserialize(json, typeof(Settings), SettingsJsonContext.RealDefault) as Settings;

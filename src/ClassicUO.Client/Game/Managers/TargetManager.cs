@@ -67,6 +67,7 @@ namespace ClassicUO.Game.Managers
         AddLedgerVendor,
         ProtectItem,
         UnprotectItem,
+        PetEffectProbe,
     }
 
     public class CursorType
@@ -308,6 +309,11 @@ namespace ClassicUO.Game.Managers
 
         public static void CancelTarget()
         {
+            if (TargetingState == CursorTarget.PetEffectProbe)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                return;
+            }
             if (TargetingState == CursorTarget.AddLedgerVendor || TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
             {
                 ClearTargetingWithoutTargetCancelPacket();
@@ -365,6 +371,14 @@ namespace ClassicUO.Game.Managers
         {
             if (!IsTargeting)
             {
+                return;
+            }
+
+            if (TargetingState == CursorTarget.PetEffectProbe)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                Mouse.CancelDoubleClick = true;
+                PetEffectProbe.Target(World.InGame ? World.Get(serial) : null);
                 return;
             }
 
@@ -624,6 +638,12 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
+            if (TargetingState == CursorTarget.PetEffectProbe)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                PetEffectProbe.Target(null);
+                return;
+            }
             if (TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
             {
                 ClearTargetingWithoutTargetCancelPacket();
@@ -680,6 +700,8 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
+            if (TargetingState == CursorTarget.PetEffectProbe)
+            { Target(LastTargetInfo.Serial); return; }
             if (TargetingState == CursorTarget.AddLedgerVendor || TargetingState == CursorTarget.ProtectItem || TargetingState == CursorTarget.UnprotectItem)
             { Target(LastTargetInfo.Serial); return; }
 
@@ -700,6 +722,13 @@ namespace ClassicUO.Game.Managers
         {
             if (!IsTargeting)
             {
+                return;
+            }
+
+            if (TargetingState == CursorTarget.PetEffectProbe)
+            {
+                ClearTargetingWithoutTargetCancelPacket();
+                PetEffectProbe.Target(null);
                 return;
             }
 

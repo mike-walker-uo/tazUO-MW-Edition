@@ -15,7 +15,7 @@ namespace ClassicUO.Game.UI
     /// Displays a breaking shield above the player only when the server confirms
     /// that Onslaught was delivered. The separate "ready" message does not fire it.
     /// </summary>
-    public static class OnslaughtDeliveryEffect
+    public static partial class OnslaughtDeliveryEffect
     {
         internal const uint READY_CLILOC = 1156007;
         internal const uint DELIVERY_CLILOC = 1156008;
@@ -98,10 +98,8 @@ namespace ClassicUO.Game.UI
 
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.12f);
-            float fade = progress < 0.68f
-                ? 1f
-                : Math.Max(0f, (1f - progress) / 0.32f);
-            float pulse = 1f + 0.055f * (float)Math.Sin(progress * MathHelper.TwoPi * 3f);
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.38f);
+            float pulse = 1f + 0.02f * (float)Math.Sin(progress * MathHelper.TwoPi * 3f);
             float sizeScale = OverheadEffectSizeSettings.Scale;
             float scale =
                 (0.62f + 0.38f * EaseOut(appear)) * pulse * sizeScale;

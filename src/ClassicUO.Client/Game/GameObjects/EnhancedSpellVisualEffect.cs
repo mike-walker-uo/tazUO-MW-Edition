@@ -707,7 +707,7 @@ namespace ClassicUO.Game.GameObjects
         }
     }
 
-    internal sealed class DeathRayLinkEffect : GameEffect
+    internal sealed partial class DeathRayLinkEffect : GameEffect
     {
         private const int VisualDuration = 2800;
         private readonly uint _born;
@@ -1181,7 +1181,7 @@ namespace ClassicUO.Game.GameObjects
         }
     }
 
-    internal sealed class EnhancedSpellVisualEffect : GameEffect
+    internal sealed partial class EnhancedSpellVisualEffect : GameEffect
     {
         private readonly uint _born;
         private readonly int _visualDuration;
@@ -1191,11 +1191,9 @@ namespace ClassicUO.Game.GameObjects
 
         private static Texture2D _blueCloud;
         private static Texture2D _violetCloud;
-        private static Texture2D _cyanCloud;
         private static Texture2D _orangeCloud;
         private static Texture2D _redCloud;
         private static Texture2D _smokeCloud;
-        private static Texture2D _paleCloud;
         private static Texture2D _blackCloud;
         private static Texture2D _energyBlueCloud;
         private static Texture2D _energyVioletCloud;
@@ -1209,8 +1207,6 @@ namespace ClassicUO.Game.GameObjects
         private static Texture2D _netherBlueCloud;
         private static Texture2D _netherVioletCloud;
         private static Texture2D _eagleGoldCloud;
-        private static Texture2D _hailCloud;
-        private static Texture2D _iceCloud;
         private static Texture2D _deathSkull;
 
         internal EnhancedSpellVisualEffect(
@@ -2151,12 +2147,12 @@ namespace ClassicUO.Game.GameObjects
             );
             float strongestImpact = 0f;
 
-            for (int meteor = 0; meteor < 18; meteor++)
+            for (int meteor = 0; meteor < Math.Min(16, EffectPresentation.Count(12)); meteor++)
             {
                 uint h = Mix(_seed + (uint)(meteor * 1049));
                 float delay =
-                    (meteor % 6) * 0.035f
-                    + (meteor / 6) * 0.061f;
+                    (meteor % 4) * 0.045f
+                    + (meteor / 4) * 0.085f;
                 float local = progress - delay;
 
                 if (local < 0f)
@@ -2175,7 +2171,8 @@ namespace ClassicUO.Game.GameObjects
 
                 if (local < 0.31f)
                 {
-                    float descent = EaseOut(local / 0.31f);
+                    float flight = MathHelper.Clamp(local / 0.31f, 0, 1);
+                    float descent = flight * flight;
                     Vector2 sky =
                         impact
                         - fallDirection * (360f + scale * 88f)
@@ -2248,7 +2245,7 @@ namespace ClassicUO.Game.GameObjects
                 (34f + age * 54f) * scale,
                 (24f + age * 42f) * scale,
                 age * (variant % 2 == 0 ? 1.4f : -1.3f),
-                inverse * 0.58f * overallFade,
+                inverse * 0.28f * overallFade,
                 depth
             );
 
@@ -2260,7 +2257,7 @@ namespace ClassicUO.Game.GameObjects
                 (42f + radius) * scale,
                 (28f + radius * 0.55f) * scale,
                 age * 2.1f + variant,
-                flash * 0.72f,
+                flash * 0.50f,
                 depth
             );
             DrawCloud(
@@ -2577,406 +2574,84 @@ namespace ClassicUO.Game.GameObjects
             );
         }
 
-        private void DrawHailStorm(
-            UltimaBatcher2D batcher,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawHailStorm(UltimaBatcher2D batcher, Vector2 ground,
+            float progress, float fade, float depth)
         {
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.3f) * fade;
             batcher.SetBlendState(BlendState.AlphaBlend);
-            DrawCloud(
-                batcher,
-                GetCloud(ref _hailCloud, new Color(42, 58, 84)),
-                ground + new Vector2(-31f, -174f),
-                330f,
-                92f,
-                progress * 0.28f,
-                fade * 0.58f,
-                depth
-            );
-            DrawCloud(
-                batcher,
-                GetCloud(ref _iceCloud, new Color(182, 226, 245)),
-                ground + new Vector2(0f, -6f),
-                286f,
-                82f,
-                -progress * 0.17f,
-                fade * 0.2f,
-                depth
-            );
-
+            SpellVisualPrimitives.Mist(batcher, ground + new Vector2(-20, -130), new Color(110, 143, 170),
+                envelope * 0.12f, 220f, 65f, -0.08f, depth);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int hail = 0; hail < 32; hail++)
+            for (int hail = 0; hail < Math.Min(28, EffectPresentation.Count(20)); hail++)
             {
                 uint h = Mix(_seed + (uint)(hail * 719));
-                float offset = (h & 1023u) / 1023f;
-                float cycle = (progress * 3.15f + offset) % 1f;
-                Vector2 impact =
-                    ground
-                    + new Vector2(
-                        (((h >> 10) & 255u) / 255f - 0.5f) * 286f,
-                        (((h >> 18) & 255u) / 255f - 0.5f) * 142f
-                    );
-                Vector2 head =
-                    impact
-                    + new Vector2(-38f, -198f) * (1f - cycle);
-                float hailScale =
-                    0.62f + ((h >> 26) & 31u) / 31f * 0.62f;
-                Vector2 tail = head + new Vector2(-8f, -31f * hailScale);
-
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    head,
-                    tail,
-                    new Color(67, 157, 225),
-                    fade * 0.58f,
-                    5.2f * hailScale,
-                    depth
-                );
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    head,
-                    tail,
-                    new Color(225, 248, 255),
-                    fade * 0.94f,
-                    1.2f * hailScale,
-                    depth
-                );
-                CombatVisualEffect.DrawPoint(
-                    batcher,
-                    head,
-                    Color.White,
-                    fade,
-                    2.2f * hailScale,
-                    depth
-                );
-
-                if (cycle > 0.84f)
+                float cycle = (progress * (2.2f + hail % 3 * 0.17f) + (h & 1023u) / 1023f) % 1f;
+                Vector2 impact = ground + new Vector2((((h >> 10) & 255u) / 255f - 0.5f) * 250f,
+                    (((h >> 18) & 255u) / 255f - 0.5f) * 120f);
+                float scale = 0.6f + ((h >> 26) & 31u) / 31f * 0.5f;
+                if (cycle < 0.82f)
                 {
-                    float splash = (cycle - 0.84f) / 0.16f;
-                    float splashFade = (1f - splash) * fade;
-
-                    if (hail % 3 == 0)
+                    float fall = cycle / 0.82f;
+                    Vector2 head = impact + new Vector2((1f - fall) * 23f, -(1f - fall * fall) * 180f);
+                    SpellVisualPrimitives.Stroke(batcher, head + new Vector2(3, -14f * scale), head,
+                        new Color(140, 195, 225), envelope * 0.35f, 1.4f * scale, depth);
+                    SpellVisualPrimitives.Fragment(batcher, head, new Color(211, 237, 250), envelope * 0.85f,
+                        7f * scale, 1.35f, depth);
+                }
+                else
+                {
+                    float t = (cycle - 0.82f) / 0.18f;
+                    for (int chip = -1; chip <= 1; chip++)
                     {
-                        DrawBrokenRing(
-                            batcher,
-                            impact,
-                            4f + splash * 15f,
-                            2f + splash * 6f,
-                            hail,
-                            new Color(180, 231, 255),
-                            splashFade * 0.68f,
-                            1.5f,
-                            depth
-                        );
-                    }
-
-                    for (int shard = -1; shard <= 1; shard++)
-                    {
-                        Vector2 shardEnd =
-                            impact
-                            + new Vector2(
-                                shard * (5f + splash * 10f),
-                                -3f - splash * (8f + Math.Abs(shard) * 4f)
-                            );
-                        CombatVisualEffect.DrawLine(
-                            batcher,
-                            impact,
-                            shardEnd,
-                            new Color(211, 244, 255),
-                            splashFade * 0.78f,
-                            1.1f,
-                            depth
-                        );
+                        Vector2 point = impact + new Vector2(chip * t * 14f,
+                            -(float)Math.Sin(t * MathHelper.Pi) * (5f + Math.Abs(chip) * 5f));
+                        SpellVisualPrimitives.Fragment(batcher, point, new Color(190, 222, 238),
+                            envelope * (1f - t) * 0.65f, 3f * scale, chip + t * 2f, depth);
                     }
                 }
             }
-
-            for (int patch = 0; patch < 8; patch++)
-            {
-                uint h = Mix(_seed + (uint)(patch * 1237 + 91));
-                Vector2 point =
-                    ground
-                    + new Vector2(
-                        ((h & 255u) / 255f - 0.5f) * 248f,
-                        (((h >> 8) & 255u) / 255f - 0.5f) * 116f
-                    );
-                DrawCloud(
-                    batcher,
-                    GetCloud(ref _iceCloud, new Color(182, 226, 245)),
-                    point,
-                    25f + patch % 3 * 8f,
-                    10f + patch % 2 * 5f,
-                    patch,
-                    fade * Math.Min(0.34f, progress * 0.62f),
-                    depth
-                );
-            }
-
-            CombatVisualEffect.RecordLight(
-                ground,
-                new Color(105, 181, 232),
-                285f,
-                fade * 0.46f
-            );
         }
 
-        private void DrawThunderstorm(
-            UltimaBatcher2D batcher,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawThunderstorm(UltimaBatcher2D batcher, Vector2 ground,
+            float progress, float fade, float depth)
         {
-            float phase = Time.Ticks * 0.008f;
-            Texture2D smoke = GetCloud(ref _smokeCloud, new Color(32, 42, 70));
-            Texture2D violet = GetCloud(ref _violetCloud, new Color(94, 54, 218));
-            Texture2D blue = GetCloud(ref _blueCloud, new Color(39, 81, 192));
-
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.35f) * fade;
             batcher.SetBlendState(BlendState.AlphaBlend);
-
-            for (int i = 0; i < EffectPresentation.Count(14); i++)
+            for (int i = 0; i < Math.Min(7, EffectPresentation.Count(5)); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 313));
-                float x = ((h & 1023u) / 1023f - 0.5f) * 530f;
-                float y = (((h >> 10) & 1023u) / 1023f - 0.5f) * 260f;
-                Vector2 cloud =
-                    ground + new Vector2(x, y - 126f);
-                DrawCloud(
-                    batcher,
-                    smoke,
-                    cloud,
-                    126f + (h & 31u),
-                    54f + ((h >> 15) & 15u),
-                    phase * 0.018f + i,
-                    fade * 0.42f,
-                    depth
-                );
-                DrawCloud(
-                    batcher,
-                    i % 2 == 0 ? violet : blue,
-                    cloud,
-                    84f + ((h >> 20) & 15u),
-                    38f,
-                    -phase * 0.024f - i,
-                    fade * 0.22f,
-                    depth
-                );
+                Vector2 cloud = ground + new Vector2(((h & 255u) / 255f - 0.5f) * 340f,
+                    -100f + (((h >> 8) & 255u) / 255f - 0.5f) * 80f);
+                SpellVisualPrimitives.Mist(batcher, cloud, new Color(62, 77, 114), envelope * 0.2f,
+                    110f, 52f, i + progress * 0.12f, depth);
             }
-
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int bolt = 0; bolt < 42; bolt++)
+            float strongest = 0;
+            for (int bolt = 0; bolt < Math.Min(18, EffectPresentation.Count(12)); bolt++)
             {
                 uint h = Mix(_seed ^ (uint)(bolt * 977));
-                float angle =
-                    ((h & 2047u) / 2047f) * MathHelper.TwoPi;
-                float radial =
-                    (float)Math.Sqrt(((h >> 11) & 1023u) / 1023f);
-                Vector2 impact =
-                    ground
-                    + new Vector2(
-                        (float)Math.Cos(angle) * 264f * radial,
-                        (float)Math.Sin(angle) * 132f * radial
-                    );
-                float strikeTime =
-                    progress * (5.4f + (bolt % 4) * 0.23f)
-                    + ((h >> 21) & 255u) / 255f;
-                float local = strikeTime - (float)Math.Floor(strikeTime);
-
-                if (local > 0.36f)
-                {
-                    continue;
-                }
-
-                float strikeEnvelope =
-                    (float)Math.Sin(
-                        local / 0.36f * MathHelper.Pi
-                    );
-                float flash = strikeEnvelope * fade;
-                float snap =
-                    (
-                        local < 0.11f
-                            ? 1f
-                            : Math.Max(0.42f, strikeEnvelope)
-                    )
-                    * fade;
-                float height = 52f + ((h >> 16) & 47u);
-                Vector2 previous = impact - new Vector2(0f, height);
-                Vector2 forkOrigin = previous;
-
+                float local = (progress * 3.7f + (h & 255u) / 255f) % 1f;
+                if (local >= 0.22f) continue;
+                float flash = SpellVisualPrimitives.Envelope(local / 0.22f, 0.08f, 0.75f) * envelope;
+                Vector2 impact = ground + new Vector2((((h >> 8) & 255u) / 255f - 0.5f) * 400f,
+                    (((h >> 16) & 255u) / 255f - 0.5f) * 190f);
+                Vector2 previous = impact - new Vector2(0, 78f + ((h >> 24) & 31u));
+                Vector2 origin = previous;
                 for (int segment = 1; segment <= 6; segment++)
                 {
-                    float t = segment / 6f;
-                    Vector2 current =
-                        Vector2.Lerp(
-                            impact - new Vector2(0f, height),
-                            impact,
-                            t
-                        );
-
-                    if (segment < 6)
-                    {
-                        current.X +=
-                            (float)Math.Sin(
-                                bolt * 2.31f
-                                + segment * 4.17f
-                                + phase * 0.7f
-                            )
-                            * (7f + ((h >> segment) & 7u));
-                    }
-
-                    CombatVisualEffect.DrawLine(
-                        batcher,
-                        previous,
-                        current,
-                        new Color(103, 55, 235),
-                        flash * 0.62f,
-                        8f,
-                        depth
-                    );
-                    CombatVisualEffect.DrawLine(
-                        batcher,
-                        previous,
-                        current,
-                        new Color(122, 224, 255),
-                        flash * 0.9f,
-                        3.2f,
-                        depth
-                    );
-                    CombatVisualEffect.DrawLine(
-                        batcher,
-                        previous,
-                        current,
-                        Color.White,
-                        snap,
-                        1.25f,
-                        depth
-                    );
-
+                    Vector2 point = Vector2.Lerp(origin, impact, segment / 6f);
+                    if (segment < 6) point.X += (float)Math.Sin(bolt * 2.31f + segment * 4.17f) * 9f;
+                    SpellVisualPrimitives.Stroke(batcher, previous, point, new Color(100, 115, 225), flash * 0.4f, 4.3f, depth);
+                    SpellVisualPrimitives.Stroke(batcher, previous, point, new Color(214, 238, 255), flash * 0.9f, 0.9f, depth);
                     if (segment == 3)
-                    {
-                        forkOrigin = current;
-                    }
-
-                    previous = current;
+                        SpellVisualPrimitives.Stroke(batcher, point, point + new Vector2((bolt % 2 == 0 ? 1 : -1) * 13f, 16),
+                            new Color(140, 190, 240), flash * 0.5f, 0.7f, depth);
+                    previous = point;
                 }
-
-                float forkSide = (h & 1u) == 0 ? -1f : 1f;
-                Vector2 forkJoint =
-                    forkOrigin
-                    + new Vector2(
-                        forkSide * (11f + ((h >> 9) & 15u)),
-                        12f + ((h >> 13) & 7u)
-                    );
-                Vector2 forkEnd =
-                    forkJoint
-                    + new Vector2(
-                        forkSide * (8f + ((h >> 6) & 11u)),
-                        11f + ((h >> 18) & 7u)
-                    );
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    forkOrigin,
-                    forkJoint,
-                    new Color(116, 185, 255),
-                    flash * 0.65f,
-                    1.7f,
-                    depth
-                );
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    forkJoint,
-                    forkEnd,
-                    Color.White,
-                    flash * 0.72f,
-                    0.8f,
-                    depth
-                );
-
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    impact - new Vector2(12f, 0f),
-                    impact + new Vector2(12f, 0f),
-                    new Color(151, 222, 255),
-                    flash * 0.82f,
-                    2.4f,
-                    depth
-                );
-                DrawBrokenRing(
-                    batcher,
-                    impact,
-                    5f + local * 54f,
-                    2f + local * 20f,
-                    angle,
-                    new Color(102, 151, 255),
-                    flash * 0.58f,
-                    1.8f,
-                    depth
-                );
-                CombatVisualEffect.RecordLight(
-                    impact,
-                    new Color(92, 126, 255),
-                    132f,
-                    flash * 0.82f
-                );
+                SpellVisualPrimitives.Mote(batcher, impact, new Color(190, 222, 255), flash * 0.45f, 5f, depth);
+                strongest = Math.Max(strongest, flash);
             }
-
-            for (int spark = 0; spark < EffectPresentation.Count(48); spark++)
-            {
-                uint h = Mix(_seed + (uint)(spark * 1597 + 71));
-                float angle =
-                    ((h & 2047u) / 2047f) * MathHelper.TwoPi;
-                float radial =
-                    (float)Math.Sqrt(
-                        ((h >> 11) & 1023u) / 1023f
-                    );
-                float flicker =
-                    0.35f
-                    + 0.65f
-                        * Math.Abs(
-                            (float)Math.Sin(
-                                phase * (0.7f + spark % 5 * 0.08f)
-                                + spark
-                            )
-                        );
-                Vector2 sparkPosition =
-                    ground
-                    + new Vector2(
-                        (float)Math.Cos(angle) * 258f * radial,
-                        (float)Math.Sin(angle) * 128f * radial
-                    );
-                CombatVisualEffect.DrawPoint(
-                    batcher,
-                    sparkPosition,
-                    spark % 5 == 0
-                        ? Color.White
-                        : new Color(100, 165, 255),
-                    fade * flicker * 0.68f,
-                    1.4f + spark % 3,
-                    depth
-                );
-            }
-
-            DrawBrokenRing(
-                batcher,
-                ground,
-                264f,
-                132f,
-                phase * 0.02f,
-                new Color(82, 132, 255),
-                fade * 0.24f,
-                2f,
-                depth
-            );
-            CombatVisualEffect.RecordLight(
-                ground,
-                new Color(61, 84, 185),
-                335f,
-                fade * 0.22f
-            );
+            if (strongest > 0) CombatVisualEffect.RecordLight(ground, new Color(110, 160, 225), 230f, strongest * 0.35f);
         }
 
         private void DrawWildfire(
@@ -3156,303 +2831,101 @@ namespace ClassicUO.Game.GameObjects
             );
         }
 
-        private void DrawNetherCyclone(
-            UltimaBatcher2D batcher,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawNetherCyclone(UltimaBatcher2D batcher, Vector2 ground,
+            float progress, float fade, float depth)
         {
-            float grow = Math.Min(1f, progress * 4f);
-            float rotation = Time.Ticks * 0.0045f;
-            Texture2D blue = GetCloud(ref _blueCloud, new Color(28, 78, 230));
-            Texture2D violet = GetCloud(ref _violetCloud, new Color(105, 42, 214));
-            Texture2D cyan = GetCloud(ref _cyanCloud, new Color(44, 198, 255));
-
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.18f, 0.4f) * fade;
+            float phase = progress * MathHelper.TwoPi * 1.6f;
             batcher.SetBlendState(BlendState.AlphaBlend);
-
-            for (int level = 0; level < 12; level++)
+            for (int level = 0; level < 5; level++)
             {
-                float t = level / 11f;
-                float y = ground.Y - 8f - t * 190f * grow;
-                float radius = 18f + t * 72f;
-                float angle = rotation * (1.6f - t * 0.35f) + level * 1.37f;
-                Vector2 c = new Vector2(
-                    ground.X + (float)Math.Cos(angle) * radius * 0.34f,
-                    y
-                );
-                DrawCloud(
-                    batcher,
-                    level % 3 == 0 ? violet : blue,
-                    c,
-                    radius * 1.7f,
-                    24f + radius * 0.34f,
-                    angle,
-                    fade * (0.42f + t * 0.22f),
-                    depth
-                );
-                DrawCloud(
-                    batcher,
-                    cyan,
-                    c,
-                    radius * 0.72f,
-                    13f + radius * 0.12f,
-                    -angle,
-                    fade * 0.42f,
-                    depth
-                );
+                float t = level / 4f;
+                Vector2 center = ground + new Vector2((float)Math.Sin(phase + t * 3f) * 13f, -t * 145f);
+                SpellVisualPrimitives.Mist(batcher, center, level % 2 == 0 ? new Color(70, 75, 155) : new Color(105, 66, 160),
+                    envelope * 0.22f, 40f + t * 65f, 26f + t * 8f, phase * 0.15f + level, depth);
             }
-
-            for (int ring = 0; ring < 4; ring++)
-            {
-                float r = 34f + ring * 22f + (rotation * 22f % 18f);
-                DrawBrokenRing(
-                    batcher,
-                    ground - new Vector2(0f, ring * 3f),
-                    r,
-                    r * 0.38f,
-                    rotation + ring,
-                    ring % 2 == 0 ? new Color(63, 122, 255) : new Color(155, 74, 255),
-                    fade * (0.58f - ring * 0.08f),
-                    5f,
-                    depth
-                );
-            }
-
-            CombatVisualEffect.RecordLight(ground - new Vector2(0f, 76f), new Color(72, 92, 255), 270f, fade * 0.82f);
-        }
-
-        private void DrawBombard(
-            UltimaBatcher2D batcher,
-            Vector2 body,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
-        {
-            float radius = 18f + EaseOut(progress) * 92f;
-            Texture2D smoke = GetCloud(ref _smokeCloud, new Color(61, 54, 52));
-            Texture2D orange = GetCloud(ref _orangeCloud, new Color(222, 120, 35));
-
-            batcher.SetBlendState(BlendState.AlphaBlend);
-
-            for (int i = 0; i < EffectPresentation.Count(10); i++)
-            {
-                uint h = Mix(_seed + (uint)(i * 107));
-                float angle = ((h & 1023u) / 1023f) * MathHelper.TwoPi;
-                Vector2 c = Ellipse(ground, radius * (0.35f + ((h >> 10) & 31u) / 60f), radius * 0.26f, angle);
-                DrawCloud(
-                    batcher,
-                    smoke,
-                    c - new Vector2(0f, progress * (18f + ((h >> 15) & 31u))),
-                    30f + (h & 15u),
-                    22f + ((h >> 20) & 15u),
-                    angle,
-                    fade * 0.46f,
-                    depth
-                );
-            }
-
-            DrawCloud(batcher, orange, ground, 76f + radius, 34f + radius * 0.34f, progress, fade * 0.3f, depth);
-            DrawBrokenRing(batcher, ground, radius, radius * 0.38f, progress, new Color(255, 174, 66), fade * 0.8f, 7f, depth);
-            DrawBrokenRing(batcher, ground, radius * 0.76f, radius * 0.28f, -progress, new Color(80, 66, 62), fade * 0.72f, 4f, depth);
-
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(14); i++)
+            for (int strand = 0; strand < 3; strand++)
             {
-                uint h = Mix(_seed ^ (uint)(i * 251));
-                float angle = ((h & 1023u) / 1023f) * MathHelper.TwoPi;
-                Vector2 end = Ellipse(ground, radius, radius * 0.42f, angle) - new Vector2(0f, (float)Math.Sin(progress * Math.PI) * (30f + (h & 31u)));
-                CombatVisualEffect.DrawLine(batcher, ground, end, new Color(133, 108, 82), fade * 0.72f, 2f + (h & 3u), depth);
-            }
-
-            CombatVisualEffect.RecordLight(ground, new Color(255, 148, 48), 175f, fade * 0.64f);
-        }
-
-        private void DrawExplosion(
-            UltimaBatcher2D batcher,
-            Vector2 body,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
-        {
-            float expansion = EaseOut(Math.Min(1f, progress * 2.35f));
-            float ignition = Math.Min(1f, progress / 0.08f);
-            float flash =
-                progress < 0.38f
-                    ? (float)Math.Sin(progress / 0.38f * MathHelper.Pi)
-                    : 0f;
-            float smokePhase = Math.Max(0f, (progress - 0.16f) / 0.84f);
-            Texture2D red = GetCloud(ref _redCloud, new Color(225, 31, 4));
-            Texture2D orange = GetCloud(ref _orangeCloud, new Color(255, 116, 7));
-            Texture2D pale = GetCloud(ref _paleCloud, new Color(255, 232, 154));
-            Texture2D smoke = GetCloud(ref _smokeCloud, new Color(52, 39, 38));
-            Vector2 center = body + new Vector2(0f, 5f);
-
-            batcher.SetBlendState(BlendState.AlphaBlend);
-            DrawCloud(
-                batcher,
-                red,
-                center,
-                44f + expansion * 120f,
-                38f + expansion * 104f,
-                progress * 0.7f,
-                fade * (0.54f + flash * 0.25f),
-                depth
-            );
-            DrawCloud(
-                batcher,
-                orange,
-                center - new Vector2(0f, 4f),
-                30f + expansion * 82f,
-                28f + expansion * 74f,
-                -progress,
-                fade * (0.68f + flash * 0.24f),
-                depth
-            );
-
-            for (int i = 0; i < EffectPresentation.Count(12); i++)
-            {
-                uint h = Mix(_seed + (uint)(i * 269));
-                float angle =
-                    ((h & 2047u) / 2047f) * MathHelper.TwoPi;
-                float distance =
-                    expansion * (24f + ((h >> 11) & 63u));
-                Vector2 lobe =
-                    center
-                    + new Vector2(
-                        (float)Math.Cos(angle) * distance,
-                        (float)Math.Sin(angle) * distance * 0.72f
-                    )
-                    - new Vector2(0f, smokePhase * (18f + ((h >> 18) & 31u)));
-                float size = 25f + ((h >> 23) & 23u);
-
-                DrawCloud(
-                    batcher,
-                    smokePhase > 0.34f && i % 3 == 0 ? smoke : red,
-                    lobe,
-                    size + expansion * 24f,
-                    size * 0.82f + expansion * 19f,
-                    angle + progress,
-                    fade * (i % 3 == 0 ? 0.48f : 0.66f),
-                    depth
-                );
-                DrawCloud(
-                    batcher,
-                    orange,
-                    Vector2.Lerp(center, lobe, 0.82f),
-                    size * 0.58f,
-                    size * 0.46f,
-                    -angle,
-                    fade * 0.72f,
-                    depth
-                );
-            }
-
-            if (smokePhase > 0f)
-            {
-                for (int i = 0; i < EffectPresentation.Count(5); i++)
+                Vector2 previous = ground;
+                for (int step = 0; step <= 22; step++)
                 {
-                    uint h = Mix(_seed ^ (uint)(i * 619));
-                    float drift =
-                        (((h >> 7) & 31u) - 15f) * smokePhase;
-                    Vector2 cloud =
-                        center
-                        + new Vector2(
-                            drift,
-                            -28f - smokePhase * (42f + (h & 31u))
-                        );
-                    DrawCloud(
-                        batcher,
-                        smoke,
-                        cloud,
-                        54f + smokePhase * 48f,
-                        42f + smokePhase * 38f,
-                        progress + i,
-                        fade * smokePhase * 0.5f,
-                        depth
-                    );
+                    float t = step / 22f;
+                    float angle = phase + strand * MathHelper.TwoPi / 3f + t * MathHelper.TwoPi * 1.6f;
+                    float radius = 14f + t * 36f;
+                    Vector2 point = ground + new Vector2((float)Math.Cos(angle) * radius, -t * 150f + (float)Math.Sin(angle) * 8f);
+                    if (step > 0)
+                    {
+                        float alpha = envelope * (0.25f + 0.22f * ((float)Math.Sin(angle) * 0.5f + 0.5f));
+                        SpellVisualPrimitives.Stroke(batcher, previous, point, new Color(125, 100, 210), alpha, 3f * (1f - t * 0.5f), depth);
+                        SpellVisualPrimitives.Stroke(batcher, previous, point, new Color(155, 210, 240), alpha * 0.7f, 0.7f, depth);
+                    }
+                    previous = point;
                 }
             }
+            CombatVisualEffect.RecordLight(ground - new Vector2(0, 60), new Color(95, 100, 205), 170f, envelope * 0.35f);
+        }
 
+        private void DrawBombard(UltimaBatcher2D batcher, Vector2 body, Vector2 ground,
+            float progress, float fade, float depth)
+        {
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.05f, 0.7f);
+            float travel = EaseOut(progress);
+            batcher.SetBlendState(BlendState.AlphaBlend);
+            for (int i = 0; i < Math.Min(10, EffectPresentation.Count(7)); i++)
+            {
+                uint h = Mix(_seed + (uint)(i * 107));
+                float side = i % 2 == 0 ? -1 : 1;
+                float distance = travel * (20f + (h & 63u));
+                Vector2 dust = ground + new Vector2(side * distance, -progress * 15f + (i % 3 - 1) * 8f);
+                SpellVisualPrimitives.Mist(batcher, dust, new Color(115, 103, 83), envelope * 0.19f,
+                    24f + progress * 26f, 14f + progress * 15f, side * progress * 0.4f, depth);
+                Vector2 chip = ground + new Vector2(side * distance * 0.8f,
+                    -4f - (float)Math.Sin(progress * MathHelper.Pi) * (12f + ((h >> 8) & 31u)) + progress * progress * 16f);
+                SpellVisualPrimitives.Fragment(batcher, chip, i % 3 == 0 ? new Color(190, 171, 133) : new Color(117, 108, 92),
+                    envelope * 0.9f, (5f + ((h >> 16) & 7u)) * (1f - progress * 0.3f), i + side * progress * 2f, depth);
+            }
             batcher.SetBlendState(BlendState.Additive);
-            DrawCloud(
-                batcher,
-                pale,
-                center,
-                20f + expansion * 60f,
-                18f + expansion * 50f,
-                0f,
-                ignition * fade * (0.72f + flash * 0.28f),
-                depth
-            );
+            SpellVisualPrimitives.Mote(batcher, body, new Color(255, 217, 165),
+                Math.Max(0, 1f - progress / 0.25f) * envelope * 0.7f, 15f, depth);
+            CombatVisualEffect.RecordLight(ground, new Color(215, 170, 100), 115f, envelope * 0.3f);
+        }
 
-            float pressure = EaseOut(Math.Min(1f, progress * 1.7f));
-            DrawBrokenRing(
-                batcher,
-                ground,
-                22f + pressure * 126f,
-                9f + pressure * 46f,
-                progress * 1.2f,
-                new Color(255, 111, 18),
-                fade * 0.76f,
-                8f,
-                depth
-            );
-            DrawBrokenRing(
-                batcher,
-                ground,
-                13f + pressure * 94f,
-                6f + pressure * 34f,
-                -progress * 1.8f,
-                new Color(255, 227, 130),
-                fade * 0.7f,
-                2.5f,
-                depth
-            );
-
-            for (int i = 0; i < EffectPresentation.Count(18); i++)
+        private void DrawExplosion(UltimaBatcher2D batcher, Vector2 body, Vector2 ground,
+            float progress, float fade, float depth)
+        {
+            float expansion = EaseOut(Math.Min(1f, progress * 2.7f));
+            float burst = SpellVisualPrimitives.Envelope(Math.Min(1f, progress / 0.62f), 0.08f, 0.8f);
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.05f, 0.6f);
+            Texture2D ember = GetCloud(ref _redCloud, new Color(190, 52, 18));
+            Texture2D fire = GetCloud(ref _orangeCloud, new Color(250, 144, 43));
+            Texture2D smoke = GetCloud(ref _smokeCloud, new Color(65, 58, 54));
+            batcher.SetBlendState(BlendState.AlphaBlend);
+            for (int i = 0; i < Math.Min(12, EffectPresentation.Count(8)); i++)
+            {
+                uint h = Mix(_seed + (uint)(i * 269));
+                float angle = i * 2.399f;
+                float distance = expansion * (22f + ((h >> 8) & 31u));
+                Vector2 lobe = body + new Vector2((float)Math.Cos(angle) * distance,
+                    (float)Math.Sin(angle) * distance * 0.65f - progress * (12f + ((h >> 16) & 15u)));
+                float size = 22f + (h & 15u);
+                DrawCloud(batcher, ember, lobe, size * (1f + expansion * 0.6f), size, angle + progress * 0.3f, burst * 0.55f, depth);
+                DrawCloud(batcher, fire, Vector2.Lerp(body, lobe, 0.7f), size * 0.6f, size * 0.48f, -angle, burst * 0.6f, depth);
+                if (progress > 0.18f)
+                    DrawCloud(batcher, smoke, lobe - new Vector2(0, progress * 22f), size + progress * 20f,
+                        size * 0.8f, angle, envelope * progress * 0.22f, depth);
+            }
+            batcher.SetBlendState(BlendState.Additive);
+            SpellVisualPrimitives.Mote(batcher, body, new Color(255, 230, 165), burst * 0.8f, 12f + expansion * 16f, depth);
+            for (int i = 0; i < Math.Min(16, EffectPresentation.Count(10)); i++)
             {
                 uint h = Mix(_seed ^ (uint)(i * 431));
-                float angle =
-                    ((h & 2047u) / 2047f) * MathHelper.TwoPi;
-                float distance =
-                    expansion * (52f + ((h >> 11) & 79u));
-                Vector2 end =
-                    center
-                    + new Vector2(
-                        (float)Math.Cos(angle) * distance,
-                        (float)Math.Sin(angle) * distance * 0.62f
-                    )
-                    - new Vector2(
-                        0f,
-                        (float)Math.Sin(progress * MathHelper.Pi)
-                            * (20f + ((h >> 18) & 31u))
-                    );
-                Color color =
-                    i % 4 == 0
-                        ? new Color(255, 245, 184)
-                        : new Color(255, 121, 20);
-
-                CombatVisualEffect.DrawLine(
-                    batcher,
-                    Vector2.Lerp(center, end, 0.68f),
-                    end,
-                    color,
-                    fade * (i % 4 == 0 ? 0.94f : 0.66f),
-                    i % 4 == 0 ? 1.3f : 2.4f,
-                    depth
-                );
+                Vector2 d = new Vector2((float)Math.Cos(i * 2.399f), (float)Math.Sin(i * 2.399f) * 0.6f);
+                Vector2 tip = body + d * expansion * (35f + (h & 63u)) - new Vector2(0, (float)Math.Sin(progress * MathHelper.Pi) * 18f);
+                SpellVisualPrimitives.Stroke(batcher, tip - d * (7f + (h & 7u)), tip,
+                    i % 3 == 0 ? new Color(255, 225, 155) : new Color(230, 136, 55), envelope * 0.65f, 1.1f, depth);
             }
-
-            CombatVisualEffect.RecordLight(
-                center,
-                new Color(255, 105, 18),
-                170f + flash * 150f,
-                fade * (0.64f + flash * 0.36f)
-            );
+            CombatVisualEffect.RecordLight(body, new Color(245, 150, 65), 190f, burst * 0.6f);
         }
 
         private void DrawWordOfDeath(
@@ -3462,9 +2935,10 @@ namespace ClassicUO.Game.GameObjects
             float fade,
             float depth)
         {
-            float reveal = EaseOut(Math.Min(1f, progress * 5.2f));
+            float reveal = MathHelper.SmoothStep(0, 1, MathHelper.Clamp(progress / 0.18f, 0, 1));
+            fade *= SpellVisualPrimitives.Envelope(progress, 0.14f, 0.38f);
             float pulse =
-                0.96f + 0.06f * (float)Math.Sin(Time.Ticks * 0.022f);
+                0.98f + 0.02f * (float)Math.Sin(Time.Ticks * 0.022f);
             float heartbeat =
                 0.72f
                 + 0.28f
@@ -3473,13 +2947,13 @@ namespace ClassicUO.Game.GameObjects
                         5
                     );
             Vector2 skullCenter =
-                ground - new Vector2(0f, 142f + 18f * reveal);
+                ground - new Vector2(0f, 110f + 8f * reveal);
             Texture2D red = GetCloud(ref _redCloud, new Color(205, 12, 22));
             Texture2D violet = GetCloud(ref _violetCloud, new Color(104, 31, 172));
             Texture2D black = GetCloud(ref _blackCloud, new Color(12, 2, 18));
             Texture2D skull = GetDeathSkull();
             float iconScale =
-                reveal * pulse * (0.68f + 0.045f * heartbeat);
+                reveal * pulse * (0.48f + 0.015f * heartbeat);
             Vector2 skullOrigin = new Vector2(
                 skull.Width * 0.5f,
                 skull.Height * 0.5f
@@ -3490,20 +2964,20 @@ namespace ClassicUO.Game.GameObjects
                 batcher,
                 black,
                 skullCenter,
-                205f * pulse,
-                176f * pulse,
+                145f * pulse,
+                125f * pulse,
                 0f,
-                fade * 0.82f,
+                fade * 0.32f,
                 depth
             );
             DrawCloud(
                 batcher,
                 violet,
                 skullCenter,
-                172f * pulse,
-                150f * pulse,
+                115f * pulse,
+                100f * pulse,
                 progress * 0.35f,
-                fade * 0.56f,
+                fade * 0.24f,
                 depth
             );
             batcher.Draw(
@@ -3541,11 +3015,11 @@ namespace ClassicUO.Game.GameObjects
                 54f * heartbeat,
                 46f * heartbeat,
                 0f,
-                fade * 0.48f,
+                fade * 0.42f,
                 depth
             );
 
-            for (int i = 0; i < EffectPresentation.Count(14); i++)
+            for (int i = 0; i < EffectPresentation.Count(7); i++)
             {
                 uint h = Mix(_seed + (uint)(i * 283));
                 float angle =
@@ -3554,8 +3028,8 @@ namespace ClassicUO.Game.GameObjects
                 Vector2 mote =
                     Ellipse(
                         skullCenter,
-                        92f + (h & 31u),
-                        76f + ((h >> 8) & 31u),
+                        65f + (h & 15u),
+                        50f + ((h >> 8) & 15u),
                         angle
                     );
                 CombatVisualEffect.DrawPoint(
@@ -3564,7 +3038,7 @@ namespace ClassicUO.Game.GameObjects
                     i % 3 == 0
                         ? new Color(255, 151, 185)
                         : new Color(130, 43, 209),
-                    fade * 0.8f,
+                    fade * 0.45f,
                     2f + ((h >> 16) & 3u),
                     depth
                 );
@@ -3577,15 +3051,15 @@ namespace ClassicUO.Game.GameObjects
                 18f + progress * 43f,
                 progress * 2.4f,
                 new Color(178, 20, 67),
-                fade * 0.72f,
-                8f,
+                fade * 0.22f,
+                2f,
                 depth
             );
             CombatVisualEffect.RecordLight(
                 skullCenter,
                 new Color(176, 24, 80),
-                275f,
-                fade * heartbeat
+                190f,
+                fade * heartbeat * 0.5f
             );
         }
 
@@ -3758,7 +3232,7 @@ namespace ClassicUO.Game.GameObjects
                 return texture;
             }
 
-            const int size = 64;
+            const int size = 96;
             Color[] pixels = new Color[size * size];
             float half = size * 0.5f;
 
@@ -3776,7 +3250,8 @@ namespace ClassicUO.Game.GameObjects
                     }
 
                     float angle = (float)Math.Atan2(dy, dx);
-                    float lobe = 0.78f + 0.22f * (float)Math.Sin(angle * 7f + radius * 15f);
+                    float lobe = 0.82f + 0.10f * (float)Math.Sin(angle * 3f + radius * 7f)
+                        + 0.08f * (float)Math.Sin(dx * 9f + dy * 6f);
                     float coverage = Math.Min(1f, (1f - radius) * (1f - radius) * 2f * lobe);
                     pixels[y * size + x] = new Color(
                         (byte)(color.R * coverage),

@@ -84,6 +84,11 @@ namespace ClassicUO.Game.Managers
 
         public static void Save(string account, string server, string name)
         {
+            if (LastCharacters == null)
+            {
+                Load();
+            }
+
             LastCharacterInfo lastChar = LastCharacters.FirstOrDefault(c => c.AccountName.Equals(account) && c.ServerName == server);
 
             // Check to see if they passed in -lastcharactername but picked another character, clear override then

@@ -97,6 +97,14 @@ namespace ClassicUO.Configuration
         [JsonConverter(typeof(Point2Converter))] public Point WorldExplorerPosition { get; set; } = new Point(160, 90);
         [JsonConverter(typeof(Point2Converter))] public Point ItemFinderPosition { get; set; } = new Point(220, 130);
         [JsonConverter(typeof(Point2Converter))] public Point AlertCenterPosition { get; set; } = new Point(180, 70);
+        [JsonConverter(typeof(Point2Converter))] public Point RazorScriptsPosition { get; set; } = new Point(120, 120);
+        [JsonConverter(typeof(Point2Converter))] public Point RazorScriptsSize { get; set; } = new Point(360, 500);
+        public bool RazorScriptsCompact { get; set; }
+        [JsonConverter(typeof(Point2Converter))] public Point RazorScriptsCompactSize { get; set; } = new Point(180, 300);
+        [JsonConverter(typeof(Point2Converter))] public Point CompactPartyHudPosition { get; set; } = new Point(-1, -1);
+        public bool PetBuffMonitorEnabled { get; set; }
+        public bool PetBuffOverheadIcons { get; set; } = true;
+        [JsonConverter(typeof(Point2Converter))] public Point PetBuffMonitorPosition { get; set; } = new Point(180, 180);
         [JsonConverter(typeof(Point2Converter))] public Point RestockAgentPosition { get; set; } = new Point(220, 120);
         [JsonConverter(typeof(Point2Converter))] public Point EquipmentGuruPosition { get; set; } = new Point(150, 80);
         [JsonConverter(typeof(Point2Converter))] public Point PaperdollToolsPosition { get; set; } = Point.Zero;
@@ -1258,6 +1266,9 @@ namespace ClassicUO.Configuration
                                 case GumpType.DamageTracker:
                                     gump = new DamageTrackerGump(x, y);
                                     break;
+                                case GumpType.RazorScripts:
+                                    gump = new RazorScriptsGump();
+                                    break;
                                 case GumpType.GlobalChat:
                                     gump = new GlobalChatGump(x, y);
                                     break;
@@ -1432,6 +1443,9 @@ namespace ClassicUO.Configuration
                                         break;
                                     case GumpType.PaperDoll:
                                         gump = new ModernPaperdoll(World.Player.Serial);
+                                        break;
+                                    case GumpType.RazorScripts:
+                                        gump = new RazorScriptsGump();
                                         break;
                                     case GumpType.GlobalChat:
                                         gump = new GlobalChatGump(x, y);
