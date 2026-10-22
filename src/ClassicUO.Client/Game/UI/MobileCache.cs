@@ -43,6 +43,7 @@ namespace ClassicUO.Game.UI
             AutoBandageManager.Enabled
             || PetBandageManager.Enabled
             || ExternalBandageManager.Enabled
+            || PetBuffMonitor.Enabled
             || PetHpBarsOverlay.Enabled;
 
         private static bool NeedsGroundItems =>

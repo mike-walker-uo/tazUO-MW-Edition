@@ -2313,6 +2313,19 @@ Register("pathpreview", (s) =>
                 WindowFocusMuteManager.SetEnabled(on);
             });
 
+            Register("peteffects", s => PetEffectProbeGump.Toggle());
+            Register("petbuffs", PetBuffMonitorGump.Command);
+            Register("fastlogin", s => FastLoginSlotsGump.Toggle());
+
+            Register("razorscripts", s =>
+            {
+                if (s != null && s.Length > 1 && string.Equals(s[1], "reset", StringComparison.OrdinalIgnoreCase))
+                    RazorScriptsGump.Reset();
+                else if (s != null && s.Length > 1 && string.Equals(s[1], "status", StringComparison.OrdinalIgnoreCase))
+                    RazorScriptsGump.ReportBounds();
+                else RazorScriptsGump.Toggle();
+            });
+
             Register("alias", (s) =>
             {
                 if (s == null || s.Length < 2)

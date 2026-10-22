@@ -45,6 +45,7 @@ namespace ClassicUO.Game.Managers
         internal static Scope For(SpellAbilityEffectId id, int quality = -1, float groundY = -1f) => new Scope(Names[(int)id], quality < 0 ? _previewQuality : quality, groundY);
         private static EffectDetailSettings Detail => _detail;
         internal static float Intensity => VisualBudget.Percent(Detail?.Intensity ?? 100);
+        internal static bool IsActive => _effect != null;
         internal static bool IsPreview => _previewQuality >= 0;
         internal static float Glow => VisualBudget.Percent(Detail?.Glow ?? 100);
         internal static int Count(int count) => Math.Max(0, (int)Math.Round(count * _density));

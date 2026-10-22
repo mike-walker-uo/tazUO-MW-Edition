@@ -77,5 +77,6 @@ namespace ClassicUO.Game.UI.Gumps
         HealSelfButton,
         NearbySpeechHistory,
         WorldExplorer,
+        RazorScripts,
     }
 }

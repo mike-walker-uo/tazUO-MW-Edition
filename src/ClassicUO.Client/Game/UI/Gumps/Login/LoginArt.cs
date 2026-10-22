@@ -169,6 +169,19 @@ namespace ClassicUO.Game.UI.Gumps.Login
         }
     }
 
+    internal sealed class FastLoginPanel : LoginArtSurface
+    {
+        internal FastLoginPanel(int x, int y, int width, int height)
+            : base(x, y, width, height, new Color(25, 22, 18, 225)) { }
+
+        public override bool Draw(UltimaBatcher2D batcher, int x, int y)
+        {
+            base.Draw(batcher, x, y);
+            CustomThemeArt.DrawFrame(batcher, x, y, Width, Height, CustomGumpTheme.Wood, Alpha, maxEdge: 8);
+            return true;
+        }
+    }
+
     internal class LoginArtSurface : Control
     {
         private readonly Color _fill;

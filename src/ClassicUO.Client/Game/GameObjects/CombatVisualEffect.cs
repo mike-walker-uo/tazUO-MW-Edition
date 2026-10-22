@@ -26,7 +26,7 @@ namespace ClassicUO.Game.GameObjects
         ReservedVoidAura
     }
 
-    internal sealed class CombatVisualEffect : GameEffect
+    internal sealed partial class CombatVisualEffect : GameEffect
     {
         private readonly uint _born;
         private readonly int _visualDuration;
@@ -523,7 +523,7 @@ namespace ClassicUO.Game.GameObjects
             }
 
             float progress = Math.Min(1f, (Time.Ticks - _born) / (float)_visualDuration);
-            float fade = 1f - progress;
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.08f, 0.55f);
 
             if (fade <= 0f)
             {
@@ -569,29 +569,22 @@ namespace ClassicUO.Game.GameObjects
             return true;
         }
 
-        private static void DrawMagicArrowImpact(
-            UltimaBatcher2D batcher,
-            Vector2 center,
-            float progress,
-            float fade,
-            float depth)
+        private static void DrawMagicArrowImpact(UltimaBatcher2D batcher, Vector2 center,
+            float progress, float fade, float depth)
         {
-            Color violet = new Color(158, 76, 255);
-            Color core = new Color(235, 218, 255);
-            float radius = 8f + progress * 37f;
+            Color amber = new Color(236, 170, 75), ivory = new Color(255, 242, 200);
+            float burst = SpellVisualPrimitives.Envelope(progress, 0.06f, 0.75f);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(8); i++)
+            SpellVisualPrimitives.Mote(batcher, center, amber, burst * 0.48f, 13f * (1f - progress), depth);
+            for (int i = 0; i < EffectPresentation.Count(5); i++)
             {
-                float angle = i * MathHelper.TwoPi / 8f + progress * 0.6f;
-                Vector2 start = Ellipse(center, 4f, 4f, angle);
-                Vector2 end = Ellipse(center, radius, radius * 0.72f, angle);
-                DrawLine(batcher, start, end, violet, fade * 0.7f, 3.2f, depth);
-                DrawLine(batcher, start, end, core, fade * 0.92f, 1f, depth);
+                float angle = i * 2.399f + 0.3f;
+                Vector2 d = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle) * 0.65f);
+                Vector2 tip = center + d * (8f + progress * (27f + i * 3f));
+                SpellVisualPrimitives.Ribbon(batcher, tip - d * 10f, tip + new Vector2(0, -4), tip,
+                    i % 2 == 0 ? ivory : amber, burst * 0.7f, 1.5f, depth);
             }
-
-            DrawRing(batcher, center, radius * 0.82f, 12, violet, fade * 0.42f, 3f, depth);
-            RecordLight(center, violet, 104f, fade * 0.65f);
+            RecordLight(center, amber, 85f, burst * 0.35f);
         }
 
         private static void DrawFireballImpact(
@@ -778,174 +771,124 @@ namespace ClassicUO.Game.GameObjects
             );
         }
 
-        private void DrawHarm(
-            UltimaBatcher2D batcher,
-            Vector2 center,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawHarm(UltimaBatcher2D batcher, Vector2 center, float progress, float fade, float depth)
         {
-            Color violet = new Color(151, 75, 255);
-            Color core = new Color(225, 190, 255);
-            float radius = 38f - progress * 25f;
-            float pulse = 0.72f + 0.28f * (float)Math.Sin(progress * Math.PI * 5f);
-
-            DrawRing(batcher, center, radius, 12, violet, fade * 0.42f, 5f, depth);
+            Color blue = new Color(95, 155, 220), silver = new Color(195, 228, 245);
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.10f, 0.6f);
+            float radius = 34f * (1f - progress) + 5f;
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(8); i++)
+            for (int i = 0; i < EffectPresentation.Count(5); i++)
             {
-                float angle = i * MathHelper.TwoPi / 8f + progress * 0.8f;
-                Vector2 outer = Ellipse(center, radius, radius * 0.55f, angle);
-                Vector2 inner = Ellipse(center, 7f, 5f, angle + 0.18f);
-                DrawLine(batcher, outer, inner, violet, fade * 0.72f, 3.2f, depth);
-                DrawLine(batcher, outer, inner, core, fade * 0.9f, 1.1f, depth);
+                float angle = i * 2.399f + progress * 1.5f;
+                Vector2 outer = Ellipse(center, radius, radius * 0.75f, angle);
+                Vector2 curl = Ellipse(center, radius * 0.8f, radius * 0.5f, angle + 1.1f);
+                SpellVisualPrimitives.Ribbon(batcher, outer, curl, center, blue, envelope * 0.5f, 3.2f, depth);
+                SpellVisualPrimitives.Ribbon(batcher, outer, curl, center, silver, envelope * 0.55f, 0.9f, depth);
             }
-
-            RecordLight(center, violet, 112f, fade * pulse * 0.72f);
+            SpellVisualPrimitives.Mist(batcher, center, blue, envelope * 0.28f, radius * 2f, radius, -progress, depth);
+            SpellVisualPrimitives.Mote(batcher, center, silver, envelope * 0.55f, 3f, depth);
+            RecordLight(center, blue, 90f, envelope * 0.4f);
         }
 
-        private void DrawLower(
-            UltimaBatcher2D batcher,
-            Vector2 center,
-            float progress,
-            float fade,
-            bool attack,
-            float depth)
+        private void DrawLower(UltimaBatcher2D batcher, Vector2 center, float progress,
+            float fade, bool attack, float depth)
         {
-            Color color = attack ? new Color(255, 72, 62) : new Color(45, 190, 255);
-            Color core = attack ? new Color(255, 205, 92) : new Color(170, 246, 255);
-            float drop = progress * 28f;
-
+            Color bronze = attack ? new Color(191, 112, 66) : new Color(85, 145, 180);
+            Color silver = new Color(220, 225, 205);
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.14f, 0.55f);
+            float split = Math.Max(0, progress - 0.28f) * 13f;
+            center += new Vector2(0, -6f + progress * 9f);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(3); i++)
+            if (attack)
             {
-                float x = center.X + (i - 1) * 13f;
-                float y = center.Y - 37f + drop + i * 4f;
-                Vector2 left = new Vector2(x - 8f, y - 7f);
-                Vector2 tip = new Vector2(x, y + 3f);
-                Vector2 right = new Vector2(x + 8f, y - 7f);
-                DrawLine(batcher, left, tip, color, fade * 0.7f, 5f, depth);
-                DrawLine(batcher, tip, right, color, fade * 0.7f, 5f, depth);
-                DrawLine(batcher, left, tip, core, fade, 1.2f, depth);
-                DrawLine(batcher, tip, right, core, fade, 1.2f, depth);
+                Vector2 lower = center + new Vector2(-6, 8), upper = center + new Vector2(6, -12);
+                SpellVisualPrimitives.Stroke(batcher, lower, center, bronze, envelope * 0.8f, 3.3f, depth);
+                SpellVisualPrimitives.Stroke(batcher, center + new Vector2(split, -split - 2),
+                    upper + new Vector2(split, -split), silver, envelope * 0.8f, 2f, depth);
+                SpellVisualPrimitives.Stroke(batcher, lower + new Vector2(-5, -3), lower + new Vector2(5, 3),
+                    bronze, envelope * 0.85f, 2f, depth);
+                SpellVisualPrimitives.Stroke(batcher, lower, lower + new Vector2(-4, 6), silver, envelope * 0.6f, 1.6f, depth);
             }
-
-            float ringRadius = 17f + progress * 24f;
-            DrawRing(batcher, center + new Vector2(0f, 7f), ringRadius, 10, color, fade * 0.5f, 3f, depth);
-            RecordLight(center, color, 100f, fade * 0.62f);
+            else
+            {
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vector2 shift = new Vector2(side * split, split * 0.45f);
+                    Vector2 top = center + shift + new Vector2(0, -12);
+                    Vector2 rim = center + shift + new Vector2(side * 10, -8);
+                    Vector2 edge = center + shift + new Vector2(side * 8, 5);
+                    Vector2 tip = center + shift + new Vector2(0, 13);
+                    SpellVisualPrimitives.Stroke(batcher, top, rim, silver, envelope * 0.65f, 2f, depth);
+                    SpellVisualPrimitives.Ribbon(batcher, rim, edge, tip, bronze, envelope * 0.85f, 3f, depth);
+                    SpellVisualPrimitives.Stroke(batcher, top + new Vector2(0, 3), tip, silver, envelope * 0.4f, 0.8f, depth);
+                }
+            }
+            for (int i = 0; i < EffectPresentation.Count(4); i++)
+            {
+                float t = MathHelper.Clamp((progress - 0.25f) / 0.75f, 0, 1);
+                Vector2 chip = center + new Vector2((i - 1.5f) * (4f + t * 9f), t * t * 22f - i * 3f);
+                SpellVisualPrimitives.Fragment(batcher, chip, i % 2 == 0 ? silver : bronze,
+                    envelope * t * 0.6f, 3f, i + t * 2f, depth);
+            }
+            RecordLight(center, bronze, 72f, envelope * 0.3f);
         }
 
-        private void DrawManaDrain(
-            UltimaBatcher2D batcher,
-            Vector2 center,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawManaDrain(UltimaBatcher2D batcher, Vector2 center, float progress, float fade, float depth)
         {
-            Color blue = new Color(50, 145, 255);
-            Color violet = new Color(182, 75, 255);
+            Color blue = new Color(80, 135, 220), violet = new Color(155, 115, 220);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(12); i++)
+            for (int i = 0; i < EffectPresentation.Count(7); i++)
             {
-                float t = i / 11f;
-                float angle = t * MathHelper.TwoPi * 2.2f + progress * 5f;
-                float radius = (1f - progress * 0.65f) * (8f + t * 19f);
-                Vector2 p =
-                    center
-                    + new Vector2(
-                        (float)Math.Cos(angle) * radius,
-                        34f - t * 70f + progress * 22f
-                    );
-                DrawPoint(
-                    batcher,
-                    p,
-                    i % 2 == 0 ? blue : violet,
-                    fade * (0.45f + t * 0.5f),
-                    2f + t * 3f,
-                    depth
-                );
+                float t = MathHelper.Clamp((progress - i * 0.035f) / 0.72f, 0, 1);
+                float envelope = SpellVisualPrimitives.Envelope(t, 0.15f, 0.45f);
+                float angle = i * 2.399f + t * 1.3f;
+                Vector2 start = Ellipse(center, 34f + i % 3 * 4f, 30f, angle);
+                Vector2 end = center + new Vector2(0, -4);
+                Vector2 control = Ellipse(center, 23f, 38f, angle + 1f);
+                Vector2 head = SpellVisualPrimitives.Curve(start, control, end, t);
+                Vector2 tail = SpellVisualPrimitives.Curve(start, control, end, Math.Max(0, t - 0.22f));
+                SpellVisualPrimitives.Ribbon(batcher, tail, (tail + head) * 0.5f + new Vector2(4, -3), head,
+                    i % 2 == 0 ? blue : violet, envelope * 0.6f, 2.4f, depth);
+                SpellVisualPrimitives.Mote(batcher, head, new Color(185, 210, 250), envelope * 0.65f, 2f, depth);
             }
-
-            DrawRing(
-                batcher,
-                center + new Vector2(0f, 5f),
-                31f * (1f - progress * 0.72f),
-                14,
-                blue,
-                fade * 0.65f,
-                3f,
-                depth
-            );
-            RecordLight(center, violet, 122f, fade * 0.72f);
+            RecordLight(center, blue, 90f, fade * 0.3f);
         }
 
-        private void DrawStaminaDrain(
-            UltimaBatcher2D batcher,
-            Vector2 body,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawStaminaDrain(UltimaBatcher2D batcher, Vector2 body, Vector2 ground,
+            float progress, float fade, float depth)
         {
-            Color teal = new Color(90, 226, 174);
-            Color amber = new Color(255, 174, 72);
+            Color sage = new Color(95, 185, 140), gold = new Color(205, 190, 110);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(8); i++)
+            for (int i = 0; i < EffectPresentation.Count(6); i++)
             {
-                float angle = i * MathHelper.TwoPi / 8f + progress;
-                Vector2 start = Ellipse(body, 13f, 9f, angle);
-                Vector2 end = Ellipse(
-                    ground,
-                    28f + progress * 15f,
-                    12f + progress * 7f,
-                    angle
-                );
-                DrawLine(batcher, start, end, i % 2 == 0 ? teal : amber, fade * 0.62f, 2.4f, depth);
+                float t = MathHelper.Clamp((progress - i * 0.03f) / 0.8f, 0, 1);
+                float envelope = SpellVisualPrimitives.Envelope(t);
+                float side = i % 2 == 0 ? -1f : 1f;
+                Vector2 head = body + new Vector2(side * (10f + t * 22f), t * t * 35f - i * 3f);
+                SpellVisualPrimitives.Ribbon(batcher, head - new Vector2(side * 7f, 9f),
+                    head + new Vector2(-side * 5f, -7f), head, i % 3 == 0 ? gold : sage, envelope * 0.55f, 2.5f, depth);
+                SpellVisualPrimitives.Mote(batcher, head, gold, envelope * 0.4f, 1.8f, depth);
             }
-
-            DrawRing(batcher, ground, 25f + progress * 27f, 14, teal, fade * 0.52f, 3f, depth);
-            RecordLight(body, teal, 104f, fade * 0.55f);
+            RecordLight(body, sage, 85f, fade * 0.3f);
         }
 
-        private void DrawBattleLust(
-            UltimaBatcher2D batcher,
-            Vector2 body,
-            Vector2 ground,
-            float progress,
-            float fade,
-            float depth)
+        private void DrawBattleLust(UltimaBatcher2D batcher, Vector2 body, Vector2 ground,
+            float progress, float fade, float depth)
         {
-            Color crimson = new Color(245, 36, 48);
-            Color gold = new Color(255, 188, 55);
-            float pulse = 0.78f + 0.22f * (float)Math.Sin(progress * Math.PI * 8f);
-
+            Color crimson = new Color(190, 45, 60), copper = new Color(230, 150, 100);
+            float envelope = SpellVisualPrimitives.Envelope(progress, 0.16f, 0.5f);
+            float pulse = 0.78f + 0.22f * (float)Math.Sin(progress * MathHelper.TwoPi * 2f);
             batcher.SetBlendState(BlendState.Additive);
-
-            for (int i = 0; i < EffectPresentation.Count(11); i++)
+            SpellVisualPrimitives.Mist(batcher, body, crimson, envelope * pulse * 0.28f, 45, 65, progress * 0.2f, depth);
+            for (int i = 0; i < EffectPresentation.Count(5); i++)
             {
-                uint h = Mix((uint)(i * 131) ^ (uint)X ^ ((uint)Y << 16));
-                float angle = i * MathHelper.TwoPi / 11f + progress * 1.6f;
-                float radius = 20f + (h & 15u);
-                Vector2 start = Ellipse(ground, radius, radius * 0.42f, angle);
-                Vector2 end = start + new Vector2(0f, -18f - progress * (18f + (h & 15u)));
-                DrawLine(
-                    batcher,
-                    start,
-                    end,
-                    i % 3 == 0 ? gold : crimson,
-                    fade * pulse * 0.72f,
-                    2.6f,
-                    depth
-                );
+                float side = i % 2 == 0 ? -1 : 1;
+                Vector2 start = body + new Vector2(side * (12 + i * 2), 20);
+                Vector2 end = start + new Vector2(side * 4, -45 - progress * 16);
+                SpellVisualPrimitives.Ribbon(batcher, start, body + new Vector2(-side * 24, -4), end,
+                    i == 0 ? copper : crimson, envelope * pulse * 0.42f, 3f, depth);
             }
-
-            DrawRing(batcher, ground, 28f + progress * 16f, 16, crimson, fade * 0.64f, 4f, depth);
-            DrawRing(batcher, body, 17f + pulse * 4f, 10, gold, fade * 0.44f, 2f, depth);
-            RecordLight(body, crimson, 138f, fade * pulse * 0.74f);
+            RecordLight(body, crimson, 100f, envelope * pulse * 0.35f);
         }
 
         private void DrawReservedVoidAura(
@@ -1150,7 +1093,7 @@ namespace ClassicUO.Game.GameObjects
             Color color, float alpha, float width, float depth)
         {
             if (alpha <= 0f) return;
-            int steps = Math.Max(radiusX, radiusY) < 20f ? 1 : SceneryInteractionManager.Quality + 1;
+            int steps = Math.Max(2, Math.Min(16, (int)Math.Ceiling(Math.Abs(endAngle - startAngle) * Math.Max(radiusX, radiusY) / 5f)));
             Vector2 previous = Ellipse(center, radiusX, radiusY, startAngle);
             for (int i = 1; i <= steps; i++)
             {
@@ -1183,6 +1126,11 @@ namespace ClassicUO.Game.GameObjects
             float width,
             float depth)
         {
+            if (EffectPresentation.IsActive)
+            {
+                SpellVisualPrimitives.Stroke(batcher, start, end, color, alpha, width, depth);
+                return;
+            }
             Vector2 delta = end - start;
             float length = delta.Length();
 
@@ -1213,6 +1161,11 @@ namespace ClassicUO.Game.GameObjects
             float size,
             float depth)
         {
+            if (EffectPresentation.IsActive)
+            {
+                SpellVisualPrimitives.Mote(batcher, position, color, alpha, size, depth);
+                return;
+            }
             Texture2D texture = AtmosphereTextures.GetSolid(color);
             batcher.Draw(
                 texture,

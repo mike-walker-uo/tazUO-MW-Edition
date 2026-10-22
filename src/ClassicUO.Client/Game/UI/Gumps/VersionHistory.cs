@@ -11,6 +11,16 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.4 beta]\n" +
+            """
+            - Fast login: five named character slots, saved account/server settings, desktop shortcut targets and a compact framed panel. Fixed account selection and character-history startup.
+            - Razor Scripts: search, running-only filter, Run/Stop/Stop All, compact layout, desktop pins and saved position/size. Improved resizing and reset controls. Use -razorscripts.
+            - Pet buffs and debuffs: automatic active-pet tracking, separate status window and overhead icons. Server-confirmed and inferred visual/sound observations are distinguished. Use -petbuffs.
+            - Spell effects: refined projectiles, impacts, area and overhead visuals. Expanded ground glows with individual size/intensity controls and previews. Global ground effects switch is off by default.
+            - Party HUD: movable window with remembered position.
+            - Performance and stability: bounded ground rendering, throttled refreshes, shared visual resources and login/UI fixes.
+            """ +
+            "\n\n",
             "[0.6.3 beta hotfix 1]\n" +
             "Vendor enhancements (experimental): restored complete sold-item hover stats with item names, values and configured tooltip colors. Captured stats stay saved. Repairs server artifact color tags and capitalizes Major Artifact / Greater Artifacts. If old tooltips remain, use Update vendors.\n\n" +
             "Enemy radar: ring, density and fading-beam styles, improved visibility and saved controls. Off by default; use -radar options.\n\n",

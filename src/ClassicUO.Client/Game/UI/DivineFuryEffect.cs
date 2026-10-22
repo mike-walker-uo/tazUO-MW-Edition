@@ -16,7 +16,7 @@ namespace ClassicUO.Game.UI
     /// Shows a gold ankh wrapped by a rotating holy tornado when the server
     /// confirms Divine Fury by adding its buff.
     /// </summary>
-    public static class DivineFuryEffect
+    public static partial class DivineFuryEffect
     {
         private const int TEXTURE_WIDTH = 76;
         private const int TEXTURE_HEIGHT = 116;
@@ -82,10 +82,8 @@ namespace ClassicUO.Game.UI
 
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.15f);
-            float fade = progress < 0.72f
-                ? 1f
-                : Math.Max(0f, (1f - progress) / 0.28f);
-            float pulse = 0.95f + 0.08f *
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.38f);
+            float pulse = 0.95f + 0.025f *
                 (float)Math.Sin(progress * MathHelper.TwoPi * 3.4f);
             float scale =
                 (0.72f + 0.3f * EaseOut(appear))
@@ -141,49 +139,32 @@ namespace ClassicUO.Game.UI
             batcher.SetBlendState(BlendState.AlphaBlend);
         }
 
-        private static void DrawTornadoHalf(
-            UltimaBatcher2D batcher,
-            Vector2 center,
-            float progress,
-            float fade,
-            float scale,
-            bool front)
+        private static void DrawTornadoHalf(UltimaBatcher2D batcher, Vector2 center,
+            float progress, float fade, float scale, bool front)
         {
-            Color white = new Color(243, 248, 255);
-            Color blue = new Color(116, 177, 255);
-            Color gold = new Color(255, 207, 93);
-            float rotation = progress * MathHelper.TwoPi * 3.5f;
-
-            for (int level = 0; level < 10; level++)
+            Color pearl = new Color(218, 235, 250), gold = new Color(235, 193, 112);
+            float phase = progress * MathHelper.TwoPi * 1.4f;
+            // Three continuous ribbons, split by depth around the ankh.
+            for (int strand = 0; strand < 3; strand++)
             {
-                float heightT = level / 9f;
-                float y = 48f - heightT * 98f;
-                float radiusX = (15f + heightT * 31f) * scale;
-                float radiusY = (4.5f + heightT * 4f) * scale;
-                float phase = rotation + level * 0.93f;
-                int start = front ? 0 : 7;
-                int end = front ? 7 : 14;
-
-                for (int segment = start; segment < end; segment++)
+                Vector2 previous = default;
+                for (int step = 0; step <= 20; step++)
                 {
-                    float a0 = phase + segment * MathHelper.TwoPi / 14f;
-                    float a1 = phase + (segment + 0.82f) * MathHelper.TwoPi / 14f;
-                    Color color = level % 3 == 0
-                        ? gold
-                        : (level + segment) % 2 == 0 ? white : blue;
-                    float alpha = fade *
-                        (front ? 0.7f : 0.32f) *
-                        (0.72f + 0.28f * (float)Math.Sin(level + progress * 18f));
-
-                    CombatVisualEffect.DrawLine(
-                        batcher,
-                        Ellipse(center + new Vector2(0f, y), radiusX, radiusY, a0),
-                        Ellipse(center + new Vector2(0f, y), radiusX, radiusY, a1),
-                        color,
-                        alpha,
-                        front ? 3.2f : 2f,
-                        0f
-                    );
+                    float t = step / 20f;
+                    float angle = phase + strand * MathHelper.TwoPi / 3f + t * MathHelper.TwoPi * 1.1f;
+                    float radius = (18f + 15f * (float)Math.Sin(t * MathHelper.Pi)) * scale;
+                    Vector2 point = center + new Vector2((float)Math.Cos(angle) * radius,
+                        (48f - t * 105f) * scale + (float)Math.Sin(angle) * 5f * scale);
+                    if (step > 0 && ((float)Math.Sin(angle) > 0) == front)
+                    {
+                        float taper = (float)Math.Sin((t * 0.9f + 0.05f) * MathHelper.Pi);
+                        Color color = strand == 1 ? gold : pearl;
+                        SpellVisualPrimitives.Stroke(batcher, previous, point, color,
+                            fade * (front ? 0.42f : 0.19f), (2f + taper * 2f) * scale, 0);
+                        SpellVisualPrimitives.Stroke(batcher, previous + new Vector2(-0.4f, -0.5f), point,
+                            new Color(255, 245, 210), fade * (front ? 0.60f : 0.25f), 0.9f * scale, 0);
+                    }
+                    previous = point;
                 }
             }
         }
@@ -200,7 +181,7 @@ namespace ClassicUO.Game.UI
             Color white = new Color(255, 250, 220);
             Color gold = new Color(255, 195, 70);
 
-            for (int i = 0; i < EffectPresentation.Count(10); i++)
+            for (int i = 0; i < EffectPresentation.Count(6); i++)
             {
                 float angle = i * MathHelper.TwoPi / 10f + 0.16f;
                 Vector2 direction = new Vector2(
@@ -230,7 +211,7 @@ namespace ClassicUO.Game.UI
             Color blue = new Color(101, 167, 255);
             Color gold = new Color(255, 215, 102);
 
-            for (int i = 0; i < EffectPresentation.Count(18); i++)
+            for (int i = 0; i < EffectPresentation.Count(8); i++)
             {
                 float phase = progress * 14f + i * 1.49f;
                 float heightT = ((progress * 1.7f + i * 0.137f) % 1f);
@@ -252,17 +233,6 @@ namespace ClassicUO.Game.UI
             }
         }
 
-        private static Vector2 Ellipse(
-            Vector2 center,
-            float radiusX,
-            float radiusY,
-            float angle)
-        {
-            return center + new Vector2(
-                (float)Math.Cos(angle) * radiusX,
-                (float)Math.Sin(angle) * radiusY
-            );
-        }
 
         private static void EnsureTextures()
         {

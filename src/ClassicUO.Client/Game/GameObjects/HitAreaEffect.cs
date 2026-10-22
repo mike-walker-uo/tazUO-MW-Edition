@@ -6,7 +6,6 @@ using System;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
 using ClassicUO.Renderer;
-using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -21,7 +20,7 @@ namespace ClassicUO.Game.GameObjects
         Energy
     }
 
-    internal sealed class HitAreaEffect : GameEffect
+    internal sealed partial class HitAreaEffect : GameEffect
     {
         private readonly uint _born;
         private readonly HitAreaElement _element;
@@ -112,7 +111,7 @@ namespace ClassicUO.Game.GameObjects
             }
 
             float progress = Math.Min(1f, (Time.Ticks - _born) / (float)_visualDuration);
-            float fade = 1f - progress;
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.08f, 0.55f);
 
             if (fade <= 0f)
             {
@@ -171,191 +170,80 @@ namespace ClassicUO.Game.GameObjects
             return true;
         }
 
-        private void DrawElementAccents(
-            UltimaBatcher2D batcher,
-            int centerX,
-            int centerY,
-            float radius,
-            float progress,
-            float fade,
-            uint seed,
-            Color glowColor,
-            Color coreColor,
-            float depth)
+        private void DrawElementAccents(UltimaBatcher2D batcher, int centerX, int centerY,
+            float radius, float progress, float fade, uint seed, Color glowColor, Color coreColor, float depth)
         {
-            Texture2D glow = AtmosphereTextures.GetSolid(glowColor);
-            Texture2D core = AtmosphereTextures.GetSolid(coreColor);
-            Vector3 glowHue = ShaderHueTranslator.GetHueVector(0, false, fade * 0.42f);
-            Vector3 coreHue = ShaderHueTranslator.GetHueVector(0, false, fade * 0.9f);
-
             batcher.SetBlendState(BlendState.Additive);
-
-            switch (_element)
+            Vector2 center = new Vector2(centerX, centerY - 6f);
+            for (int i = 0; i < Math.Min(9, EffectPresentation.Count(6)); i++)
             {
-                case HitAreaElement.Fire:
-                    for (int i = 0; i < EffectPresentation.Count(7); i++)
+                uint h = Mix(seed + (uint)(i * 97));
+                float t = MathHelper.Clamp((progress - i * 0.018f) / 0.82f, 0, 1);
+                float envelope = SpellVisualPrimitives.Envelope(t, 0.10f, 0.55f);
+                float angle = i * 2.399f + (h & 31u) * 0.025f;
+                float variation = ((h >> 8) & 31u) / 31f;
+                switch (_element)
+                {
+                    case HitAreaElement.Fire:
                     {
-                        uint h = Mix(seed + (uint)(i * 71));
-                        float x = centerX + ((h & 31u) - 15f);
-                        float rise = 9f + ((h >> 5) & 23u);
-                        float y = centerY - 4f - progress * rise;
-                        DrawLine(
-                            batcher,
-                            glow,
-                            new Vector2(x, y + 7f),
-                            new Vector2(x + ((h >> 10) % 5u) - 2f, y),
-                            glowHue,
-                            3f,
-                            depth
-                        );
-                        DrawLine(
-                            batcher,
-                            core,
-                            new Vector2(x, y + 5f),
-                            new Vector2(x, y + 1f),
-                            coreHue,
-                            1f,
-                            depth
-                        );
+                        Vector2 root = center + new Vector2((i - 3f) * 6f, 5f);
+                        Vector2 tip = root + new Vector2((float)Math.Sin(i + t * 5f) * 8f, -t * (25f + variation * 24f));
+                        Vector2 curl = (root + tip) * 0.5f + new Vector2((i % 2 == 0 ? 1 : -1) * 10f, -8);
+                        SpellVisualPrimitives.Ribbon(batcher, root, curl, tip, glowColor, envelope * 0.5f, 5f - t * 2f, depth);
+                        SpellVisualPrimitives.Ribbon(batcher, root, curl, tip, coreColor, envelope * 0.55f, 1.2f, depth);
+                        SpellVisualPrimitives.Mote(batcher, tip, coreColor, envelope * 0.5f, 1.5f, depth);
+                        break;
                     }
-                    break;
-
-                case HitAreaElement.Cold:
-                    for (int i = 0; i < EffectPresentation.Count(8); i++)
+                    case HitAreaElement.Cold:
                     {
-                        float angle = i * (float)(Math.PI * 2.0) / 8f + 0.16f;
-                        Vector2 inner = EllipsePoint(centerX, centerY, radius * 0.62f, angle);
-                        Vector2 outer = EllipsePoint(centerX, centerY, radius * 0.94f, angle);
-                        DrawLine(batcher, glow, inner, outer, glowHue, 3.5f, depth);
-                        DrawLine(batcher, core, inner, outer, coreHue, 1.2f, depth);
+                        Vector2 d = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle) * 0.5f);
+                        Vector2 point = center + d * radius * (0.35f + t * 0.55f) - new Vector2(0, (float)Math.Sin(t * MathHelper.Pi) * 15f);
+                        SpellVisualPrimitives.Fragment(batcher, point, coreColor, envelope * 0.8f,
+                            (4f + variation * 6f) * (1f - t * 0.4f), angle + t * 0.4f, depth);
+                        SpellVisualPrimitives.Stroke(batcher, point - d * 8f, point, glowColor, envelope * 0.3f, 1.2f, depth);
+                        break;
                     }
-                    break;
-
-                case HitAreaElement.Poison:
-                    for (int i = 0; i < EffectPresentation.Count(6); i++)
+                    case HitAreaElement.Poison:
                     {
-                        uint h = Mix(seed + (uint)(i * 97));
-                        float x = centerX + ((h & 47u) - 23f);
-                        float y = centerY - progress * (12f + ((h >> 6) & 23u));
-                        int size = 2 + (int)((h >> 12) & 3u);
-                        batcher.Draw(
-                            core,
-                            new Vector2(x, y),
-                            core.Bounds,
-                            ShaderHueTranslator.GetHueVector(0, false, fade * 0.72f),
-                            0f,
-                            Vector2.Zero,
-                            new Vector2(size, size),
-                            SpriteEffects.None,
-                            depth
-                        );
+                        Vector2 point = center + new Vector2((i - 3f) * 8f + (float)Math.Sin(t * 4f + i) * 6f,
+                            -t * (18f + variation * 23f));
+                        SpellVisualPrimitives.Mist(batcher, point, glowColor, envelope * 0.19f,
+                            22f + t * 15f, 12f + t * 11f, i * 0.7f + t * 0.5f, depth);
+                        SpellVisualPrimitives.Mote(batcher, point + new Vector2(3, -5), coreColor, envelope * 0.35f, 1.5f, depth);
+                        break;
                     }
-                    break;
-
-                case HitAreaElement.Energy:
-                    for (int i = 0; i < EffectPresentation.Count(6); i++)
+                    case HitAreaElement.Energy:
                     {
-                        float angle = i * (float)(Math.PI * 2.0) / 6f + progress * 0.7f;
-                        Vector2 start = EllipsePoint(centerX, centerY, radius * 0.45f, angle);
-                        Vector2 kink = EllipsePoint(
-                            centerX,
-                            centerY,
-                            radius * 0.69f,
-                            angle + (i % 2 == 0 ? 0.14f : -0.14f)
-                        );
-                        Vector2 end = EllipsePoint(centerX, centerY, radius, angle);
-                        DrawLine(batcher, glow, start, kink, glowHue, 4f, depth);
-                        DrawLine(batcher, glow, kink, end, glowHue, 4f, depth);
-                        DrawLine(batcher, core, start, kink, coreHue, 1.2f, depth);
-                        DrawLine(batcher, core, kink, end, coreHue, 1.2f, depth);
+                        Vector2 tip = center + new Vector2((float)Math.Cos(angle) * radius * 0.85f,
+                            (float)Math.Sin(angle) * radius * 0.4f - 7f);
+                        Vector2 joint = Vector2.Lerp(center, tip, 0.5f) + new Vector2((i % 2 == 0 ? 1 : -1) * 7f, -6);
+                        float flash = envelope * (0.65f + 0.35f * (float)Math.Sin(t * 16f + i));
+                        SpellVisualPrimitives.Stroke(batcher, center, joint, glowColor, flash * 0.45f, 3.5f, depth);
+                        SpellVisualPrimitives.Stroke(batcher, joint, tip, glowColor, flash * 0.45f, 2.4f, depth);
+                        SpellVisualPrimitives.Stroke(batcher, center, joint, coreColor, flash * 0.8f, 0.8f, depth);
+                        SpellVisualPrimitives.Stroke(batcher, joint, tip, coreColor, flash * 0.65f, 0.6f, depth);
+                        break;
                     }
-                    break;
+                }
             }
         }
 
-        private static void DrawBrokenRing(
-            UltimaBatcher2D batcher,
-            int centerX,
-            int centerY,
-            float radius,
-            uint seed,
-            Color glowColor,
-            Color coreColor,
-            float alpha,
-            float depth)
+        private static void DrawBrokenRing(UltimaBatcher2D batcher, int centerX, int centerY, float radius,
+            uint seed, Color glowColor, Color coreColor, float alpha, float depth)
         {
-            const int segments = 16;
-            Texture2D glow = AtmosphereTextures.GetSolid(glowColor);
-            Texture2D core = AtmosphereTextures.GetSolid(coreColor);
-            Vector3 glowHue = ShaderHueTranslator.GetHueVector(0, false, alpha * 0.34f);
-            Vector3 coreHue = ShaderHueTranslator.GetHueVector(0, false, alpha * 0.82f);
-
-            batcher.SetBlendState(BlendState.AlphaBlend);
-            for (int i = 0; i < segments; i++)
-            {
-                if ((seed + (uint)i) % 5u == 0u) continue;
-                float a0 = i * (float)(Math.PI * 2.0) / segments;
-                float a1 = (i + 0.78f) * (float)(Math.PI * 2.0) / segments;
-                DrawLine(
-                    batcher,
-                    glow,
-                    EllipsePoint(centerX, centerY, radius, a0),
-                    EllipsePoint(centerX, centerY, radius, a1),
-                    glowHue,
-                    6f,
-                    depth
-                );
-            }
-
             batcher.SetBlendState(BlendState.Additive);
-            for (int i = 0; i < segments; i++)
+            var center = new Vector2(centerX, centerY);
+            // Fine, smoothly sampled arcs leave space between elemental accents.
+            for (int i = 0; i < 5; i++)
             {
-                if ((seed + (uint)i) % 5u == 0u) continue;
-                float a0 = i * (float)(Math.PI * 2.0) / segments;
-                float a1 = (i + 0.78f) * (float)(Math.PI * 2.0) / segments;
-                DrawLine(
-                    batcher,
-                    core,
-                    EllipsePoint(centerX, centerY, radius, a0),
-                    EllipsePoint(centerX, centerY, radius, a1),
-                    coreHue,
-                    1.5f,
-                    depth
-                );
+                float angle = i * MathHelper.TwoPi / 5f + (seed & 31u) * 0.025f;
+                CombatVisualEffect.DrawArc(batcher, center, radius, radius * 0.46f,
+                    angle, angle + 0.8f, glowColor, alpha * 0.20f, 2.5f, depth);
+                CombatVisualEffect.DrawArc(batcher, center, radius, radius * 0.46f,
+                    angle, angle + 0.8f, coreColor, alpha * 0.25f, 0.8f, depth);
             }
         }
 
-        private static Vector2 EllipsePoint(int x, int y, float radius, float angle)
-        {
-            return new Vector2(
-                x + (float)Math.Cos(angle) * radius,
-                y + (float)Math.Sin(angle) * radius * 0.46f
-            );
-        }
-
-        private static void DrawLine(
-            UltimaBatcher2D batcher,
-            Texture2D texture,
-            Vector2 start,
-            Vector2 end,
-            Vector3 hue,
-            float width,
-            float depth)
-        {
-            float rotation = Utility.MathHelper.AngleBetweenVectors(start, end);
-            float length = Vector2.Distance(start, end);
-            batcher.Draw(
-                texture,
-                start,
-                texture.Bounds,
-                hue,
-                rotation,
-                Vector2.Zero,
-                new Vector2(length, width),
-                SpriteEffects.None,
-                depth
-            );
-        }
 
         private static void GetPalette(
             HitAreaElement element,

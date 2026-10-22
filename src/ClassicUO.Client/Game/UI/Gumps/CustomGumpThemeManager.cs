@@ -1275,6 +1275,9 @@ namespace ClassicUO.Game.UI.Gumps
             Refresh(UIManager.GetGump<DurabilitysGump>(), () => new DurabilitysGump());
             RefreshItemFinder();
             Refresh(UIManager.GetGump<RestockAgentGump>(), () => new RestockAgentGump());
+            Refresh(UIManager.GetGump<RazorScriptsGump>(), () => new RazorScriptsGump());
+            Refresh(UIManager.GetGump<PetBuffMonitorGump>(), () => new PetBuffMonitorGump());
+            Refresh(UIManager.GetGump<FastLoginSlotsGump>(), () => new FastLoginSlotsGump());
             RefreshAlertCenter();
             TopBarGump.RefreshTheme();
 

@@ -55,11 +55,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
         private readonly Control _nextArrow0;
         private readonly PasswordStbTextBox _passwordFake;
         private readonly StbTextBox _textboxAccount;
+        private readonly LoginScene _loginScene;
+        private Label _fastLoginFeedback;
 
         private float _time;
 
         public LoginGump(LoginScene scene) : base(0, 0)
         {
+            _loginScene = scene;
             CanCloseWithRightClick = false;
 
             AcceptKeyboardInput = false;
@@ -621,6 +624,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             };
 
 
+            BuildFastLoginSlots();
+
             if (!string.IsNullOrEmpty(_textboxAccount.Text))
             {
                 _passwordFake.SetKeyboardFocus();
@@ -644,6 +649,35 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     ls.Connect(_textboxAccount.Text, _passwordFake.RealText);
                 }
             }
+        }
+
+        private void BuildFastLoginSlots()
+        {
+            FastLoginManager.Slots.Reload();
+            Add(new FastLoginPanel(14, 32, 148, 150));
+            Add(new Label("Fast login", true, 0x0481, 104, 1, FontStyle.Cropped) { X = 26, Y = 43 });
+            for (int index = 0; index < FastLoginManager.SlotCount; index++)
+            {
+                Settings saved = FastLoginManager.Slots.Get(index);
+                string error = FastLoginManager.Slots.Error(index);
+                var button = new NiceButton(24, 64 + index * 21, 128, 21, ButtonAction.Activate,
+                    (index + 1) + ". " + (saved?.FastLoginCharacter ?? (error == null ? "Empty" : "Unreadable")), font: 1)
+                    { ButtonParameter = (int)Buttons.FastLoginFirst + index,
+                        IsSelectable = false, IsEnabled = saved != null, Alpha = saved == null ? 0.5f : 1f };
+                CustomGumpThemeManager.StyleDataButton(button);
+                button.SetTooltip(saved == null ? error ?? "Log in normally, then use -fastlogin to save this character slot."
+                    : saved.FastLoginCharacter + "\n" + saved.Username + " / " + saved.LastServerName);
+                Add(button);
+            }
+            Add(_fastLoginFeedback = new Label("?", true, 0x0481, 12, 1, FontStyle.Cropped)
+                { X = 138, Y = 43, AcceptMouseInput = true });
+            _fastLoginFeedback.SetTooltip("Use -fastlogin in game to save or replace a character slot.");
+        }
+
+        internal void LoginSlot(int slot)
+        {
+            if (!_loginScene.LoginSlot(slot, out string error))
+            { _fastLoginFeedback.Text = "!"; _fastLoginFeedback.SetTooltip(error, 350); }
         }
 
         public override void OnKeyboardReturn(int textID, string text)
@@ -706,6 +740,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
         public override void OnButtonClick(int buttonID)
         {
+            // NiceButton dispatches here before raising MouseUp. Slot IDs must never
+            // trigger NextArrow, which connects using the normal login form's credentials.
+            if (buttonID >= (int)Buttons.FastLoginFirst && buttonID < (int)Buttons.FastLoginFirst + FastLoginManager.SlotCount)
+            {
+                LoginSlot(buttonID - (int)Buttons.FastLoginFirst);
+                return;
+            }
+
             switch ((Buttons)buttonID)
             {
                 case Buttons.NextArrow:
@@ -888,7 +930,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
         {
             NextArrow,
             Quit,
-            Credits
+            Credits,
+            FastLoginFirst = 100
         }
     }
 }

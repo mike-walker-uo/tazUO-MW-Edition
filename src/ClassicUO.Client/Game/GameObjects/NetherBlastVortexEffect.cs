@@ -302,7 +302,7 @@ namespace ClassicUO.Game.GameObjects
         }
     }
 
-    internal sealed class NetherBlastVortexEffect : GameEffect
+    internal sealed partial class NetherBlastVortexEffect : GameEffect
     {
         private readonly uint _born;
         private readonly uint _fieldSerial;

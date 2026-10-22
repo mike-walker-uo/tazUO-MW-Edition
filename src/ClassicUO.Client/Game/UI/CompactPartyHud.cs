@@ -30,7 +30,8 @@
 
 #endregion
 
-using ClassicUO.Game.UI.Controls;
+using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -38,7 +39,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace ClassicUO.Game.UI
 {
     /// <summary>
-    /// Compact party-HP list in top-right of viewport. One row per party
+    /// Movable compact party-HP list. One row per party
     /// member: name (12 chars) + 80×3 HP bar. Red below 35%. `-partyhud on|off`.
     /// </summary>
     public static class CompactPartyHud
@@ -46,29 +47,36 @@ namespace ClassicUO.Game.UI
         public static bool Enabled;
         private const int W = 80, H = 3, ROW_H = 16;
 
-        public static void DrawWorld(UltimaBatcher2D batcher, Rectangle bounds)
+        internal static int RowCount
         {
-            if (!Enabled) return;
-            if (World.Player == null || !World.InGame) return;
-            if (World.Party == null || !World.Party.InParty) return;
+            get
+            {
+                if (!Enabled || World.Player == null || !World.InGame || World.Party?.InParty != true) return 0;
+                int rows = 0;
+                foreach (var member in World.Party.Members)
+                    if (member != null && member.Serial != 0) rows++;
+                return rows;
+            }
+        }
+
+        internal static void Tick()
+        {
+            if (RowCount > 0 && UIManager.GetGump<CompactPartyHudGump>() == null)
+                UIManager.Add(new CompactPartyHudGump());
+        }
+
+        internal static void Draw(UltimaBatcher2D batcher, int left, int top)
+        {
+            int rows = RowCount;
+            if (rows == 0) return;
 
             Vector3 hueNeutral = ShaderHueTranslator.GetHueVector(0, false, 1f);
             Texture2D bg = SolidColorTextureCache.GetTexture(new Color(0, 0, 0, 170));
             Texture2D ok = SolidColorTextureCache.GetTexture(new Color(120, 220, 120, 230));
             Texture2D low = SolidColorTextureCache.GetTexture(new Color(220, 60, 60, 230));
 
-            // Count valid rows first.
-            int rows = 0;
-            for (int i = 0; i < World.Party.Members.Length; i++)
-            {
-                var pm = World.Party.Members[i];
-                if (pm == null || pm.Serial == 0) continue;
-                rows++;
-            }
-            if (rows == 0) return;
-
-            int x = bounds.Right - W - 30;
-            int y = bounds.Y + 110;
+            int x = left + 70;
+            int y = top + 2;
             int totalH = rows * ROW_H + 4;
             batcher.Draw(bg, new Rectangle(x - 70, y - 2, W + 80, totalH), hueNeutral);
 

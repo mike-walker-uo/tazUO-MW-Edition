@@ -2,7 +2,7 @@
 
 Custom Ultima Online client based on the legacy 4.5.22.0 release of tazUO.
 
-[Download 0.6.3 beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.3-beta) · [Stable 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2)
+[Download 0.6.4 beta](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.4-beta) · [Stable 0.6.2](https://github.com/mike-walker-uo/tazUO-MW-Edition/releases/tag/0.6.2)
 
 It has many features, some of them are:
   - Custom weather and light effects
@@ -34,6 +34,19 @@ It has many features, some of them are:
 ...and many many more features.
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
+
+## Version 0.6.4 beta
+
+- **Fast login:** five named character slots, saved account/server settings and desktop shortcut targets. Compact framed panel, reliable account selection and safer character login.
+- **Razor Scripts:** native script window with search, running-only filter, Run/Stop/Stop All, compact layout, desktop pins and saved position/size. Improved resizing and reset controls.
+- **Pet buffs and debuffs:** automatic active-pet tracking, a dedicated status window and overhead icons. Combines server status packets with observed visual/sound cues; inferred effects are marked.
+- **Spell effects:** refined projectiles, impacts, area and overhead visuals. Added ground glows across supported effects, individual size/intensity controls and previews. Global ground effects switch is off by default.
+- **Party HUD:** movable window with remembered position.
+- **Performance and stability:** bounded ground rendering, throttled status refreshes, shared visual resources and login/UI fixes.
+
+Use `-fastlogin`, `-razorscripts` and `-petbuffs` to open the new windows. Spell ground effects are controlled in Enhancements → Spell effects.
+
+See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.0**.
 
 ## Version 0.6.3 beta — hotfix 1
 

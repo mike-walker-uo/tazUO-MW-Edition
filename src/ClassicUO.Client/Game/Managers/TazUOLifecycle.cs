@@ -110,6 +110,9 @@ namespace ClassicUO.Game.Managers
 
         private static void ResetState()
         {
+            PetEffectProbe.End();
+            PetBuffMonitor.Reset();
+            UI.PetBuffIconsOverlay.Reset();
             ClassicUO.Network.PacketHandlers.ResetOriginalGlobalChatRequest();
             BodyScaleManager.ResetForProfile();
             BodyHueManager.ResetForProfile();
@@ -190,6 +193,8 @@ namespace ClassicUO.Game.Managers
             ClassicUO.Game.GameObjects.EnhancedSpellVisualTrigger.ResetSession();
             UI.MobileCache.Clear();
             UI.EnemyRadar.ResetSession();
+            ClassicUO.Game.GameObjects.SpellGroundGlow.Reset();
+            ClassicUO.Game.GameObjects.SpellVisualPrimitives.Reset();
             UI.EffectsBundle.ResetSession();
             UI.GhostFadeOverlay.ResetSession();
             UI.MobBloodOverlay.ResetSession();

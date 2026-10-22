@@ -16,7 +16,7 @@ namespace ClassicUO.Game.UI
     /// Shows an upright holy sword above the player when the server confirms
     /// Consecrate Weapon by adding its buff.
     /// </summary>
-    public static class ConsecrateWeaponEffect
+    public static partial class ConsecrateWeaponEffect
     {
         private const int TEXTURE_WIDTH = 72;
         private const int TEXTURE_HEIGHT = 136;
@@ -82,10 +82,8 @@ namespace ClassicUO.Game.UI
 
             float progress = age / (float)LIFETIME_MS;
             float appear = Math.Min(1f, progress / 0.18f);
-            float fade = progress < 0.7f
-                ? 1f
-                : Math.Max(0f, (1f - progress) / 0.3f);
-            float pulse = 0.94f + 0.08f *
+            float fade = SpellVisualPrimitives.Envelope(progress, 0.12f, 0.38f);
+            float pulse = 0.94f + 0.025f *
                 (float)Math.Sin(progress * MathHelper.TwoPi * 3.2f);
             float scale =
                 (0.7f + 0.3f * EaseOut(appear))
