@@ -403,7 +403,7 @@ namespace ClassicUO.Game.Managers
                 ? SceneryInteractionManager.Quality == SceneryInteractionManager.QUALITY_LOW ? 1100
                     : SceneryInteractionManager.Quality == SceneryInteractionManager.QUALITY_MEDIUM ? 700 : 450
                 : 2200);
-            Scan(requestedRadius, scene.Camera.Bounds);
+            Scan(requestedRadius, scene.Camera.ViewportBounds);
         }
 
         private static void Scan(int radius, Rectangle bounds)
@@ -433,7 +433,7 @@ namespace ClassicUO.Game.Managers
                     sbyte z = _waterZ[gx, gy];
                     int x = _originX + gx;
                     int y = _originY + gy;
-                    Point p = PathPreview.TileToScreen(x, y, z);
+                    Point p = PathPreview.TileToViewport(x, y, z);
                     if (p.X < bounds.X - SCREEN_MARGIN || p.X > bounds.Right + SCREEN_MARGIN
                         || p.Y < bounds.Y - SCREEN_MARGIN || p.Y > bounds.Bottom + SCREEN_MARGIN)
                         continue;
@@ -784,7 +784,7 @@ namespace ClassicUO.Game.Managers
                 );
             }
 
-            Point playerScreen = PathPreview.TileToScreen(
+            Point playerScreen = PathPreview.TileToWorld(
                 World.Player.X, World.Player.Y, World.Player.Z);
             int worldX = (World.Player.X - World.Player.Y) * 22;
             int worldY = (World.Player.X + World.Player.Y) * 22 - World.Player.Z * 4;
@@ -955,7 +955,7 @@ namespace ClassicUO.Game.Managers
             {
                 ref WaterTile tile = ref _tiles[i];
                 if (tile.Depth < minimumDepth) continue;
-                Point p = PathPreview.TileToScreen(tile.X, tile.Y, tile.Z);
+                Point p = PathPreview.TileToWorld(tile.X, tile.Y, tile.Z);
                 if (p.X < bounds.X - 22 || p.X > bounds.Right + 22
                     || p.Y < bounds.Y - 11 || p.Y > bounds.Bottom + 11) continue;
                 batcher.Draw(
@@ -1192,7 +1192,7 @@ namespace ClassicUO.Game.Managers
         {
             if (texture == null || texture.IsDisposed || alpha <= 0f) return;
 
-            Point playerScreen = PathPreview.TileToScreen(
+            Point playerScreen = PathPreview.TileToWorld(
                 World.Player.X, World.Player.Y, World.Player.Z);
             int worldX = (World.Player.X - World.Player.Y) * 22;
             int worldY = (World.Player.X + World.Player.Y) * 22 - World.Player.Z * 4;
@@ -1231,7 +1231,7 @@ namespace ClassicUO.Game.Managers
                 if (cycle > 900u) continue;
                 float phase = cycle / 900f;
                 float pulse = 1f - Math.Abs(phase * 2f - 1f);
-                Point p = PathPreview.TileToScreen(tile.X, tile.Y, tile.Z);
+                Point p = PathPreview.TileToWorld(tile.X, tile.Y, tile.Z);
                 if (p.X < bounds.X - 20 || p.X > bounds.Right + 20
                     || p.Y < bounds.Y - 12 || p.Y > bounds.Bottom + 12) continue;
                 int width = 4 + (tile.Seed & 7);
@@ -1260,7 +1260,7 @@ namespace ClassicUO.Game.Managers
                 uint cycle = (Time.Ticks + (uint)tile.Seed * 61u) % 2100u;
                 if (cycle > 720u) continue;
                 float phase = cycle / 720f;
-                Point p = PathPreview.TileToScreen(tile.X, tile.Y, tile.Z);
+                Point p = PathPreview.TileToWorld(tile.X, tile.Y, tile.Z);
                 if (p.X < bounds.X - 24 || p.X > bounds.Right + 24
                     || p.Y < bounds.Y - 14 || p.Y > bounds.Bottom + 14) continue;
                 int width = 9 + (int)(phase * 10f) + (tile.Seed & 3);
@@ -1306,7 +1306,7 @@ namespace ClassicUO.Game.Managers
             for (int i = 0; i < _tileCount; i++)
             {
                 ref WaterTile tile = ref _tiles[i];
-                Point p = PathPreview.TileToScreen(tile.X, tile.Y, tile.Z);
+                Point p = PathPreview.TileToWorld(tile.X, tile.Y, tile.Z);
                 if (p.X < bounds.X - 30 || p.X > bounds.Right + 30
                     || p.Y < bounds.Y - 20 || p.Y > bounds.Bottom + 20) continue;
 

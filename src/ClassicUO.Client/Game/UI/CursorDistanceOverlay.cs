@@ -62,8 +62,9 @@ namespace ClassicUO.Game.UI
             // Draw a small "d=N" badge near the cursor.
             string txt = "d=" + cheb;
             var tb = OverlayTextCache.Get("cursordist", txt, 14, Color.White, 60);
-            int x = Mouse.Position.X + 12;
-            int y = Mouse.Position.Y + 12;
+            var bounds = Client.Game.Scene.Camera.Bounds;
+            int x = Mouse.Position.X - bounds.X + 12;
+            int y = Mouse.Position.Y - bounds.Y + 12;
 
             Texture2D bg = SolidColorTextureCache.GetTexture(new Color(0, 0, 0, 160));
             Vector3 hueNeutral = ShaderHueTranslator.GetHueVector(0, false, 1f);

@@ -35,7 +35,14 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
-## Version 0.6.4 beta
+## Version 0.6.4 beta — update 1
+
+- **Viewport alignment:** fixed movement trails, ghosts, blood and corpse effects appearing away from their targets when the game viewport is moved.
+- **World overlays:** corrected target/path/range markers, pet icons and health bars, cursor badges, directional arrows and viewport HUD placement.
+- **Ambient effects:** aligned seasonal/surface particles, lights, contact shadows, terrain details and water effects with the camera.
+- **Spell/death visuals:** corrected Death Ray fallback positioning, Onslaught lighting and the death-screen vertical position.
+
+### Included in 0.6.4 beta
 
 - **Fast login:** five named character slots, saved account/server settings and desktop shortcut targets. Compact framed panel, reliable account selection and safer character login.
 - **Razor Scripts:** native script window with search, running-only filter, Run/Stop/Stop All, compact layout, desktop pins and saved position/size. Improved resizing and reset controls.
@@ -46,7 +53,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 Use `-fastlogin`, `-razorscripts` and `-petbuffs` to open the new windows. Spell ground effects are controlled in Enhancements → Spell effects.
 
-See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.0**.
+See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.1**.
 
 ## Version 0.6.3 beta — hotfix 1
 

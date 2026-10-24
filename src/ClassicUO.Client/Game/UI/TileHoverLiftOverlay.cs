@@ -27,7 +27,7 @@ namespace ClassicUO.Game.UI
             if (land == null) return;
 
             // Tile center in screen coords, lifted by 2px.
-            Point p = PathPreview.TileToScreen(land.X, land.Y, land.Z);
+            Point p = PathPreview.TileToViewport(land.X, land.Y, land.Z);
             p.Y -= 2;
 
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(255, 255, 220, 255));

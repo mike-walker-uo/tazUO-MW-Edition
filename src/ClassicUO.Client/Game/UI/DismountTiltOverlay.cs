@@ -39,7 +39,7 @@ namespace ClassicUO.Game.UI
             float t = age / (float)LIFETIME_MS;       // 0 → 1
             float alpha = (1f - t) * 0.6f;
             int yOffset = (int)(8f * (1f - (1f - t) * (1f - t))); // ease-out forward
-            Point p = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point p = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
 
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(255, 240, 200, 255));
             Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);

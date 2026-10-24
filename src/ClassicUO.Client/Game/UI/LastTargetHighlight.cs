@@ -62,7 +62,7 @@ namespace ClassicUO.Game.UI
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(255, 230, 90, 255));
             Vector3 hueNeutral = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);
 
-            Point p = PathPreview.TileToScreen(mob.X, mob.Y, mob.Z);
+            Point p = PathPreview.TileToViewport(mob.X, mob.Y, mob.Z);
             // Rectangle outline 38x38 centered around mob feet — visible without obscuring sprite.
             const int W = 40;
             const int H = 40;

@@ -38,7 +38,7 @@ namespace ClassicUO.Game.UI
 
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(255, 60, 60, 255));
             long now = (long)Time.Ticks;
-            Point b = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point b = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
 
             for (int i = _lines.Count - 1; i >= 0; i--)
             {
@@ -49,7 +49,7 @@ namespace ClassicUO.Game.UI
 
                 float alpha = 1f - age / (float)LIFETIME_MS;
                 Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha * 0.75f);
-                Point a = PathPreview.TileToScreen(src.X, src.Y, src.Z);
+                Point a = PathPreview.TileToViewport(src.X, src.Y, src.Z);
 
                 int dx = b.X - a.X, dy = b.Y - a.Y;
                 int steps = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));

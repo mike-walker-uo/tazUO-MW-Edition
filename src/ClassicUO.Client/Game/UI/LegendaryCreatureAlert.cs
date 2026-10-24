@@ -91,7 +91,7 @@ namespace ClassicUO.Game.UI
 
             PlayFanfare(age);
 
-            Rectangle bounds = Client.Game.Scene.Camera.Bounds;
+            Rectangle bounds = Client.Game.Scene.Camera.ViewportBounds;
             float progress = age / (float)DURATION_MS;
             float appear = Math.Min(1f, age / 180f);
             float fade = age < 6500

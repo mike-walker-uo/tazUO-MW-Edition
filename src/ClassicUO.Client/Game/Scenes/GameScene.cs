@@ -1476,8 +1476,8 @@ namespace ClassicUO.Game.Scenes
 
             if (!ExplorationMode.Active)
             {
-                SceneryInteractionManager.DrawBackground(batcher, Camera.Bounds);
-                UI.AmbienceOverlay.DrawBackground(batcher, Camera.Bounds);
+                SceneryInteractionManager.DrawBackground(batcher, Camera.ViewportBounds);
+                UI.AmbienceOverlay.DrawBackground(batcher, Camera.ViewportBounds);
             }
             var weatherWindow = new Point(Camera.Bounds.Width, Camera.Bounds.Height);
             var weatherTarget = use_render_target
@@ -1509,12 +1509,12 @@ namespace ClassicUO.Game.Scenes
                 _renderListAnimationCount
             );
             MainThreadHangDiagnostics.Mark("Draw: terrain materials");
-            TerrainMaterialManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather);
-            WaterEnhancementManager.DrawMaskedWorld(batcher, Camera.Bounds, Weather, matrix);
+            TerrainMaterialManager.DrawMaskedWorld(batcher, Camera.ViewportBounds, Weather);
+            WaterEnhancementManager.DrawMaskedWorld(batcher, Camera.ViewportBounds, Weather, matrix);
 
             if (!ExplorationMode.Active)
             {
-                SceneryInteractionManager.DrawContactShadows(batcher, Camera.Bounds);
+                SceneryInteractionManager.DrawContactShadows(batcher, Camera.ViewportBounds);
                 SceneryInteractionManager.DrawFrostEdges(batcher, Weather);
             }
 
@@ -1580,7 +1580,7 @@ namespace ClassicUO.Game.Scenes
             if (!ExplorationMode.Active) GroundDecals.Draw(batcher, 0, 0);
             ExplorationMode.DrawBird(batcher, _offset);
             Weather.Draw(batcher, 0, 0, UseAltLights, weatherProjection);
-            if (!ExplorationMode.Active) SceneryInteractionManager.DrawSelectiveBloom(batcher, Camera.Bounds);
+            if (!ExplorationMode.Active) SceneryInteractionManager.DrawSelectiveBloom(batcher, Camera.ViewportBounds);
 
             MainThreadHangDiagnostics.Mark("Draw: world batch flush");
             batcher.End();
@@ -1755,25 +1755,26 @@ namespace ClassicUO.Game.Scenes
         public void DrawOverheads(UltimaBatcher2D batcher)
         {
             if (ExplorationMode.Active) { SelectedObject.Object = null; return; }
+            // The graphics viewport already supplies Bounds.X/Y; overlays draw from (0, 0).
             // Draw localized ambience before labels, health bars and
             // interaction overlays so effects never reduce UI readability.
-            FeatureDiagnostics.Guard("Ambience", batcher, Camera.Bounds, UI.AmbienceOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("Ambience", batcher, Camera.ViewportBounds, UI.AmbienceOverlay.DrawWorld);
             _healthLinesManager.Draw(batcher);
 
             // Path preview tile highlights — drawn alongside healthbars so they share
             // the same world-overlay batcher state.
             FeatureDiagnostics.Guard("PathPreview", batcher, UI.PathPreview.DrawWorld);
-            FeatureDiagnostics.Guard("WarModeBorder", batcher, Camera.Bounds, UI.WarModeBorder.DrawWorld);
-            FeatureDiagnostics.Guard("LowHpVignette", batcher, Camera.Bounds, UI.LowHpVignette.DrawWorld);
+            FeatureDiagnostics.Guard("WarModeBorder", batcher, Camera.ViewportBounds, UI.WarModeBorder.DrawWorld);
+            FeatureDiagnostics.Guard("LowHpVignette", batcher, Camera.ViewportBounds, UI.LowHpVignette.DrawWorld);
             FeatureDiagnostics.Guard("CombatMobHpBars", batcher, UI.CombatMobHpBars.DrawWorld);
             FeatureDiagnostics.Guard("CastProgress", batcher, UI.CastProgressOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("OffscreenEnemyArrow", batcher, Camera.Bounds, UI.OffscreenEnemyArrow.DrawWorld);
+            FeatureDiagnostics.Guard("OffscreenEnemyArrow", batcher, Camera.ViewportBounds, UI.OffscreenEnemyArrow.DrawWorld);
             FeatureDiagnostics.Guard("CooldownHud", batcher, UI.CooldownHud.DrawWorld);
             FeatureDiagnostics.Guard("MoveTrail", batcher, UI.MoveTrailOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("Compass", batcher, Camera.Bounds, UI.CompassOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("ScreenflashOnHit", batcher, Camera.Bounds, UI.ScreenflashOnHit.DrawWorld);
-            FeatureDiagnostics.Guard("LowHpScreenTint", batcher, Camera.Bounds, UI.LowHpScreenTint.DrawWorld);
-            FeatureDiagnostics.Guard("WindParticles", batcher, Camera.Bounds, UI.WindParticlesOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("Compass", batcher, Camera.ViewportBounds, UI.CompassOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("ScreenflashOnHit", batcher, Camera.ViewportBounds, UI.ScreenflashOnHit.DrawWorld);
+            FeatureDiagnostics.Guard("LowHpScreenTint", batcher, Camera.ViewportBounds, UI.LowHpScreenTint.DrawWorld);
+            FeatureDiagnostics.Guard("WindParticles", batcher, Camera.ViewportBounds, UI.WindParticlesOverlay.DrawWorld);
             FeatureDiagnostics.Guard("TileGrid", batcher, UI.TileGridOverlay.DrawWorld);
             FeatureDiagnostics.Guard("TargetCrosshair", batcher, UI.TargetCrosshair.DrawWorld);
             FeatureDiagnostics.Guard("NearestHostileLine", batcher, UI.NearestHostileLine.DrawWorld);
@@ -1800,11 +1801,11 @@ namespace ClassicUO.Game.Scenes
             FeatureDiagnostics.Guard("EffectsBundle", batcher, UI.EffectsBundle.DrawWorld);
             FeatureDiagnostics.Guard("NotorietyDot", batcher, UI.NotorietyDotOverlay.DrawWorld);
             FeatureDiagnostics.Guard("HostileEdgeHighlight", batcher, UI.HostileEdgeHighlight.DrawWorld);
-            FeatureDiagnostics.Guard("WaypointArrow", batcher, Camera.Bounds, UI.WaypointArrowOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("TimerStackHud", batcher, Camera.Bounds, UI.TimerStackHud.DrawWorld);
-            FeatureDiagnostics.Guard("PingHud", batcher, Camera.Bounds, UI.PingHudOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("CompactBars", batcher, Camera.Bounds, UI.CompactBarsOverlay.DrawWorld);
-            FeatureDiagnostics.Guard("OpenContainerBadge", batcher, Camera.Bounds, UI.OpenContainerBadge.DrawWorld);
+            FeatureDiagnostics.Guard("WaypointArrow", batcher, Camera.ViewportBounds, UI.WaypointArrowOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("TimerStackHud", batcher, Camera.ViewportBounds, UI.TimerStackHud.DrawWorld);
+            FeatureDiagnostics.Guard("PingHud", batcher, Camera.ViewportBounds, UI.PingHudOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("CompactBars", batcher, Camera.ViewportBounds, UI.CompactBarsOverlay.DrawWorld);
+            FeatureDiagnostics.Guard("OpenContainerBadge", batcher, Camera.ViewportBounds, UI.OpenContainerBadge.DrawWorld);
             FeatureDiagnostics.Guard("RangeIndicator", batcher, UI.RangeIndicator.DrawWorld);
             FeatureDiagnostics.Guard("CursorDistance", batcher, UI.CursorDistanceOverlay.DrawWorld);
             FeatureDiagnostics.Guard("GroundLootFinder", batcher, UI.GroundLootFinder.DrawWorld);
@@ -2077,7 +2078,7 @@ namespace ClassicUO.Game.Scenes
             _youAreDeadText.Draw(
                 batcher,
                 Camera.Bounds.X + (Camera.Bounds.Width / 2 - _youAreDeadText.Width / 2),
-                Camera.Bounds.Bottom / 2
+                Camera.Bounds.Y + Camera.Bounds.Height / 2
             );
             batcher.End();
 

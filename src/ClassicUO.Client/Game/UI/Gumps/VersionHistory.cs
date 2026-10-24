@@ -11,6 +11,14 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.4 beta update 1]\n" +
+            """
+            - Viewport alignment: fixed movement trails, ghosts, blood and corpse effects when the game viewport is moved.
+            - World overlays: aligned target/path/range markers, pet icons and health bars, cursor badges, directional arrows and viewport HUDs.
+            - Ambient effects: corrected seasonal/surface particles, lights, shadows, terrain details and water positioning.
+            - Spell/death visuals: fixed Death Ray fallback, Onslaught lighting and death-screen vertical position.
+            """ +
+            "\n\n",
             "[0.6.4 beta]\n" +
             """
             - Fast login: five named character slots, saved account/server settings, desktop shortcut targets and a compact framed panel. Fixed account selection and character-history startup.

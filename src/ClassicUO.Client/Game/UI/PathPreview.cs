@@ -140,6 +140,7 @@ namespace ClassicUO.Game.UI
 
         internal static Point TileToScreen(int tx, int ty, int tz)
         {
+            // Window coordinates for UI placement; never feed these back into a world draw pass.
             var camera = Client.Game.Scene.Camera;
             Point p = TileToViewport(tx, ty, tz);
             p.X += camera.Bounds.X;
@@ -171,7 +172,7 @@ namespace ClassicUO.Game.UI
             for (int i = 0; i < count; i++)
             {
                 var t = _tiles[i];
-                Point p = TileToScreen(t.X, t.Y, t.Z);
+                Point p = TileToViewport(t.X, t.Y, t.Z);
                 int rx = p.X - W / 2;
                 int ry = p.Y - H / 2;
 

@@ -48,8 +48,9 @@ namespace ClassicUO.Game.UI
             }
             else return;
 
-            int mx = Mouse.Position.X + 14;
-            int my = Mouse.Position.Y + 14;
+            var bounds = Client.Game.Scene.Camera.Bounds;
+            int mx = Mouse.Position.X - bounds.X + 14;
+            int my = Mouse.Position.Y - bounds.Y + 14;
             Texture2D tex = SolidColorTextureCache.GetTexture(color);
             Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, 0.85f);
             batcher.Draw(tex, new Rectangle(mx, my, 7, 7), hue);

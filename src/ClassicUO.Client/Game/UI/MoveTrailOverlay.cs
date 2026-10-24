@@ -240,7 +240,7 @@ namespace ClassicUO.Game.UI
 
                 float t = age / (float)lifetime;
                 float alpha = Math.Min(1f, 0.82f * intensity) * (1f - t);
-                Point screen = PathPreview.TileToScreen(point.X, point.Y, point.Z);
+                Point screen = PathPreview.TileToViewport(point.X, point.Y, point.Z);
                 if (point.Style == MovementTrailStyle.Blood)
                 {
                     DrawBlood(batcher, screen, point.Seed, alpha);

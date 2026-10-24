@@ -555,17 +555,18 @@ namespace ClassicUO.Game.Managers
 
                 Texture2D glow = GetColoredSoftLight(_lights[i].Color);
                 int size = (int)(_lights[i].Radius * 1.15f);
-                if (_lights[i].X < bounds.X - size || _lights[i].X > bounds.Right + size
-                    || _lights[i].Y < bounds.Y - size || _lights[i].Y > bounds.Bottom + size) continue;
+                Point p = Client.Game.Scene.Camera.WorldToScreen(new Point(_lights[i].X, _lights[i].Y));
+                if (p.X < bounds.X - size || p.X > bounds.Right + size
+                    || p.Y < bounds.Y - size || p.Y > bounds.Bottom + size) continue;
                 drew = true;
                 batcher.Draw(AtmosphereTextures.GetSolid(_lights[i].Color),
-                    new Rectangle(_lights[i].X - 2, _lights[i].Y - 2, 4, 4),
+                    new Rectangle(p.X - 2, p.Y - 2, 4, 4),
                     ShaderHueTranslator.GetHueVector(
                         0,
                         false,
                         0.20f * lightStrength));
                 batcher.Draw(glow,
-                    new Rectangle(_lights[i].X - size / 2, _lights[i].Y - size / 3, size, size * 2 / 3),
+                    new Rectangle(p.X - size / 2, p.Y - size / 3, size, size * 2 / 3),
                     ShaderHueTranslator.GetHueVector(
                         0,
                         false,
@@ -609,8 +610,8 @@ namespace ClassicUO.Game.Managers
             if (World.Player == null) return;
             if (SurfaceParticlesEnabled)
             {
-                DrawParticles(batcher, bounds, false);
-                if (!AmbienceOverlay.Enabled) DrawParticles(batcher, bounds, true);
+                DrawParticles(batcher, bounds, false, false);
+                if (!AmbienceOverlay.Enabled) DrawParticles(batcher, bounds, true, false);
             }
             if (AmbienceOverlay.Enabled)
             {
@@ -621,7 +622,7 @@ namespace ClassicUO.Game.Managers
         public static void DrawForeground(UltimaBatcher2D batcher, Rectangle bounds)
         {
             if (!AmbienceOverlay.Enabled || World.Player == null) return;
-            if (SurfaceParticlesEnabled) DrawParticles(batcher, bounds, true);
+            if (SurfaceParticlesEnabled) DrawParticles(batcher, bounds, true, true);
             DrawRareAtmosphere(batcher, bounds);
         }
 
@@ -682,7 +683,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static void DrawParticles(UltimaBatcher2D batcher, Rectangle bounds, bool foreground)
+        private static void DrawParticles(UltimaBatcher2D batcher, Rectangle bounds, bool foreground, bool viewportSpace)
         {
             uint now = Time.Ticks;
             for (int i = 0; i < _particles.Length; i++)
@@ -693,7 +694,9 @@ namespace ClassicUO.Game.Managers
                 uint age = now - particle.Born;
                 if (age >= life) { particle.Born = 0; continue; }
                 float t = age / (float)life;
-                Point p = PathPreview.TileToScreen(particle.X, particle.Y, particle.Z);
+                Point p = viewportSpace
+                    ? PathPreview.TileToViewport(particle.X, particle.Y, particle.Z)
+                    : PathPreview.TileToWorld(particle.X, particle.Y, particle.Z);
                 float alpha = (1f - t) * (foreground ? 0.55f : 0.32f);
                 int spread = (int)(t * (6 + particle.Seed % 7));
                 int drift = (int)(Math.Sin(particle.Seed + t * 4f) * 5f * t);

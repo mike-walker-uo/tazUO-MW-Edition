@@ -76,7 +76,7 @@ namespace ClassicUO.Game.UI
 
                 Texture2D tex = SolidColorTextureCache.GetTexture(new Color(160, 160, 160, 255));
                 Vector3 fadeHue = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);
-                Point p = PathPreview.TileToScreen(it.X, it.Y, it.Z);
+                Point p = PathPreview.TileToViewport(it.X, it.Y, it.Z);
                 // Tiny "x" via two crossed bars.
                 batcher.Draw(tex, new Rectangle(p.X - 6, p.Y - 6, 12, 2), fadeHue);
                 batcher.Draw(tex, new Rectangle(p.X - 1, p.Y - 10, 2, 12), fadeHue);

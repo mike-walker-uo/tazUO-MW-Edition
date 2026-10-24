@@ -66,7 +66,7 @@ namespace ClassicUO.Game.UI
                 if (n == NotorietyFlag.Innocent || n == NotorietyFlag.Invulnerable || n == NotorietyFlag.Ally) continue;
                 if (m.Distance > range) continue;
 
-                Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+                Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
                 int x = p.X - W / 2, y = p.Y - H + 4;
                 // Four 1px edges.
                 batcher.Draw(tex, new Rectangle(x, y, W, 1), hueNeutral);

@@ -70,7 +70,7 @@ namespace ClassicUO.Game.UI
             }
             if (best == null) return;
 
-            Point p = PathPreview.TileToScreen(best.X, best.Y, best.Z);
+            Point p = PathPreview.TileToViewport(best.X, best.Y, best.Z);
             if (bounds.Contains(p)) return; // visible already
 
             // Clamp to viewport edge.

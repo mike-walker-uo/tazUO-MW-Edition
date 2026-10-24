@@ -65,8 +65,8 @@ namespace ClassicUO.Game.UI
             }
             if (best == null) return;
 
-            Point a = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
-            Point b = PathPreview.TileToScreen(best.X, best.Y, best.Z);
+            Point a = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
+            Point b = PathPreview.TileToViewport(best.X, best.Y, best.Z);
             DrawLine(batcher, a, b);
         }
 

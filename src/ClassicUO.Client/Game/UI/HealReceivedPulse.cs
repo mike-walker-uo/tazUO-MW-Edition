@@ -64,7 +64,7 @@ namespace ClassicUO.Game.UI
             int rx = (int)(baseR * magScale);
             int ry = (int)((baseR * 0.55f) * magScale);
 
-            Point p = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point p = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(70, 255, 90, 255));
             Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
 

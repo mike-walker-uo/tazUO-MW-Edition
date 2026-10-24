@@ -64,7 +64,7 @@ namespace ClassicUO.Game.UI
                     if (dx == 0 && dy == 0) continue;
                     int d = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dy));
                     if (d == 0 || d > r) continue;
-                    Point p = PathPreview.TileToScreen(px + dx, py + dy, pz);
+                    Point p = PathPreview.TileToViewport(px + dx, py + dy, pz);
                     batcher.Draw(tex, new Rectangle(p.X - 1, p.Y, 2, 2), hueNeutral);
                 }
             }

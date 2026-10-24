@@ -62,6 +62,9 @@ namespace ClassicUO.Renderer
 
         public Rectangle Bounds;
 
+        // Drawing inside the active world viewport must not add its window origin again.
+        public Rectangle ViewportBounds => new Rectangle(0, 0, Bounds.Width, Bounds.Height);
+
         public Matrix ViewTransformMatrix
         {
             get
