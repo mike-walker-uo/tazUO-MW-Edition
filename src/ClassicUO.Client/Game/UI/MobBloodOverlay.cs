@@ -159,7 +159,7 @@ namespace ClassicUO.Game.UI
                 ref readonly var art = ref Client.Game.Arts.GetArt(pal.g);
                 if (art.Texture == null) continue;
                 Vector3 hueVec = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);
-                Point p = PathPreview.TileToScreen(sp.X, sp.Y, sp.Z);
+                Point p = PathPreview.TileToViewport(sp.X, sp.Y, sp.Z);
                 int w = (int)(art.UV.Width * pal.scale * sp.Scale);
                 int h = (int)(art.UV.Height * pal.scale * sp.Scale);
                 if (w < 4) w = 4; if (h < 3) h = 3;

@@ -18,6 +18,7 @@ namespace ClassicUO.Game.UI
             if (!PetBuffMonitor.Enabled || ProfileManager.CurrentProfile?.PetBuffOverheadIcons != true || PetBuffMonitor.Current.Pets.Count == 0) return;
             var camera = Client.Game.Scene.Camera;
             Rectangle bounds = camera.Bounds;
+            // Scissor rectangles use window coordinates, unlike the drawing positions below.
             if (!batcher.ClipBegin(bounds.X, bounds.Y, bounds.Width, bounds.Height)) return;
             try
             {
@@ -38,7 +39,7 @@ namespace ClassicUO.Game.UI
                     head.X += 22 + (int)mobile.Offset.X;
                     float bodyScale = BodyScaleManager.Get(mobile.GetGraphicForAnimation(), mobile);
                     head.Y += (mobile.IsMounted ? 0 : 22) + (int)(mobile.Offset.Y - mobile.Offset.Z - mobile.FrameInfo.Y * bodyScale) - 12;
-                    head = camera.WorldToScreen(head); head.X += bounds.X; head.Y += bounds.Y;
+                    head = camera.WorldToScreen(head);
                     int rows = (count + PerRow - 1) / PerRow, index = 0;
                     foreach (PetBuffMonitor.Status status in pet.Statuses.Values)
                     {

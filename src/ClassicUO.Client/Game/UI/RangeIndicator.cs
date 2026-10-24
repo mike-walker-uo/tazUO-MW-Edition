@@ -64,7 +64,7 @@ namespace ClassicUO.Game.UI
 
                     int tx = World.Player.X + dx;
                     int ty = World.Player.Y + dy;
-                    Point p = PathPreview.TileToScreen(tx, ty, World.Player.Z);
+                    Point p = PathPreview.TileToViewport(tx, ty, World.Player.Z);
                     batcher.Draw(tex, new Rectangle(p.X - TILE, p.Y - TILE, TILE * 2, TILE * 2), hueNeutral);
                 }
             }

@@ -244,8 +244,10 @@ namespace ClassicUO.Game.UI
                 );
             }
 
+            // The effect is drawn in the overlay pass; lighting expects untransformed world coordinates.
+            Point light = Client.Game.Scene.Camera.ScreenToWorld(new Point((int)center.X, (int)center.Y));
             CombatVisualEffect.RecordLight(
-                center,
+                new Vector2(light.X, light.Y),
                 new Color(255, 190, 58),
                 185f * scale,
                 flash * 0.8f

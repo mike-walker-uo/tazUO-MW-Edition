@@ -55,7 +55,7 @@ namespace ClassicUO.Game.UI
             if (!lt.IsLand && !lt.IsStatic) return; // mobile case handled elsewhere
             if (lt.X == 0xFFFF || lt.Y == 0xFFFF) return;
 
-            Point p = PathPreview.TileToScreen(lt.X, lt.Y, lt.Z);
+            Point p = PathPreview.TileToViewport(lt.X, lt.Y, lt.Z);
             float pulse = 0.5f + 0.5f * (float)System.Math.Sin(Time.Ticks * 0.005f);
             int alpha = 110 + (int)(120 * pulse);
             if (alpha > 230) alpha = 230;

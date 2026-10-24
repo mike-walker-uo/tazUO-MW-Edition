@@ -51,7 +51,7 @@ namespace ClassicUO.Game.UI
             if (!HasTarget) return;
             if (World.Player == null || !World.InGame) return;
 
-            Point p = PathPreview.TileToScreen(X, Y, World.Player.Z);
+            Point p = PathPreview.TileToViewport(X, Y, World.Player.Z);
             float pulse = 0.5f + 0.5f * (float)System.Math.Sin(Time.Ticks * 0.006f);
             int alpha = 140 + (int)(115 * pulse);
             Vector3 hueNeutral = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);

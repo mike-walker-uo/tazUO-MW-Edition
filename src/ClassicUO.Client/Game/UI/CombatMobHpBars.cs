@@ -69,7 +69,7 @@ namespace ClassicUO.Game.UI
                 var n = m.NotorietyFlag;
                 if (n == NotorietyFlag.Innocent || n == NotorietyFlag.Invulnerable || n == NotorietyFlag.Ally) continue;
 
-                Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+                Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
                 int x = p.X - BAR_W / 2;
                 int y = p.Y - 32;
 

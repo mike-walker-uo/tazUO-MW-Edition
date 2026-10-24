@@ -61,7 +61,7 @@ namespace ClassicUO.Game.UI
             if (pct < 0f) pct = 0f;
             if (pct > 1f) pct = 1f;
 
-            Point p = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point p = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
             int x = p.X - BAR_W / 2;
             int y = p.Y - 52;
 

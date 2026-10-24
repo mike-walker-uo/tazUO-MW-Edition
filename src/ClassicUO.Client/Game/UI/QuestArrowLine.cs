@@ -25,14 +25,14 @@ namespace ClassicUO.Game.UI
             if (!Enabled) return;
             if (World.Player == null || !World.InGame) return;
 
-            Point a = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point a = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
 
             for (var node = UIManager.Gumps.First; node != null; node = node.Next)
             {
                 var arrow = node.Value as QuestArrowGump;
                 if (arrow == null || arrow.IsDisposed) continue;
                 // Target Z unknown — use player Z so endpoint projects to ground at (mx,my).
-                Point b = PathPreview.TileToScreen(arrow.TargetX, arrow.TargetY, World.Player.Z);
+                Point b = PathPreview.TileToViewport(arrow.TargetX, arrow.TargetY, World.Player.Z);
                 DrawLine(batcher, a, b);
             }
         }

@@ -121,7 +121,7 @@ namespace ClassicUO.Game.Managers
                 var mob = World.Mobiles.Get(kv.Key);
                 if (mob == null || mob.IsDestroyed) continue;
 
-                Point p = ClassicUO.Game.UI.PathPreview.TileToScreen(mob.X, mob.Y, mob.Z);
+                Point p = ClassicUO.Game.UI.PathPreview.TileToViewport(mob.X, mob.Y, mob.Z);
                 // Aggression marker 12x6 just above tile.
                 int w = 12, h = 6;
                 batcher.Draw(markerTex, new Rectangle(p.X - w / 2, p.Y - 36, w, h), hueNeutral);

@@ -218,7 +218,7 @@ namespace ClassicUO.Game.UI
                 ref var sprite = ref frames[0];
                 if (sprite.Texture == null) continue;
 
-                Point p = PathPreview.TileToScreen(g.X, g.Y, g.Z);
+                Point p = PathPreview.TileToViewport(g.X, g.Y, g.Z);
                 p.Y += yOffset;
 
                 int sx = g.Mirror

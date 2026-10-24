@@ -68,7 +68,7 @@ namespace ClassicUO.Game.UI
                 int dx = System.Math.Abs(it.X - px), dy = System.Math.Abs(it.Y - py);
                 if (System.Math.Max(dx, dy) > r) continue;
 
-                Point p = PathPreview.TileToScreen(it.X, it.Y, it.Z);
+                Point p = PathPreview.TileToViewport(it.X, it.Y, it.Z);
                 // Small badge above the item.
                 batcher.Draw(tex, new Rectangle(p.X - 6, p.Y - 26, 12, 6), hueNeutral);
             }

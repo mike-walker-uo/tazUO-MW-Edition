@@ -70,7 +70,7 @@ namespace ClassicUO.Game.UI
                 bool keep = AutoLootManager.Instance != null && AutoLootManager.Instance.ItemIsOnLootList(it);
                 if (keep) continue;
 
-                Point p = PathPreview.TileToScreen(it.X, it.Y, it.Z);
+                Point p = PathPreview.TileToViewport(it.X, it.Y, it.Z);
                 // 28x14 dim badge across the tile centre.
                 batcher.Draw(tex, new Rectangle(p.X - 14, p.Y - 22, 28, 14), hueNeutral);
             }

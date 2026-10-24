@@ -35,7 +35,7 @@ namespace ClassicUO.Game.UI
                 if (m == World.Player) continue;
                 if (!AggroIndicatorManager.IsAggressor(m.Serial)) continue;
 
-                Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+                Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
                 // Ellipse-ish ring: 12 segments around feet.
                 const int RX = 18, RY = 8;
                 for (int i = 0; i < 18; i++)

@@ -248,7 +248,7 @@ private static void DrawWalkDust(UltimaBatcher2D batcher, Vector3 hueNeutral, lo
             int alpha = (int)(150 * pct);
             Texture2D tex = SolidColorTextureCache.GetTexture(new Color(180, 160, 120, 255));
             Vector3 dustHue = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);
-            Point p = PathPreview.TileToScreen(_dustX, _dustY, _dustZ);
+            Point p = PathPreview.TileToViewport(_dustX, _dustY, _dustZ);
             int s = 6 + (int)(8 * (1f - pct));
             batcher.Draw(tex, new Rectangle(p.X - s / 2, p.Y - 2, s, 3), dustHue);
         }
@@ -276,7 +276,7 @@ private static void DrawWalkDust(UltimaBatcher2D batcher, Vector3 hueNeutral, lo
             // concentric ellipse-bands with slow sine pulse. Dark purple-blue
             // base so it reads as a moody aura rather than a debuff.
             float pulse = 0.5f + 0.5f * (float)System.Math.Sin(now * 0.0025f);
-            Point p = PathPreview.TileToScreen(World.Player.X, World.Player.Y, World.Player.Z);
+            Point p = PathPreview.TileToViewport(World.Player.X, World.Player.Y, World.Player.Z);
 
             // Outer faint band — wide, very transparent.
             int outerW = 80 + (int)(12 * pulse);
@@ -342,8 +342,8 @@ private static void DrawWalkDust(UltimaBatcher2D batcher, Vector3 hueNeutral, lo
                 int dx = m.X - kv.Value.x;
                 int dy = m.Y - kv.Value.y;
                 if (dx == 0 && dy == 0) continue;
-                Point pcur = PathPreview.TileToScreen(m.X, m.Y, m.Z);
-                Point pprev = PathPreview.TileToScreen(kv.Value.x, kv.Value.y, m.Z);
+                Point pcur = PathPreview.TileToViewport(m.X, m.Y, m.Z);
+                Point pprev = PathPreview.TileToViewport(kv.Value.x, kv.Value.y, m.Z);
                 int alpha = 120;
                 Texture2D tex = SolidColorTextureCache.GetTexture(new Color(220, 220, 220, 255));
                 Vector3 speedHue = ShaderHueTranslator.GetHueVector(0, false, alpha / 255f);

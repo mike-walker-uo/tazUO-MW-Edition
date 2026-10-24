@@ -572,7 +572,7 @@ namespace ClassicUO.Game.Managers
                 Texture2D texture = GetPatchTexture(surface, variant);
                 if (texture == null || texture.IsDisposed) continue;
 
-                Point p = PathPreview.TileToScreen(
+                Point p = PathPreview.TileToWorld(
                     sprite.WorldX, sprite.WorldY, sprite.WorldZ);
                 GetPatchSize(surface, value, out int width, out int height);
                 if (p.X + width / 2 < area.Left || p.X - width / 2 > area.Right
@@ -721,7 +721,7 @@ namespace ClassicUO.Game.Managers
             int chance = quality >= SceneryInteractionManager.QUALITY_HIGH ? 150 : 102;
             chance = Math.Min(235, (int)(chance * Math.Min(1.35f, intensity)
                 * environment.DetailDensity));
-            Point playerScreen = PathPreview.TileToScreen(
+            Point playerScreen = PathPreview.TileToWorld(
                 World.Player.X, World.Player.Y, World.Player.Z);
             int worldX = (World.Player.X - World.Player.Y) * 22;
             int worldY = (World.Player.X + World.Player.Y) * 22 - World.Player.Z * 4;

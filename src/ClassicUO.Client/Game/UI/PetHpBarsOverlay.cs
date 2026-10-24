@@ -68,7 +68,7 @@ namespace ClassicUO.Game.UI
                 if (m.Distance > range) continue;
                 if (m.HitsMax <= 0 || m.Hits >= m.HitsMax) continue;
 
-                Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+                Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
                 int x = p.X - W / 2;
                 int y = p.Y - 36;
                 batcher.Draw(bg, new Rectangle(x - 1, y - 1, W + 2, H + 2), hueNeutral);

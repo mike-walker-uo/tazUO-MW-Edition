@@ -322,7 +322,7 @@ namespace ClassicUO.Game.UI
 
         private static void SpawnPuff(Mobile m)
         {
-            Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+            Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
             ref Puff puff = ref _puffs[_puffIdx++ % _puffs.Length];
             puff.SX = p.X + RandomHelper.GetValue(-3, 3);
             puff.SY = p.Y - 38;
@@ -652,7 +652,7 @@ namespace ClassicUO.Game.UI
             {
                 AmbientPoint lightPoint = i < realCount
                     ? _lightPoints[i] : _windowPoints[i - realCount];
-                Point p = PathPreview.TileToScreen(lightPoint.X, lightPoint.Y, lightPoint.Z);
+                Point p = PathPreview.TileToViewport(lightPoint.X, lightPoint.Y, lightPoint.Z);
                 if (!bounds.Contains(p)) continue;
                 float flicker = 0.82f + 0.18f * (float)Math.Sin(Time.Ticks / 120f + i * 2.7f);
                 int width = 72 + i % 3 * 12;
@@ -695,7 +695,9 @@ namespace ClassicUO.Game.UI
                 if ((i % 3 != 0) != foreground) continue;
                 int tx = World.Player.X + (i * 7 % 19) - 9;
                 int ty = World.Player.Y + (i * 11 % 19) - 9;
-                Point anchor = PathPreview.TileToScreen(tx, ty, World.Player.Z);
+                Point anchor = foreground
+                    ? PathPreview.TileToViewport(tx, ty, World.Player.Z)
+                    : PathPreview.TileToWorld(tx, ty, World.Player.Z);
                 float speed = 0.018f + i % 3 * 0.007f;
                 int fall = (int)((Time.Ticks * speed + i * 557) % 130);
                 int sx = anchor.X + (int)(wind * fall * 0.22f)
@@ -766,7 +768,7 @@ namespace ClassicUO.Game.UI
                 {
                     int tx = World.Player.X + (i * 7 % 21) - 10;
                     int ty = World.Player.Y + (i * 13 % 21) - 10;
-                    Point p = PathPreview.TileToScreen(tx, ty, World.Player.Z);
+                    Point p = PathPreview.TileToViewport(tx, ty, World.Player.Z);
                     int fx = p.X + (int)(18 * Math.Sin(t * 0.31f + i * 1.9f));
                     int fy = p.Y - 20 + (int)(15 * Math.Sin(t * 0.47f + i));
                     if (!bounds.Contains(fx, fy)) continue;
@@ -790,13 +792,14 @@ namespace ClassicUO.Game.UI
                 Texture2D moth = AtmosphereTextures.GetSolid(new Color(238, 224, 180, 255));
                 for (int i = 0; i < SceneryInteractionManager.ScaleCount(_lightPointCount); i++)
                 {
-                    Point p = PathPreview.TileToScreen(_lightPoints[i].X, _lightPoints[i].Y, _lightPoints[i].Z);
+                    Point p = PathPreview.TileToViewport(_lightPoints[i].X, _lightPoints[i].Y, _lightPoints[i].Z);
                     float angle = Time.Ticks / 700f + i * 2.4f;
                     int mx = p.X + (int)(15 * Math.Cos(angle));
                     int my = p.Y - 10 + (int)(8 * Math.Sin(angle * 1.3f));
                     if (!bounds.Contains(mx, my)) continue;
+                    Point world = Client.Game.Scene.Camera.ScreenToWorld(new Point(mx, my));
                     float light = SceneryInteractionManager.GetLightInfluence(
-                        mx, my, out Color lightColor);
+                        world.X, world.Y, out Color lightColor);
                     Texture2D litMoth = light > 0.03f
                         ? AtmosphereTextures.GetSolid(Color.Lerp(
                             new Color(238, 224, 180, 255), lightColor, Math.Min(0.45f, light)))

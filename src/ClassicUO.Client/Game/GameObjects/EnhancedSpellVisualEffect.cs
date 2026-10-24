@@ -1128,7 +1128,7 @@ namespace ClassicUO.Game.GameObjects
                 }
             }
 
-            Point tile = PathPreview.TileToScreen(x, y, z);
+            Point tile = PathPreview.TileToWorld(x, y, z);
             return new Vector2(tile.X + 22f, tile.Y - 28f);
         }
 

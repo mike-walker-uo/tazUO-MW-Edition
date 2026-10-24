@@ -62,7 +62,7 @@ namespace ClassicUO.Game.UI
 
                 Color c = ColorFor(m.NotorietyFlag);
                 Texture2D tex = SolidColorTextureCache.GetTexture(c);
-                Point p = PathPreview.TileToScreen(m.X, m.Y, m.Z);
+                Point p = PathPreview.TileToViewport(m.X, m.Y, m.Z);
                 batcher.Draw(tex, new Rectangle(p.X - 2, p.Y - 52, 4, 4), hueNeutral);
             }
         }
