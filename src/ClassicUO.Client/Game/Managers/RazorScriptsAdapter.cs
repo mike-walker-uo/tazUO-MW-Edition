@@ -258,29 +258,30 @@ namespace ClassicUO.Game.Managers
                 // ClassicUO.cs RunUI owns a separate STA thread; queue onto its existing form.
                 if (assembly.GetName().Version != new Version(1, 0, 0, 14))
                     throw new NotSupportedException("unsupported Razor version; expected 1.0.0.14.");
-                Type misc = Require(assembly.GetType("RazorEnhanced.Misc"));
-                Type scripts = Require(assembly.GetType("RazorEnhanced.Scripts"));
-                Type item = Require(assembly.GetType("RazorEnhanced.Scripts+ScriptItem"));
-                Type enhanced = Require(assembly.GetType("RazorEnhanced.EnhancedScript"));
-                _window = Require(Require(assembly.GetType("Assistant.Engine")).GetProperty("MainWindow", Static))
+                Type misc = Require(assembly.GetType("RazorEnhanced.Misc"), "RazorEnhanced.Misc");
+                Type scripts = Require(assembly.GetType("RazorEnhanced.Scripts"), "RazorEnhanced.Scripts");
+                Type item = Require(assembly.GetType("RazorEnhanced.Scripts+ScriptItem"), "Scripts.ScriptItem");
+                Type enhanced = Require(assembly.GetType("RazorEnhanced.EnhancedScript"), "RazorEnhanced.EnhancedScript");
+                _window = Require(Require(assembly.GetType("Assistant.Engine"), "Assistant.Engine").GetProperty("MainWindow", Static), "Engine.MainWindow")
                     .GetValue(null) as Control;
                 if (_window == null || _window.IsDisposed || _window.Disposing || !_window.IsHandleCreated)
                     throw new InvalidOperationException("Razor window is not ready.");
-                _profile = Require(Require(assembly.GetType("RazorEnhanced.Settings")).GetProperty("CurrentProfile", Static));
-                _lists = new[] { "PyScripts", "UosScripts", "CsScripts" }.Select(n => Require(scripts.GetField(n, Static))).ToArray();
-                _filename = Require(item.GetProperty("Filename"));
-                _path = Require(item.GetProperty("FullPath"));
-                _running = Require(enhanced.GetProperty("IsRunning", Instance));
-                _service = Require(Require(enhanced.GetField("Service", Static)).GetValue(null));
-                _search = Require(_service.GetType().GetMethod("Search", Instance, null, new[] { typeof(string), typeof(bool) }, null));
-                _all = Require(_service.GetType().GetMethod("ScriptList", Instance, null, Type.EmptyTypes, null));
-                _status = Require(misc.GetMethod("ScriptStatus", new[] { typeof(string) }));
-                _run = Require(misc.GetMethod("ScriptRun", new[] { typeof(string) }));
-                _stop = Require(misc.GetMethod("ScriptStop", new[] { typeof(string) }));
-                _stopAll = Require(misc.GetMethod("ScriptStopAll", new[] { typeof(bool) }));
+                _profile = Require(Require(assembly.GetType("RazorEnhanced.Settings"), "RazorEnhanced.Settings").GetProperty("CurrentProfile", Static), "Settings.CurrentProfile");
+                _lists = new[] { "PyScripts", "UosScripts", "CsScripts" }.Select(n => Require(scripts.GetField(n, Static), "Scripts." + n)).ToArray();
+                _filename = Require(item.GetProperty("Filename"), "ScriptItem.Filename");
+                _path = Require(item.GetProperty("FullPath"), "ScriptItem.FullPath");
+                _running = Require(enhanced.GetProperty("IsRunning", Instance), "EnhancedScript.IsRunning");
+                _service = Require(enhanced.GetField("Service", Static), "EnhancedScript.Service").GetValue(null)
+                    ?? throw new InvalidOperationException("Razor script service is not ready.");
+                _search = Require(_service.GetType().GetMethod("Search", Instance, null, new[] { typeof(string), typeof(bool) }, null), "Service.Search(string, bool)");
+                _all = Require(_service.GetType().GetMethod("ScriptList", Instance, null, Type.EmptyTypes, null), "Service.ScriptList()");
+                _status = Require(misc.GetMethod("ScriptStatus", new[] { typeof(string) }), "Misc.ScriptStatus(string)");
+                _run = Require(misc.GetMethod("ScriptRun", new[] { typeof(string) }), "Misc.ScriptRun(string)");
+                _stop = Require(misc.GetMethod("ScriptStop", new[] { typeof(string) }), "Misc.ScriptStop(string)");
+                _stopAll = Require(misc.GetMethod("ScriptStopAll", new[] { typeof(bool) }), "Misc.ScriptStopAll(bool)");
             }
-            private static T Require<T>(T member) where T : class => member
-                ?? throw new NotSupportedException("unsupported Razor script interface; required member is missing.");
+            private static T Require<T>(T member, string name = "script list") where T : class => member
+                ?? throw new NotSupportedException("unsupported Razor script interface; missing " + name + ".");
             public void Post(Action callback) => _window.BeginInvoke(callback);
             public string Profile => (string)_profile.GetValue(null);
             public IEnumerable<Script> Discover()
