@@ -5,6 +5,7 @@ using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Input;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -18,7 +19,10 @@ namespace ClassicUO.Game.UI.Gumps
         private StbTextBox _search;
         private Label _status;
         private Label _updateStatus;
-        private int _tab, _page, _sort, _staleDays = 7;
+        private int _tab, _page, _staleDays = 7;
+        private VendorLedgerColumn _historySort = VendorLedgerColumn.Received, _stockSort = VendorLedgerColumn.FirstSeen;
+        private VendorLedgerColumn _restockSort = VendorLedgerColumn.Received;
+        private bool _historyDescending, _stockDescending, _restockDescending;
         private long _refreshAt;
         private string _query = "";
         private int _revision;
@@ -63,10 +67,35 @@ namespace ClassicUO.Game.UI.Gumps
             _search.SetText(_query);
             _search.TextChanged += (s, e) => { _query = _search.Text; _page = 0; _refreshAt = (long)Time.Ticks + 200; };
             Add(_search);
-            Add(new VendorLocalButton(520, 114, 140, "Sort: " + (_sort == 0 ? "received" : _sort == 1 ? "name" : "price"),
-                () => { _sort = (_sort + 1) % 3; _page = 0; RefreshRows(); }));
+            if (_tab == 3)
+            {
+                var restore = new VendorLocalButton(520, 114, 140, "Restore removed", () =>
+                {
+                    if (VendorLedgerManager.RestoreRestock(VendorLedgerManager.Records, _vendor)) VendorLedgerManager.Changed();
+                    _page = 0; RefreshRows();
+                });
+                restore.SetTooltip("Restore removed restock items for " + (_vendor == null ? "all vendors." : "this vendor."));
+                Add(restore);
+                Add(new VendorLocalButton(780, 114, 106, "Reset sort", () =>
+                {
+                    _restockSort = VendorLedgerColumn.Received; _restockDescending = false;
+                    _page = 0; RefreshRows();
+                }));
+            }
+            else
+            {
+                var resetSort = new VendorLocalButton(520, 114, 140, "Reset sort", () =>
+                {
+                    if (_tab == 1) { _historySort = VendorLedgerColumn.Received; _historyDescending = false; }
+                    else { _stockSort = VendorLedgerColumn.FirstSeen; _stockDescending = false; }
+                    _page = 0; RefreshRows();
+                }) { IsEnabled = _tab == 1 || _tab == 4 };
+                resetSort.SetTooltip("Click a column heading to sort; click again to reverse. Reset restores received sales / oldest stock first.");
+                Add(resetSort);
+            }
             Add(new VendorLocalButton(668, 114, 104, "Refresh", RefreshRows));
-            Add(new VendorLocalButton(780, 114, 106, "Age " + _staleDays + "d", () => { _staleDays = _staleDays == 7 ? 14 : _staleDays == 14 ? 30 : _staleDays == 30 ? 1 : 7; _page = 0; RefreshRows(); }));
+            if (_tab != 3)
+                Add(new VendorLocalButton(780, 114, 106, "Age " + _staleDays + "d", () => { _staleDays = _staleDays == 7 ? 14 : _staleDays == 14 ? 30 : _staleDays == 30 ? 1 : 7; _page = 0; RefreshRows(); }));
             Add(new VendorLocalButton(32, 158, 124, "Add vendor", VendorLedgerManager.TargetVendor));
             Add(new VendorLocalButton(164, 158, 176, "Update vendors", () => VendorRefreshManager.Start()));
             Add(new VendorLocalButton(348, 158, 112, "Stop update", VendorRefreshManager.Stop));
@@ -86,6 +115,29 @@ namespace ClassicUO.Game.UI.Gumps
         {
             var label = new Label(text, true, hue, width, font: 1, style: FontStyle.Cropped) { X = x, Y = y };
             label.SetTooltip(text); _body.Add(label);
+        }
+        private void SortHeader(string text, VendorLedgerColumn column, int x, int width)
+        {
+            bool history = _tab == 1, restock = _tab == 3;
+            bool active = column == (history ? _historySort : restock ? _restockSort : _stockSort);
+            bool descending = history ? _historyDescending : restock ? _restockDescending : _stockDescending;
+            var label = new Label(text + (active ? descending ? " v" : " ^" : ""), true, 0x0481,
+                width, font: 1, style: FontStyle.Cropped) { X = x, Y = 0, AcceptMouseInput = true };
+            label.SetTooltip(text + (active ? descending ? ": descending." : ": ascending." : ".")
+                + " Click to sort " + (active && !descending ? "descending." : "ascending.")
+                + (column == VendorLedgerColumn.Listed || column == VendorLedgerColumn.Sold
+                    ? " Server dates without a year sort by month/day; unrecognized dates stay last." : "")
+                + (column == VendorLedgerColumn.Stock ? " Sorts captured listing counts; + means a lower bound. Unknown stays last." : "")
+                + (restock && column == VendorLedgerColumn.Price ? " Median sold gold per listing/bundle. No sales stays last." : ""));
+            label.MouseUp += (_, e) =>
+            {
+                if (e.Button != MouseButtonType.Left) return;
+                if (history) { _historyDescending = active && !descending; _historySort = column; }
+                else if (restock) { _restockDescending = active && !descending; _restockSort = column; }
+                else { _stockDescending = active && !descending; _stockSort = column; }
+                _page = 0; RefreshRows();
+            };
+            _body.Add(label);
         }
         private static string Gold(decimal value) => value.ToString("N0", CultureInfo.InvariantCulture);
         private void SaleItem(VendorSaleRecord sale, int x, int y, int width)
@@ -152,15 +204,20 @@ namespace ClassicUO.Game.UI.Gumps
         {
             bool all = _vendor == null;
             var query = VendorLedgerManager.SalesRows(VendorLedgerManager.Records, _vendor, _query);
-            if (_sort == 1) query = query.OrderBy(r => r.Sale.ItemName).ThenBy(r => r.Sale.Buyer);
-            else if (_sort == 2) query = query.OrderByDescending(r => r.Sale.Price);
-            var rows = query.ToList(); int start = PageStart(rows.Count);
+            var rows = VendorLedgerManager.SortSales(query, _historySort, _historyDescending).ToList();
+            int start = PageStart(rows.Count);
             if (all)
             {
-                Line("SHOP", 4, 0, 155); Line("ITEM", 169, 0, 235); Line("BUYER", 414, 0, 125);
-                Line("PRICE", 549, 0, 100); Line("LISTED", 659, 0, 80); Line("SOLD", 749, 0, 80);
+                SortHeader("SHOP", VendorLedgerColumn.Shop, 4, 155); SortHeader("ITEM", VendorLedgerColumn.Item, 169, 235);
+                SortHeader("BUYER", VendorLedgerColumn.Buyer, 414, 125); SortHeader("PRICE", VendorLedgerColumn.Price, 549, 100);
+                SortHeader("LISTED", VendorLedgerColumn.Listed, 659, 80); SortHeader("SOLD", VendorLedgerColumn.Sold, 749, 80);
             }
-            else { Line("ITEM", 4, 0, 300); Line("BUYER", 310, 0, 140); Line("PRICE", 460, 0, 120); Line("LISTED", 590, 0, 100); Line("SOLD", 705, 0, 100); }
+            else
+            {
+                SortHeader("ITEM", VendorLedgerColumn.Item, 4, 300); SortHeader("BUYER", VendorLedgerColumn.Buyer, 310, 140);
+                SortHeader("PRICE", VendorLedgerColumn.Price, 460, 120); SortHeader("LISTED", VendorLedgerColumn.Listed, 590, 100);
+                SortHeader("SOLD", VendorLedgerColumn.Sold, 705, 100);
+            }
             for (int i = start; i < Math.Min(start + 10, rows.Count); i++)
             {
                 var row = rows[i].Sale; int y = 34 + (i - start) * 30;
@@ -196,45 +253,99 @@ namespace ClassicUO.Game.UI.Gumps
             _status.Text = HistoryCoverage() + ". Identical sale rows count separately; dates retain the server's format.";
         }
 
+        internal static string RestockCount((int Listings, long Units, bool Complete) stock, bool olderThanHistory)
+            => !stock.Complete && stock.Listings == 0 ? "Unknown"
+                : stock.Complete && !olderThanHistory ? stock.Listings + " left"
+                : stock.Listings + (stock.Complete ? " seen" : "+ seen");
+
+        internal static string RestockPrice(decimal? value)
+            => value.HasValue ? value.Value.ToString("#,0.##", CultureInfo.InvariantCulture) : "No sales";
+
+        private void RestockCell(string text, int x, int y, int width, string tooltip,
+            VendorLedgerManager.RestockGroup group, ushort hue = 0x0481)
+        {
+            var label = new Label(text, true, hue, width, font: 1, style: FontStyle.Cropped)
+                { X = x, Y = y, AcceptMouseInput = true };
+            label.SetTooltip(tooltip, 320);
+            label.MouseUp += (_, e) => { if (e.Button == MouseButtonType.Left) VendorRestockDetailsGump.Open(group); };
+            _body.Add(label);
+        }
+
         private void Restock()
         {
             bool all = _vendor == null;
-            var groups = VendorLedgerManager.RestockRows(VendorLedgerManager.Records, _vendor, _query).ToList();
+            var query = VendorLedgerManager.GroupRestock(VendorLedgerManager.Records, _vendor, _query);
+            var groups = VendorLedgerManager.SortRestock(query, _restockSort, _restockDescending).ToList();
             int start = PageStart(groups.Count);
-            if (all) { Line("SHOP", 4, 0, 155); Line("SOLD ITEM", 169, 0, 235); Line("SALES", 420, 0, 60); }
-            else Line("SOLD ITEM / sale entries, not inferred units", 4, 0, 520);
+            if (all) { SortHeader("VENDORS", VendorLedgerColumn.Shop, 4, 94); SortHeader("ITEM", VendorLedgerColumn.Item, 108, 200); }
+            else SortHeader("ITEM", VendorLedgerColumn.Item, 4, 304);
+            SortHeader("SALES", VendorLedgerColumn.Sales, 318, 52); SortHeader("STOCK", VendorLedgerColumn.Stock, 378, 80);
+            SortHeader("MEDIAN", VendorLedgerColumn.Price, 468, 91);
             for (int i = start; i < Math.Min(start + 10, groups.Count); i++)
             {
-                var vendor = groups[i].Vendor;
-                string name = groups[i].ItemName; int y = 32 + (i - start) * 33;
-                if (all) { Line(vendor.ShopName, 4, y + 6, 155); Line(name, 169, y + 6, 235); }
-                else Line(name, 4, y + 6, 405);
-                Line(groups[i].Sales.ToString(), 420, y + 6, 60);
-                _body.Add(new VendorLocalButton(490, y, 100, vendor.RestockedNames.Contains(name) ? "Done" : "Restocked", () =>
+                var group = groups[i];
+                string name = group.ItemName; int y = 32 + (i - start) * 33;
+                string count = RestockCount(group.Stock, group.OlderThanHistory);
+                string heading = name.Length > 36 ? name.Substring(0, 33) + "..." : name;
+                string detail = "/c[#E6C86E]" + heading + "/c[white]\n" + group.Members.Length + " vendors | " + group.Sales + " sales"
+                    + "\nStock: " + count + "\nMedian sold: " + RestockPrice(group.Prices.Median) + (group.Prices.Median.HasValue ? " gold" : "")
+                    + "\nClick for vendors & price history.";
+                if (all) RestockCell(group.Members.Length + (group.Members.Length == 1 ? " vendor" : " vendors"), 4, y + 6, 94, detail, group);
+                RestockCell(name, all ? 108 : 4, y + 6, all ? 200 : 304, detail, group);
+                RestockCell(group.Sales.ToString(), 318, y + 6, 52, detail, group);
+                RestockCell(count, 378, y + 6, 80, detail, group,
+                    !group.OlderThanHistory && group.Stock.Complete && group.Stock.Listings == 0 ? (ushort)0x0021 : (ushort)0x0481);
+                RestockCell(RestockPrice(group.Prices.Median), 468, y + 6, 91, detail, group, 0x0035);
+                bool marked = group.Members.All(r => r.Vendor.RestockedNames.Contains(r.ItemName, StringComparer.OrdinalIgnoreCase));
+                var done = new VendorLocalButton(569, y, 66, marked ? "Done" : "Mark", () =>
                 {
-                    if (!vendor.RestockedNames.Remove(name)) vendor.RestockedNames.Add(name);
+                    foreach (var member in group.Members)
+                    {
+                        if (marked) member.Vendor.RestockedNames.RemoveAll(n => string.Equals(n, member.ItemName, StringComparison.OrdinalIgnoreCase));
+                        else if (!member.Vendor.RestockedNames.Contains(member.ItemName, StringComparer.OrdinalIgnoreCase)) member.Vendor.RestockedNames.Add(member.ItemName);
+                    }
                     VendorLedgerManager.Changed(); RefreshRows();
-                }));
-                _body.Add(new VendorLocalButton(598, y, 96, "Find item", () => Find(name)));
-                _body.Add(new VendorLocalButton(702, y, 60, "VS", () => VendorSearchWatchManager.OpenSearch(SearchName(name))));
-                _body.Add(new VendorLocalButton(770, y, 60, "Watch", () => VendorMarketWatchGump.Watch(SearchName(name))));
+                });
+                done.SetTooltip("Toggle the manual restocked checkmark for all " + group.Members.Length + " listed vendors. Does not change captured stock."); _body.Add(done);
+                _body.Add(new VendorLocalButton(643, y, 52, "Find", () => Find(name)));
+                _body.Add(new VendorLocalButton(703, y, 36, "VS", () => VendorSearchWatchManager.OpenSearch(SearchName(name))));
+                _body.Add(new VendorLocalButton(747, y, 46, "Watch", () => VendorMarketWatchGump.Watch(SearchName(name))));
+                var remove = new VendorLocalButton(801, y, 35, "X", () =>
+                {
+                    bool changed = false;
+                    foreach (var member in group.Members) changed |= VendorLedgerManager.RemoveRestock(member.Vendor, member.ItemName);
+                    if (changed) VendorLedgerManager.Changed();
+                    RefreshRows();
+                });
+                remove.SetTooltip("Remove this item from all " + group.Members.Length + " listed vendors' restock lists. Sales stay saved. Restore removed undoes this.");
+                _body.Add(remove);
             }
-            _status.Text = groups.Count + " matching checklist entries. Sale counts are entries, not units. Checkmarks apply to each vendor separately.";
-            if (groups.Count == 0) Line("No matching captured sales for this checklist. Use Update vendors to refresh histories.", 4, 36);
+            _status.Text = groups.Count + " items. Median = sold gold per listing/bundle. Click a row for vendors & price history. X removes; Restore removed undoes.";
+            if (groups.Count == 0) Line("No matching restock items. Restore removed or update vendors to refresh stock and sales.", 4, 36);
         }
 
         private void Stock()
         {
             long now = DateTime.UtcNow.Ticks;
             bool all = _vendor == null;
-            var rows = VendorLedgerManager.StaleStockRows(VendorLedgerManager.Records, _vendor, _query, _staleDays, now).ToList();
+            var query = VendorLedgerManager.StaleStockRows(VendorLedgerManager.Records, _vendor, _query, _staleDays, now);
+            var rows = VendorLedgerManager.SortStock(query, _stockSort, _stockDescending).ToList();
             int start = PageStart(rows.Count);
             if (all)
             {
-                Line("SHOP", 4, 0, 155); Line("ITEM", 169, 0, 245); Line("AMOUNT / PRICE", 424, 0, 170);
-                Line("FIRST SEEN", 604, 0, 108); Line("LAST SEEN", 722, 0, 108);
+                SortHeader("SHOP", VendorLedgerColumn.Shop, 4, 155); SortHeader("ITEM", VendorLedgerColumn.Item, 169, 245);
+                SortHeader("AMOUNT", VendorLedgerColumn.Amount, 424, 76); Line("/", 502, 0, 12);
+                SortHeader("PRICE", VendorLedgerColumn.Price, 516, 78);
+                SortHeader("FIRST SEEN", VendorLedgerColumn.FirstSeen, 604, 108); SortHeader("LAST SEEN", VendorLedgerColumn.LastSeen, 722, 108);
             }
-            else { Line("ITEM", 4, 0, 320); Line("AMOUNT / PRICE", 330, 0, 190); Line("FIRST OBSERVED", 530, 0, 150); Line("LAST OBSERVED", 690, 0, 140); }
+            else
+            {
+                SortHeader("ITEM", VendorLedgerColumn.Item, 4, 320);
+                SortHeader("AMOUNT", VendorLedgerColumn.Amount, 330, 88); Line("/", 420, 0, 12);
+                SortHeader("PRICE", VendorLedgerColumn.Price, 434, 86);
+                SortHeader("FIRST OBSERVED", VendorLedgerColumn.FirstSeen, 530, 150);
+                SortHeader("LAST OBSERVED", VendorLedgerColumn.LastSeen, 690, 140);
+            }
             for (int i = start; i < Math.Min(start + 10, rows.Count); i++)
             {
                 var row = rows[i].Stock; int y = 34 + (i - start) * 30;

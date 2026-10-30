@@ -14,9 +14,12 @@ namespace ClassicUO.Configuration
         public long LastObservedUtcTicks { get; set; }
         public long LastHistoryUtcTicks { get; set; }
         public long LastStockUtcTicks { get; set; }
+        public bool StockComplete { get; set; }
+        public string StockNote { get; set; } = string.Empty;
         public List<VendorSaleRecord> Sales { get; set; } = new List<VendorSaleRecord>();
         public List<VendorStockRecord> Stock { get; set; } = new List<VendorStockRecord>();
         public List<string> RestockedNames { get; set; } = new List<string>();
+        public List<string> RestockHiddenNames { get; set; } = new List<string>();
     }
 
     public sealed class VendorSaleRecord

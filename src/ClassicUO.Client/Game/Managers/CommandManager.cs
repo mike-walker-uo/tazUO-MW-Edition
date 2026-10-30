@@ -1158,7 +1158,7 @@ namespace ClassicUO.Game.Managers
                 string arg = s[1].Trim().ToLowerInvariant();
                 if (arg == "on") PetBandageManager.SetEnabled(true);
                 else if (arg == "off") PetBandageManager.SetEnabled(false);
-                else if (int.TryParse(arg, out int pct)) { PetBandageManager.SetThreshold(pct); PetBandageManager.SetEnabled(true); }
+                else if (int.TryParse(arg, out int pct)) { PetBandageManager.SetThreshold(pct); if (pct >= 5 && pct <= 99) PetBandageManager.SetEnabled(true); }
                 else GameActions.Print("Usage: -petbandage [on|off|<percent>]", 0x21);
             });
 

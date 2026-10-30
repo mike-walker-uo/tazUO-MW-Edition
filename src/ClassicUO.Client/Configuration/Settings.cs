@@ -110,6 +110,8 @@ namespace ClassicUO.Configuration
 
         [JsonPropertyName("session_log")] public bool SessionLog { get; set; }
 
+        [JsonPropertyName("login_diagnostics")] public bool LoginDiagnostics { get; set; }
+
         [JsonPropertyName("force_driver")] public byte ForceDriver { get; set; }
 
         [JsonPropertyName("use_verdata")] public bool UseVerdata { get; set; }

@@ -161,6 +161,10 @@ namespace ClassicUO.UnitTests.TazUO
         {
             Assert.Equal(VendorGumpKind.None, VendorLedgerManager.Recognize("Shop Name"));
             Assert.Equal(VendorGumpKind.Owner, VendorLedgerManager.Recognize("Shop Name Dismiss Vendor View Sales History"));
+            Assert.Equal(VendorGumpKind.Owner, VendorLedgerManager.Recognize("Shop Name See goods View Sales History"));
+            Assert.Equal(VendorGumpKind.Owner, VendorLedgerManager.Recognize("Shop Name See goods"));
+            Assert.Equal(VendorGumpKind.Owner, VendorLedgerManager.Recognize("Shop Name View Sales History"));
+            Assert.Equal(VendorGumpKind.None, VendorLedgerManager.Recognize("Shop Name Customize"));
             Assert.Equal(VendorGumpKind.History, VendorLedgerManager.Recognize("Vendor Sales History Buyer Sell Price"));
             Assert.Equal(VendorGumpKind.Listing, VendorLedgerManager.Recognize("Set Price and Description Listing fee"));
         }

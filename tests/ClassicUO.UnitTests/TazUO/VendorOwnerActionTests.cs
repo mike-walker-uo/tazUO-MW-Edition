@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Serialization;
+using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
@@ -8,6 +9,7 @@ using Xunit;
 
 namespace ClassicUO.UnitTests.TazUO
 {
+    [Collection("Client session regression")]
     public class VendorOwnerActionTests
     {
         [Fact]
@@ -44,6 +46,39 @@ namespace ClassicUO.UnitTests.TazUO
             goods.ButtonAction = ButtonAction.SwitchPage;
             Assert.Null(VendorRefreshManager.Action(gump, "See goods"));
         }
+
+        [Theory]
+        [InlineData(true, 2, 12)]
+        [InlineData(false, 6, 1)]
+        public void Refresh_prefers_history_but_uses_goods_when_history_is_unavailable(bool history, int step, int button)
+        {
+            VendorRefreshManager.Reset();
+            try
+            {
+                var record = new VendorLedgerRecord { ShopName = "Shared vendor" };
+                var gump = new Gump(0, 1);
+                gump.Children.Add(Action(1, 24));
+                gump.Children.Add(Caption("See goods", 24));
+                if (history)
+                {
+                    gump.Children.Add(Action(12, 64));
+                    gump.Children.Add(Caption("View Sales History", 64));
+                }
+                RefreshField("_current").SetValue(null, record);
+                RefreshField("_step").SetValue(null, 1);
+                RefreshField("_partial").SetValue(null, false); // NextVendor normally initializes this flag.
+                long before = Time.Ticks;
+                VendorRefreshManager.ObserveGump(gump, VendorGumpKind.Owner, record);
+
+                Assert.Equal(step, (int)RefreshField("_step").GetValue(null));
+                Assert.Equal(button, (int)RefreshField("_button").GetValue(null));
+                Assert.Equal(!history, (bool)RefreshField("_partial").GetValue(null));
+                Assert.InRange((long)RefreshField("_deadline").GetValue(null), before + 5000, (long)Time.Ticks + 5000);
+            }
+            finally { VendorRefreshManager.Reset(); RefreshField("_partial").SetValue(null, false); }
+        }
+
+        private static FieldInfo RefreshField(string name) => typeof(VendorRefreshManager).GetField(name, BindingFlags.Static | BindingFlags.NonPublic);
 
         private static Button Action(int id, int y)
         {

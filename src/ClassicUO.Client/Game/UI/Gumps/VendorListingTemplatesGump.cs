@@ -35,7 +35,7 @@ namespace ClassicUO.Game.UI.Gumps
             _list = new ScrollArea(28, 308, 620, 130, true); Add(_list);
             _status = new Label("Templates fill fields only. Review sale status and server-calculated fees before listing.",
                 true, 0x0386, 620, font: 1) { X = 28, Y = 454 }; Add(_status);
-            RefreshList(); CopyListing(); CenterXInScreen(); CenterYInScreen(); SetInScreen();
+            RefreshList(); if (listing != null) CopyListing(); CenterXInScreen(); CenterYInScreen(); SetInScreen();
         }
 
         internal static void Open(Gump listing)
@@ -45,25 +45,61 @@ namespace ClassicUO.Game.UI.Gumps
             UIManager.Add(new VendorListingTemplatesGump(listing));
         }
 
+        internal static void OpenForRestock(VendorLedgerManager.RestockGroup group)
+        {
+            if (!World.InGame || ProfileManager.CurrentProfile == null || group == null) return;
+            UIManager.GetGump<VendorListingTemplatesGump>()?.Dispose();
+            var gump = new VendorListingTemplatesGump(null);
+            string name = System.Text.RegularExpressions.Regex.Replace(group.ItemName, @"^\d+\s+", "").Trim();
+            var template = gump._profile.VendorListingTemplates.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+            gump._name.SetText(name);
+            if (template != null)
+            {
+                gump._price.SetText(template.Price); gump._description.SetText(template.Description);
+                gump._status.Text = "Saved template loaded. Open the listing window and apply; review before listing.";
+            }
+            else if (group.Prices.Median.HasValue)
+            {
+                gump._price.SetText(Math.Round(group.Prices.Median.Value, 0, MidpointRounding.AwayFromZero).ToString(System.Globalization.CultureInfo.InvariantCulture));
+                gump._status.Text = "Median sale price suggested for the whole bundle. Open listing and apply; review before listing.";
+            }
+            else gump._status.Text = "Enter a price. Open the listing window and apply; review before listing.";
+            UIManager.Add(gump);
+        }
+
         private StbTextBox Input(int x, int y, int width, int length, int height = 30)
         {
             Add(new AlphaBlendControl(1) { X = x, Y = y, Width = width, Height = height, BaseColor = new Microsoft.Xna.Framework.Color(22, 21, 19) });
             var input = new StbTextBox(1, length, width - 12, true, hue: 0x0481) { X = x + 6, Y = y + 4, Width = width - 12, Height = height - 8 };
             Add(input); return input;
         }
-        private StbTextBox[] ListingFields() => _listing == null || _listing.IsDisposed ? Array.Empty<StbTextBox>()
-            : _listing.Children.OfType<StbTextBox>().Where(t => t.IsFromServer).OrderBy(t => t.Y).ThenBy(t => t.X).ToArray();
+        private static bool IsListing(Gump gump) => gump != null && !gump.IsDisposed && gump.IsVisible && gump.IsFromServer
+            && VendorLedgerManager.Recognize(string.Join("\n", VendorLedgerManager.Cells(gump).Select(c => c.Text))) == VendorGumpKind.Listing;
+
+        private StbTextBox[] ListingFields()
+        {
+            Gump listing = _listing;
+            if (listing != null && !IsListing(listing)) return Array.Empty<StbTextBox>();
+            if (listing == null)
+            {
+                var candidates = UIManager.Gumps.Where(IsListing).Take(2).ToArray();
+                if (candidates.Length != 1) return Array.Empty<StbTextBox>();
+                listing = candidates[0];
+            }
+            return listing.Children.OfType<StbTextBox>().Where(t => t.IsFromServer && !t.IsDisposed)
+                .OrderBy(t => t.Y).ThenBy(t => t.X).ToArray();
+        }
 
         private void CopyListing()
         {
             var fields = ListingFields();
-            if (fields.Length != 2) { _status.Text = "Open Set Price and Description, then its Listing templates button to use a template."; return; }
+            if (fields.Length != 2) { _status.Text = "Open one Set Price and Description window, then try again."; return; }
             _price.SetText(fields[0].Text); _description.SetText(fields[1].Text);
         }
         private void Apply()
         {
             var fields = ListingFields();
-            if (fields.Length != 2) { _status.Text = "The original listing window is no longer available."; return; }
+            if (fields.Length != 2) { _status.Text = "Open one Set Price and Description window, then try again."; return; }
             fields[0].SetText(_price.Text); fields[1].SetText(_description.Text);
             _status.Text = "Fields filled. Sale checkboxes unchanged. Calculate fees, then review and List item yourself.";
         }
