@@ -225,6 +225,21 @@ namespace ClassicUO.Game.Managers
         private void Publish(Snapshot snapshot) { if (!_disposed) Volatile.Write(ref _current, snapshot); }
         public void Dispose() { _disposed = true; Volatile.Write(ref _pending, null); }
 
+        internal static Func<string> ProfileReader(Type settings)
+        {
+            const BindingFlags flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+            var property = settings.GetProperty("CurrentProfile", flags);
+            if (property != null && property.PropertyType == typeof(string) && property.GetGetMethod(true) != null)
+                return () => (string)property.GetValue(null);
+
+            // Original Razor Enhanced 1.0.0.14 stores the active profile in this field.
+            var field = settings.GetField("m_profileName", flags);
+            if (field != null && field.FieldType == typeof(string))
+                return () => (string)field.GetValue(null);
+
+            throw new NotSupportedException("unsupported Razor script interface; missing Settings.CurrentProfile / m_profileName.");
+        }
+
         private static ISession Connect()
         {
             // Reuse the plugin's exact loaded assembly; never Load/LoadFrom/ReflectionOnlyLoad.
@@ -245,7 +260,8 @@ namespace ClassicUO.Game.Managers
             private const BindingFlags Static = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
             private const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             private readonly Control _window;
-            private readonly PropertyInfo _profile, _filename, _path, _running;
+            private readonly Func<string> _profile;
+            private readonly PropertyInfo _filename, _path, _running;
             private readonly FieldInfo[] _lists;
             private readonly object _service;
             private readonly MethodInfo _status, _run, _stop, _stopAll, _search, _all;
@@ -266,7 +282,7 @@ namespace ClassicUO.Game.Managers
                     .GetValue(null) as Control;
                 if (_window == null || _window.IsDisposed || _window.Disposing || !_window.IsHandleCreated)
                     throw new InvalidOperationException("Razor window is not ready.");
-                _profile = Require(Require(assembly.GetType("RazorEnhanced.Settings"), "RazorEnhanced.Settings").GetProperty("CurrentProfile", Static), "Settings.CurrentProfile");
+                _profile = ProfileReader(Require(assembly.GetType("RazorEnhanced.Settings"), "RazorEnhanced.Settings"));
                 _lists = new[] { "PyScripts", "UosScripts", "CsScripts" }.Select(n => Require(scripts.GetField(n, Static), "Scripts." + n)).ToArray();
                 _filename = Require(item.GetProperty("Filename"), "ScriptItem.Filename");
                 _path = Require(item.GetProperty("FullPath"), "ScriptItem.FullPath");
@@ -283,7 +299,7 @@ namespace ClassicUO.Game.Managers
             private static T Require<T>(T member, string name = "script list") where T : class => member
                 ?? throw new NotSupportedException("unsupported Razor script interface; missing " + name + ".");
             public void Post(Action callback) => _window.BeginInvoke(callback);
-            public string Profile => (string)_profile.GetValue(null);
+            public string Profile => _profile();
             public IEnumerable<Script> Discover()
             {
                 foreach (FieldInfo list in _lists)
