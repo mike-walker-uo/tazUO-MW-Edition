@@ -241,7 +241,9 @@ namespace ClassicUO.Game.Managers
             {
                 while (deques.Count != 0)
                 {
-                    ref BoatStep step = ref deques.Front();
+                    // Removing the front clears its backing slot; keep the step's
+                    // coordinates after removal when moving passengers below.
+                    BoatStep step = deques.Front();
 
                     Item item = World.Items.Get(step.Serial);
 

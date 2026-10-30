@@ -11,6 +11,9 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.4 beta update 3]\n" +
+            "- Boats: fixed smooth boat movement moving passengers to invalid coordinates.\n" +
+            "- Razor Scripts: improved unavailable messages to identify missing Razor interfaces.\n\n",
             "[0.6.4 beta update 2]\n" +
             "- Vendor enhancements (experimental): sortable sales and stock, grouped restock lists, vendor stock breakdowns, sold-price history and easier listing templates. Improved vendor scanning and access.\n" +
             "- Bandages: fixed command palette thresholds and saving the automatic bandage delay.\n" +
