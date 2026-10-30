@@ -225,14 +225,14 @@ namespace ClassicUO.UnitTests.TazUO
             second.Sales[0].PropertyText = "Luck 100";
             first.Sales.Add(new VendorSaleRecord { ItemName = "Ring", Price = 200 });
             first.Sales.Add(new VendorSaleRecord { ItemName = "Ring of Quality", Price = 999 });
-            var group = Assert.Single(VendorLedgerManager.GroupRestock(vendors, null, "").Where(g => g.ItemName == "Ring"));
+            var group = Assert.Single(VendorLedgerManager.GroupRestock(vendors, null, "").Where(g => string.Equals(g.ItemName, "Ring", StringComparison.OrdinalIgnoreCase)));
             Assert.Equal((3, (long?)100, (decimal?)200, (long?)300), group.Prices);
             Assert.Equal(3, group.PriceHistory.Length);
             var saved = Assert.Single(group.PriceHistory.Where(r => r.Vendor == second));
             Assert.Same(second.Sales[0], saved.Sale); Assert.Equal("Luck 100", saved.Sale.PropertyText);
-            Assert.Equal(2, Assert.Single(VendorLedgerManager.GroupRestock(vendors, first, "").Where(g => g.ItemName == "Ring")).Prices.Count);
+            Assert.Equal(2, Assert.Single(VendorLedgerManager.GroupRestock(vendors, first, "").Where(g => string.Equals(g.ItemName, "Ring", StringComparison.OrdinalIgnoreCase))).Prices.Count);
             VendorLedgerManager.RemoveRestock(second, "Ring");
-            group = Assert.Single(VendorLedgerManager.GroupRestock(vendors, null, "").Where(g => g.ItemName == "Ring"));
+            group = Assert.Single(VendorLedgerManager.GroupRestock(vendors, null, "").Where(g => string.Equals(g.ItemName, "Ring", StringComparison.OrdinalIgnoreCase)));
             Assert.Equal((2, (long?)100, (decimal?)150, (long?)200), group.Prices);
             Assert.All(group.PriceHistory, r => Assert.Same(first, r.Vendor));
             Assert.Equal(3, first.Sales.Count); Assert.Single(second.Sales);
