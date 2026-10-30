@@ -366,7 +366,10 @@ namespace ClassicUO.Game.UI.Gumps
                 onButton.MouseUp += (s, e) =>
                 {
                     if (e.Button != MouseButtonType.Left) return;
-                    CommandManager.Execute(name, new[] { name, "on" });
+                    if ((name == "autobandage" || name == "petbandage") && !string.IsNullOrWhiteSpace(GetExecutionArgument(name)))
+                        ExecuteWithArgs(name, GetExecutionArgument(name));
+                    else
+                        CommandManager.Execute(name, new[] { name, "on" });
                     RequestRebuild();
                 };
                 _scroll.Add(onButton);

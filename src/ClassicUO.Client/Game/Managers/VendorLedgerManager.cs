@@ -9,10 +9,12 @@ using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
+using ClassicUO.Network;
 
 namespace ClassicUO.Game.Managers
 {
     internal enum VendorGumpKind { None, Owner, History, Listing }
+    internal enum VendorLedgerColumn { Received, Shop, Item, Buyer, Price, Listed, Sold, Amount, FirstSeen, LastSeen, Sales, Stock }
 
     internal static class VendorLedgerManager
     {
@@ -36,7 +38,7 @@ namespace ClassicUO.Game.Managers
         {
             if (Has(text, "Set Price and Description") && Has(text, "Listing fee")) return VendorGumpKind.Listing;
             if (Has(text, "Vendor Sales History") && Has(text, "Buyer") && Has(text, "Sell Price")) return VendorGumpKind.History;
-            if (Has(text, "Shop Name") && Has(text, "Dismiss Vendor") && Has(text, "View Sales History")) return VendorGumpKind.Owner;
+            if (Has(text, "Shop Name") && (Has(text, "View Sales History") || Has(text, "See goods"))) return VendorGumpKind.Owner;
             return VendorGumpKind.None;
         }
         private static bool Has(string text, string value) => (text ?? "").IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -106,12 +108,218 @@ namespace ClassicUO.Game.Managers
             => (selected == null ? vendors : new[] { selected }).SelectMany(v => v.Sales.Select(s => (Vendor: v, Sale: s)))
                 .Where(r => Matches(r.Sale, query) || Has(r.Vendor.ShopName, query.Trim()));
 
+        internal static IEnumerable<(VendorLedgerRecord Vendor, VendorSaleRecord Sale)> SortSales(
+            IEnumerable<(VendorLedgerRecord Vendor, VendorSaleRecord Sale)> rows, VendorLedgerColumn column, bool descending)
+        {
+            switch (column)
+            {
+                case VendorLedgerColumn.Shop: return ByText(rows, r => r.Vendor.ShopName, descending);
+                case VendorLedgerColumn.Item: return ByText(rows, r => r.Sale.ItemName, descending);
+                case VendorLedgerColumn.Buyer: return ByText(rows, r => r.Sale.Buyer, descending);
+                case VendorLedgerColumn.Price: return ByNumber(rows, r => r.Sale.Price, descending);
+                case VendorLedgerColumn.Listed: return ByNumber(rows, r => SaleDate(r.Sale.ListDate), descending);
+                case VendorLedgerColumn.Sold: return ByNumber(rows, r => SaleDate(r.Sale.SellDate), descending);
+                default: return rows;
+            }
+        }
+
+        internal static IEnumerable<(VendorLedgerRecord Vendor, VendorStockRecord Stock)> SortStock(
+            IEnumerable<(VendorLedgerRecord Vendor, VendorStockRecord Stock)> rows, VendorLedgerColumn column, bool descending)
+        {
+            switch (column)
+            {
+                case VendorLedgerColumn.Shop: return ByText(rows, r => r.Vendor.ShopName, descending);
+                case VendorLedgerColumn.Item: return ByText(rows, r => r.Stock.ItemName, descending);
+                case VendorLedgerColumn.Amount: return ByNumber(rows, r => r.Stock.Amount, descending);
+                case VendorLedgerColumn.Price: return ByNumber(rows, r => r.Stock.Price, descending);
+                case VendorLedgerColumn.FirstSeen: return ByNumber(rows, r => ObservedDate(r.Stock.FirstSeenUtcTicks), descending);
+                case VendorLedgerColumn.LastSeen: return ByNumber(rows, r => ObservedDate(r.Stock.LastSeenUtcTicks), descending);
+                default: return rows;
+            }
+        }
+
+        private static IOrderedEnumerable<T> ByText<T>(IEnumerable<T> rows, Func<T, string> key, bool descending)
+            => descending ? rows.OrderByDescending(key, StringComparer.OrdinalIgnoreCase)
+                : rows.OrderBy(key, StringComparer.OrdinalIgnoreCase);
+
+        // OrderBy remains stable, caches each key once, and never changes the captured records.
+        private static IOrderedEnumerable<T> ByNumber<T>(IEnumerable<T> rows, Func<T, long?> key, bool descending)
+            => rows.OrderBy(key, Comparer<long?>.Create((a, b) => !a.HasValue ? (b.HasValue ? 1 : 0)
+                : !b.HasValue ? -1 : descending ? b.Value.CompareTo(a.Value) : a.Value.CompareTo(b.Value)));
+
+        private static long? ObservedDate(long ticks) => ticks > 0 && ticks <= DateTime.MaxValue.Ticks ? (long?)ticks : null;
+        private static readonly string[] SaleDateFormats = { "M/d/yyyy", "M/d/yy", "yyyy-MM-dd" };
+        private static long? SaleDate(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            value = value.Trim();
+            if (DateTime.TryParseExact(value, SaleDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime date))
+                return date.Ticks;
+            // Server M/d dates have no year: use a fixed leap year for calendar ordering.
+            return DateTime.TryParseExact("2000/" + value, "yyyy/M/d", CultureInfo.InvariantCulture, DateTimeStyles.None, out date)
+                ? (long?)date.Ticks : null;
+        }
+
         internal static IEnumerable<(VendorLedgerRecord Vendor, string ItemName, int Sales)> RestockRows(
             IEnumerable<VendorLedgerRecord> vendors, VendorLedgerRecord selected, string query)
-            => (selected == null ? vendors : new[] { selected }).SelectMany(v => v.Sales
-                .Where(s => Has(s.ItemName, query.Trim()) || Has(v.ShopName, query.Trim())).GroupBy(s => s.ItemName)
-                .Select(g => (Vendor: v, ItemName: g.Key, Sales: g.Count())))
+            => (selected == null ? vendors : new[] { selected }).SelectMany(RestockItems)
+                .Where(r => !r.Vendor.RestockHiddenNames.Contains(r.ItemName, StringComparer.OrdinalIgnoreCase)
+                    && (Has(r.ItemName, query.Trim()) || Has(r.Vendor.ShopName, query.Trim())))
                 .OrderBy(r => r.ItemName).ThenBy(r => r.Vendor.ShopName);
+
+        internal static IEnumerable<(VendorLedgerRecord Vendor, string ItemName, int Sales)> SortRestock(
+            IEnumerable<(VendorLedgerRecord Vendor, string ItemName, int Sales)> rows, VendorLedgerColumn column, bool descending)
+        {
+            switch (column)
+            {
+                case VendorLedgerColumn.Shop: return ByText(rows, r => r.Vendor.ShopName, descending);
+                case VendorLedgerColumn.Item: return ByText(rows, r => r.ItemName, descending);
+                case VendorLedgerColumn.Sales: return ByNumber(rows, r => r.Sales, descending);
+                case VendorLedgerColumn.Stock: return ByNumber(rows, r =>
+                {
+                    var stock = RestockStock(r.Vendor, r.ItemName);
+                    return stock.Complete || stock.Listings > 0 ? (long?)stock.Listings : null;
+                }, descending);
+                default: return rows;
+            }
+        }
+
+        internal sealed class RestockGroup
+        {
+            internal readonly string ItemName, Shops;
+            internal readonly (VendorLedgerRecord Vendor, string ItemName, int Sales)[] Members;
+            internal readonly long Sales;
+            internal readonly (VendorLedgerRecord Vendor, VendorSaleRecord Sale)[] PriceHistory;
+            internal readonly (int Count, long? Low, decimal? Median, long? High) Prices;
+            internal readonly (int Listings, long Units, bool Complete) Stock;
+            internal readonly bool OlderThanHistory;
+
+            internal RestockGroup(string name, (VendorLedgerRecord Vendor, string ItemName, int Sales)[] members,
+                (VendorLedgerRecord Vendor, VendorSaleRecord Sale)[] priceHistory)
+            {
+                ItemName = name; Members = members;
+                Shops = string.Join(", ", members.Select(r => r.Vendor.ShopName));
+                Sales = members.Sum(r => (long)r.Sales);
+                PriceHistory = priceHistory;
+                Prices = SalePrices(PriceHistory.Select(r => r.Sale));
+                int listings = 0; long units = 0; bool complete = true;
+                foreach (var member in members)
+                {
+                    var stock = RestockStock(member.Vendor, member.ItemName);
+                    listings += stock.Listings; units += stock.Units; complete &= stock.Complete;
+                    OlderThanHistory |= member.Vendor.LastStockUtcTicks > 0
+                        && member.Vendor.LastHistoryUtcTicks > member.Vendor.LastStockUtcTicks;
+                }
+                Stock = (listings, units, complete);
+            }
+        }
+
+        internal static (int Count, long? Low, decimal? Median, long? High) SalePrices(IEnumerable<VendorSaleRecord> sales)
+        {
+            var prices = sales.Select(s => s.Price).OrderBy(p => p).ToArray();
+            if (prices.Length == 0) return (0, null, null, null);
+            int middle = prices.Length / 2;
+            decimal median = prices.Length % 2 == 0 ? ((decimal)prices[middle - 1] + prices[middle]) / 2 : prices[middle];
+            return (prices.Length, prices[0], median, prices[prices.Length - 1]);
+        }
+
+        internal static IEnumerable<RestockGroup> GroupRestock(IEnumerable<VendorLedgerRecord> vendors,
+            VendorLedgerRecord selected, string query)
+        {
+            var scope = (selected == null ? vendors : new[] { selected }).OrderBy(v => v.ShopName, StringComparer.OrdinalIgnoreCase).ToArray();
+            var sales = scope.ToDictionary(v => v, v => v.Sales.ToLookup(s => s.ItemName, StringComparer.OrdinalIgnoreCase));
+            return RestockRows(scope, null, "").GroupBy(r => r.ItemName, StringComparer.OrdinalIgnoreCase)
+                .Where(g => Has(g.Key, query.Trim()) || g.Any(r => Has(r.Vendor.ShopName, query.Trim()))).Select(group =>
+            {
+                var entries = group.ToDictionary(r => r.Vendor);
+                // Include vendors with no sales/stock row: an incomplete scan there cannot prove zero stock.
+                var members = scope.Where(v => !v.RestockHiddenNames.Contains(group.Key, StringComparer.OrdinalIgnoreCase))
+                    .Select(v => entries.TryGetValue(v, out var row) ? row : (Vendor: v, ItemName: group.Key, Sales: 0)).ToArray();
+                var history = members.SelectMany(r => sales[r.Vendor][r.ItemName].Select(s => (Vendor: r.Vendor, Sale: s))).ToArray();
+                return new RestockGroup(group.Key, members, history);
+            }).OrderBy(g => g.ItemName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        internal static IEnumerable<RestockGroup> SortRestock(IEnumerable<RestockGroup> rows, VendorLedgerColumn column, bool descending)
+        {
+            switch (column)
+            {
+                case VendorLedgerColumn.Shop: return ByText(rows, r => r.Shops, descending);
+                case VendorLedgerColumn.Item: return ByText(rows, r => r.ItemName, descending);
+                case VendorLedgerColumn.Sales: return ByNumber(rows, r => r.Sales, descending);
+                case VendorLedgerColumn.Stock: return ByNumber(rows, r => r.Stock.Complete || r.Stock.Listings > 0 ? (long?)r.Stock.Listings : null, descending);
+                case VendorLedgerColumn.Price: return rows.OrderBy(r => r.Prices.Median, Comparer<decimal?>.Create((a, b) =>
+                    !a.HasValue ? b.HasValue ? 1 : 0 : !b.HasValue ? -1 : descending ? b.Value.CompareTo(a.Value) : a.Value.CompareTo(b.Value)));
+                default: return rows;
+            }
+        }
+
+        private static IEnumerable<(VendorLedgerRecord Vendor, string ItemName, int Sales)> RestockItems(VendorLedgerRecord vendor)
+        {
+            var sales = vendor.Sales.ToLookup(s => s.ItemName, StringComparer.OrdinalIgnoreCase);
+            var names = new HashSet<string>(sales.Select(g => g.Key), StringComparer.OrdinalIgnoreCase);
+            var bundles = new Dictionary<string, HashSet<int?>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var sale in sales)
+            {
+                string key = RestockName(sale.Key, out int? amount);
+                if (!bundles.TryGetValue(key, out var amounts)) bundles[key] = amounts = new HashSet<int?>();
+                amounts.Add(amount);
+                yield return (vendor, sale.Key, sale.Count());
+            }
+            foreach (var stock in vendor.Stock)
+            {
+                string key = RestockName(stock.ItemName, out _);
+                bool hasSales = bundles.TryGetValue(key, out var amounts);
+                if (sales.Contains(stock.ItemName) || hasSales && (amounts.Contains(null) || amounts.Contains(stock.Amount))) continue;
+                string name = stock.ItemName;
+                // Keep unsold bundle sizes separate from sold ones even when OPL omits the count.
+                RestockName(name, out int? shownAmount);
+                if (hasSales && !shownAmount.HasValue && stock.Amount > 0)
+                    name = stock.Amount + " " + key;
+                if (names.Add(name)) yield return (vendor, name, 0);
+            }
+        }
+
+        private static string RestockName(string name, out int? amount)
+        {
+            name = (name ?? "").Trim(); amount = null;
+            int space = name.IndexOf(' ');
+            if (space > 0 && int.TryParse(name.Substring(0, space), NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count > 0)
+            { amount = count; return name.Substring(space + 1).TrimStart(); }
+            if (name.StartsWith("a ", StringComparison.OrdinalIgnoreCase)) return name.Substring(2);
+            if (name.StartsWith("an ", StringComparison.OrdinalIgnoreCase)) return name.Substring(3);
+            return name;
+        }
+
+        internal static (int Listings, long Units, bool Complete) RestockStock(VendorLedgerRecord vendor, string name)
+        {
+            string key = RestockName(name, out int? amount);
+            int listings = 0; long units = 0;
+            bool complete = vendor.StockComplete && vendor.LastStockUtcTicks > 0 && vendor.LastStockUtcTicks <= DateTime.MaxValue.Ticks;
+            foreach (var stock in vendor.Stock)
+            {
+                if (!string.Equals(name, stock.ItemName, StringComparison.OrdinalIgnoreCase)
+                    && (!string.Equals(key, RestockName(stock.ItemName, out _), StringComparison.OrdinalIgnoreCase)
+                        || amount.HasValue && amount.Value != stock.Amount)) continue;
+                listings++; units += Math.Max(0L, stock.Amount);
+                if (stock.Amount <= 0) complete = false;
+            }
+            return (listings, units, complete);
+        }
+
+        internal static bool RemoveRestock(VendorLedgerRecord vendor, string name)
+        {
+            if (vendor.RestockHiddenNames.Contains(name, StringComparer.OrdinalIgnoreCase)) return false;
+            vendor.RestockHiddenNames.Add(name); return true;
+        }
+
+        internal static bool RestoreRestock(IEnumerable<VendorLedgerRecord> vendors, VendorLedgerRecord selected)
+        {
+            bool changed = false;
+            foreach (var vendor in selected == null ? vendors : new[] { selected })
+                if (vendor.RestockHiddenNames.Count > 0) { vendor.RestockHiddenNames.Clear(); changed = true; }
+            return changed;
+        }
 
         internal static IEnumerable<(VendorLedgerRecord Vendor, VendorStockRecord Stock)> StaleStockRows(
             IEnumerable<VendorLedgerRecord> vendors, VendorLedgerRecord selected, string query, int days, long now)
@@ -219,7 +427,9 @@ namespace ClassicUO.Game.Managers
                                 _active.RestockedNames = previous.RestockedNames;
                             }
                             if (previous.LastStockUtcTicks > _active.LastStockUtcTicks)
-                            { _active.Stock = previous.Stock; _active.LastStockUtcTicks = previous.LastStockUtcTicks; }
+                            { _active.Stock = previous.Stock; _active.LastStockUtcTicks = previous.LastStockUtcTicks; _active.StockComplete = previous.StockComplete; _active.StockNote = previous.StockNote; }
+                            foreach (string name in previous.RestockHiddenNames)
+                                RemoveRestock(_active, name);
                             Records.Remove(previous);
                         }
                     }
@@ -230,7 +440,7 @@ namespace ClassicUO.Game.Managers
                     Records.Add(_active = new VendorLedgerRecord { Key = key, VendorSerial = serial });
                 }
                 _active.ShopName = shop;
-                _active.OwnerVerified = true;
+                _active.OwnerVerified = cells.Any(c => Has(c.Text, "Dismiss Vendor"));
                 var goldLabel = cells.FirstOrDefault(c => Has(c.Text, "Gold held"));
                 var gold = goldLabel == null ? null : cells.Where(c => c != goldLabel && c.X > goldLabel.X && Math.Abs(c.Y - goldLabel.Y) <= 5).OrderBy(c => c.X).FirstOrDefault();
                 _active.GoldHeld = gold != null && Money(gold.Text, out long value) ? (long?)value : null;
@@ -287,6 +497,10 @@ namespace ClassicUO.Game.Managers
         private static void PropertiesReceived(object sender, OPLEventArgs e)
         {
             if (_profile == null || _profile != ProfileManager.CurrentProfile) return;
+            uint owner = World.Items.Get(e.Serial)?.RootContainer ?? 0;
+            var vendor = owner == 0 ? null : _profile.VendorLedger.FirstOrDefault(v => v.VendorSerial != 0 && v.VendorSerial == owner);
+            if (vendor != null && vendor.GoodsSerial != 0)
+            { _stockDirty.Add(vendor.GoodsSerial); _stockAt = (long)Time.Ticks + 1000; }
             if (!_pendingProperties.TryGetValue(e.Serial, out var pending) || string.IsNullOrWhiteSpace(e.Data)) return;
             foreach (var sale in pending) sale.PropertyText = e.Name + "\n" + e.Data;
             _pendingProperties.Remove(e.Serial);
@@ -315,6 +529,16 @@ namespace ClassicUO.Game.Managers
             }
         }
 
+        private static long? StockPrice(string data)
+        {
+            var price = Regex.Match(Plain(data), @"\bPrice\s*:\s*([\d, ]+)", RegexOptions.IgnoreCase);
+            return price.Success && Money(price.Groups[1].Value.Trim(), out long value) ? (long?)value : null;
+        }
+
+        // Books use the container tile flag too. Priced bags are one sale lot, not display shelves.
+        internal static bool StockContainer(Item item) => ItemFinderManager.CanScanContainer(item)
+            && (!World.OPL.TryGetNameAndData(item.Serial, out _, out string data) || !StockPrice(data).HasValue);
+
         private static void CaptureStock(VendorLedgerRecord record)
         {
             Item root = World.Items.Get(record.GoodsSerial);
@@ -322,6 +546,7 @@ namespace ClassicUO.Game.Managers
             var stock = new List<VendorStockRecord>();
             var previousStock = record.Stock.GroupBy(s => s.Serial).ToDictionary(g => g.Key, g => g.First());
             var queue = new Queue<Item>(); var seen = new HashSet<uint>(); queue.Enqueue(root);
+            int unopened = root.Opened ? 0 : 1, unnamed = 0;
             long now = DateTime.UtcNow.Ticks;
             while (queue.Count > 0 && stock.Count < 4096)
             {
@@ -331,15 +556,32 @@ namespace ClassicUO.Game.Managers
                 {
                     if (!(node is Item item) || item.IsDestroyed) continue;
                     bool properties = World.OPL.TryGetNameAndData(item.Serial, out string name, out string data);
+                    if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(item.Name))
+                    {
+                        unnamed++;
+                        if (World.ClientFeatures.TooltipsEnabled) PacketHandlers.AddMegaClilocRequest(item.Serial);
+                    }
+                    else if (!properties && World.ClientFeatures.TooltipsEnabled)
+                        PacketHandlers.AddMegaClilocRequest(item.Serial);
                     previousStock.TryGetValue(item.Serial, out var previous);
-                    var price = Regex.Match(Plain(data), @"\bPrice\s*:\s*([\d, ]+)", RegexOptions.IgnoreCase);
+                    long? price = StockPrice(data);
                     stock.Add(new VendorStockRecord { Serial = item.Serial, ItemName = string.IsNullOrWhiteSpace(name) ? previous?.ItemName ?? item.Name ?? $"Item {item.Serial:X8}" : Plain(name),
-                        Amount = item.Amount, Price = properties ? price.Success && Money(price.Groups[1].Value.Trim(), out long value) ? (long?)value : null : previous?.Price,
+                        Amount = item.Amount, Price = properties ? price : previous?.Price,
                         FirstSeenUtcTicks = previous?.FirstSeenUtcTicks ?? now, LastSeenUtcTicks = now });
-                    if (item.ItemData.IsContainer && !item.IsEmpty) queue.Enqueue(item);
+                    if (StockContainer(item))
+                    {
+                        if (!item.Opened) unopened++;
+                        if (!item.IsEmpty) queue.Enqueue(item);
+                    }
                 }
             }
-            record.Stock = stock; record.LastStockUtcTicks = now; Changed();
+            record.Stock = stock; record.LastStockUtcTicks = now;
+            bool limited = stock.Count >= 4096 || queue.Count != 0;
+            record.StockComplete = unopened == 0 && unnamed == 0 && !limited;
+            record.StockNote = record.StockComplete ? "All display bags received; item names loaded."
+                : unopened + " unopened display bags; " + unnamed + " item names pending."
+                    + (limited ? " Capture limit reached." : "");
+            Changed();
         }
 
         internal static void Changed() { _saveAt = (long)Time.Ticks + 2000; Revision++; }

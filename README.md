@@ -35,6 +35,12 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.6.4 beta — update 2
+
+- **Vendor enhancements (experimental):** sortable sales and stock, grouped restock lists, vendor breakdowns, sold-price history and easier listing templates. Improved vendor scanning and access.
+- **Bandages:** fixed command palette thresholds and saving the automatic bandage delay.
+- **Durability:** reduced flicker during equipment updates.
+
 ## Version 0.6.4 beta — update 1
 
 - **Viewport alignment:** fixed movement trails, ghosts, blood and corpse effects appearing away from their targets when the game viewport is moved.
@@ -53,7 +59,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 Use `-fastlogin`, `-razorscripts` and `-petbuffs` to open the new windows. Spell ground effects are controlled in Enhancements → Spell effects.
 
-See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.1**.
+See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.2**.
 
 ## Version 0.6.3 beta — hotfix 1
 

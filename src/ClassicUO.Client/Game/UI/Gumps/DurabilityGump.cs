@@ -62,6 +62,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly Dictionary<string, ContextMenuItemEntry> _menuItems = new Dictionary<string, ContextMenuItemEntry>();
         private VBoxContainer _dataBox;
         private ThemedGumpBackground _bgOverlay;
+        private long _refreshAt, _refreshDeadline;
 
         public enum RepairCraft
         {
@@ -148,6 +149,23 @@ namespace ClassicUO.Game.UI.Gumps
             base.Dispose();
             lastX = X;
             lastY = Y;
+        }
+
+        internal void ScheduleDurabilityRefresh()
+        {
+            long now = (long)Time.Ticks;
+            if (_refreshAt == 0) _refreshDeadline = now + 1000;
+            _refreshAt = Math.Min(now + 250, _refreshDeadline);
+        }
+
+        public override void Update()
+        {
+            if (_refreshAt != 0 && Time.Ticks >= _refreshAt)
+            {
+                _refreshAt = _refreshDeadline = 0;
+                RequestUpdateContents();
+            }
+            base.Update();
         }
 
         protected override void UpdateContents()

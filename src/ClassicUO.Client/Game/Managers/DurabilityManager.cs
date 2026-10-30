@@ -153,7 +153,9 @@ namespace ClassicUO.Game.Managers
             {
                 UpdateItem(item, data);
             }
-            else if (_itemLayerSlots.Remove(item.Serial))
+            // A missing property list is not evidence that an equipped item lost
+            // durability; it may arrive after the item update.
+            else if (!IsEquipped(item) && _itemLayerSlots.Remove(item.Serial))
             {
                 NotifyChanged();
             }
@@ -182,10 +184,7 @@ namespace ClassicUO.Game.Managers
 
         private void UpdateItem(Item item, string data)
         {
-            bool equipped = World.Player != null
-                            && !item.IsDestroyed
-                            && item.Container == World.Player.Serial
-                            && _equipLayers.Contains(item.Layer);
+            bool equipped = IsEquipped(item);
             bool changed;
 
             if (equipped)
@@ -216,9 +215,12 @@ namespace ClassicUO.Game.Managers
                 NotifyChanged();
         }
 
+        private static bool IsEquipped(Item item) => World.Player != null && !item.IsDestroyed
+            && item.Container == World.Player.Serial && _equipLayers.Contains(item.Layer);
+
         private void NotifyChanged()
         {
-            UIManager.GetGump<DurabilitysGump>()?.RequestUpdateContents();
+            UIManager.GetGump<DurabilitysGump>()?.ScheduleDurabilityRefresh();
             UIManager.GetGump<ModernPaperdoll>()?.RequestUpdateContents();
 
             HasDurabilityData = _itemLayerSlots.Count > 0;

@@ -229,8 +229,8 @@ namespace ClassicUO.Game.UI.Gumps
         private void AddCycleRow(int labelX, int inputRightX, ref int y)
         {
             y += 4;
-            var lbl = new Label("Bandage timer (ms)", true, LABEL_HUE, font: 1) { X = labelX, Y = y };
-            lbl.SetTooltip("Bandage cycle in milliseconds. Shared between AutoBandage and PetBandage. Set to your shard's bandage timing + small safety margin (UO Alive = 2000ms → 2200).");
+            var lbl = new Label("Auto delay (ms)", true, LABEL_HUE, font: 1) { X = labelX, Y = y };
+            lbl.SetTooltip("Automation delay in milliseconds, shared by player, pet and external bandaging. The -bandagetimer display has a separate duration. Set this delay to your shard's timing plus a safety margin.");
             Add(lbl);
             var input = new StbTextBox(1, 20000, 60, hue: CustomGumpThemeManager.TextHue)
             {
@@ -247,6 +247,7 @@ namespace ClassicUO.Game.UI.Gumps
                     if (ms > 20000) ms = 20000;
                     AutoBandageManager.CycleMs = ms;
                     PetBandageManager.CycleMs  = ms;
+                    BandageSettings.MarkDirty();
                 }
             };
             Add(input);

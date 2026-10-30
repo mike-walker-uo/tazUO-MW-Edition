@@ -55,6 +55,19 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.Equal(2, _profile.VendorLedger.Count);
         }
 
+        [Fact]
+        public void Shared_vendor_menu_captures_readable_data_without_claiming_ownership()
+        {
+            var requested = VendorLedgerManager.AddVendor(_profile, VendorSerial, "Baul");
+            VendorLedgerManager.ObserveInteraction(VendorSerial);
+            var cells = OwnerCells();
+            cells.RemoveAll(c => c.Text == "Dismiss Vendor");
+
+            Assert.Same(requested, VendorLedgerManager.ObserveGump(new Gump(GumpSerial, 123), VendorGumpKind.Owner, cells));
+            Assert.Equal("Crafting Finest", requested.ShopName);
+            Assert.False(requested.OwnerVerified);
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -100,10 +113,14 @@ namespace ClassicUO.UnitTests.TazUO
             requested.LastHistoryUtcTicks = 100;
             requested.Sales.Add(new VendorSaleRecord { ItemName = "Current", Price = 100 });
             requested.RestockedNames.Add("Current");
+            requested.RestockHiddenNames.Add("Current hidden");
+            requested.LastStockUtcTicks = 100;
             var unlinked = new VendorLedgerRecord { Key = "shop:CRAFTING FINEST", ShopName = "Crafting Finest",
                 LastHistoryUtcTicks = unlinkedNewer ? 200 : 50 };
             unlinked.Sales.Add(new VendorSaleRecord { ItemName = "Saved", Price = 200 });
             unlinked.RestockedNames.Add("Saved");
+            unlinked.RestockHiddenNames.Add("Saved hidden");
+            unlinked.LastStockUtcTicks = unlinkedNewer ? 200 : 50; unlinked.StockComplete = true;
             _profile.VendorLedger.Add(unlinked);
             VendorLedgerManager.ObserveInteraction(VendorSerial);
 
@@ -111,6 +128,9 @@ namespace ClassicUO.UnitTests.TazUO
             Assert.Same(requested, Assert.Single(_profile.VendorLedger));
             Assert.Equal(unlinkedNewer ? "Saved" : "Current", Assert.Single(requested.Sales).ItemName);
             Assert.Equal(unlinkedNewer ? "Saved" : "Current", Assert.Single(requested.RestockedNames));
+            Assert.Equal(unlinkedNewer, requested.StockComplete);
+            Assert.Contains("Current hidden", requested.RestockHiddenNames);
+            Assert.Contains("Saved hidden", requested.RestockHiddenNames);
         }
 
         [Fact]
@@ -347,7 +367,8 @@ namespace ClassicUO.UnitTests.TazUO
             new VendorLedgerManager.Cell { Text = "Shop Name:", X = 40, Y = 128 },
             new VendorLedgerManager.Cell { Text = "Crafting Finest", X = 140, Y = 128 },
             new VendorLedgerManager.Cell { Text = "Gold held in my account:", X = 40, Y = 102 },
-            new VendorLedgerManager.Cell { Text = "23827772", X = 300, Y = 102 }
+            new VendorLedgerManager.Cell { Text = "23827772", X = 300, Y = 102 },
+            new VendorLedgerManager.Cell { Text = "Dismiss Vendor", X = 40, Y = 160 }
         };
 
         public void Dispose()

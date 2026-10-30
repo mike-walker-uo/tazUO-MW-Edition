@@ -229,6 +229,9 @@ namespace ClassicUO.Network
                 bool processPacket = !allowPlugins
                     || Plugin.ProcessRecvPacket(packetBuffer, ref packetlength);
 
+                if (Settings.GlobalSettings.LoginDiagnostics && allowPlugins && Client.Game.Scene is LoginScene && (packetID == 0x1B || packetID == 0x55))
+                    Log.Info($"Login: received world-entry packet 0x{packetID:X2}; plugin {(processPacket ? "allowed" : "blocked")} it.");
+
                 if (processPacket && (packetlength < offset || packetlength > packetBuffer.Length))
                 {
                     Log.Error(

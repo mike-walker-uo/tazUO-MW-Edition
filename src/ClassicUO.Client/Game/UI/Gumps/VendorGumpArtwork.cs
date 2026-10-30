@@ -65,6 +65,7 @@ namespace ClassicUO.Game.UI.Gumps
             VendorSearchWatchManager.ObserveGump(gump);
             string raw = gump.PacketGumpText ?? "";
             if (raw.IndexOf("vendor", StringComparison.OrdinalIgnoreCase) < 0 && raw.IndexOf("Set Price", StringComparison.OrdinalIgnoreCase) < 0
+                && raw.IndexOf("Shop Name", StringComparison.OrdinalIgnoreCase) < 0
                 && !gump.Children.Any(c => c.Y <= 80 && (VendorLedgerManager.Text(c).IndexOf("vendor", StringComparison.OrdinalIgnoreCase) >= 0
                     || VendorLedgerManager.Text(c).IndexOf("Set Price", StringComparison.OrdinalIgnoreCase) >= 0))) return;
             var cells = VendorLedgerManager.Cells(gump);
