@@ -12,6 +12,29 @@ namespace ClassicUO.UnitTests.TazUO
 {
     public class RazorScriptsAdapterTests
     {
+        private static class OriginalSettings
+        {
+            private static string m_profileName;
+            internal static void Set(string name) => m_profileName = name;
+        }
+        private static class MwSettings
+        {
+            internal static string CurrentProfile { get; set; }
+        }
+        private static class UnknownSettings { }
+
+        [Fact]
+        public void Profile_reader_supports_original_and_mw_razor_and_tracks_profile_changes()
+        {
+            OriginalSettings.Set("First"); MwSettings.CurrentProfile = "One";
+            var original = Adapter.ProfileReader(typeof(OriginalSettings));
+            var mw = Adapter.ProfileReader(typeof(MwSettings));
+            Assert.Equal("First", original()); Assert.Equal("One", mw());
+            OriginalSettings.Set("Second"); MwSettings.CurrentProfile = "Two";
+            Assert.Equal("Second", original()); Assert.Equal("Two", mw());
+            Assert.Contains("Settings.CurrentProfile", Assert.Throws<NotSupportedException>(() => Adapter.ProfileReader(typeof(UnknownSettings))).Message);
+        }
+
         private sealed class Session : Adapter.ISession
         {
             internal readonly Queue<Action> Work = new Queue<Action>();

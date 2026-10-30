@@ -11,6 +11,8 @@ namespace ClassicUO.Game.UI.Gumps
         // Add the new release notes here whenever CUOEnviroment.Version changes.
         private static readonly string[] updateTexts =
         {
+            "[0.6.4 beta update 4]\n" +
+            "- Razor Scripts: fixed compatibility with the original Razor Enhanced 1.0.0.14 profile interface.\n\n",
             "[0.6.4 beta update 3]\n" +
             "- Boats: fixed smooth boat movement moving passengers to invalid coordinates.\n" +
             "- Razor Scripts: improved unavailable messages to identify missing Razor interfaces.\n\n",
