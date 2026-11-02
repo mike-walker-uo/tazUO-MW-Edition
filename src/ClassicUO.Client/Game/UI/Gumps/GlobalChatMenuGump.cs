@@ -61,6 +61,8 @@ namespace ClassicUO.Game.UI.Gumps
                 int y = _inset + (settings ? 166 : 64) + row * 30;
                 Add(_channelLabels[row] = new Label(ChannelText(channel), true, 0, 320, font: 1, ishtml: true)
                     { X = _inset, Y = y + 3 });
+                string alternate = GlobalChatChannels.AlternateAlias(channel);
+                if (!settings && alternate != null) _channelLabels[row].SetTooltip("Also: " + alternate);
                 AddButton(Width - _inset - 76, y, 76, settings ? "Color" : "Write", 100 + row);
             }
             if (settings)

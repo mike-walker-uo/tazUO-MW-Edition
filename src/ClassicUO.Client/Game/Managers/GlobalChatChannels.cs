@@ -152,7 +152,8 @@ namespace ClassicUO.Game.Managers
             foreach (GlobalChatChannel candidate in Selectable)
             {
                 if (command.Equals(Command(candidate), StringComparison.OrdinalIgnoreCase)
-                    || command.Equals(Alias(candidate), StringComparison.OrdinalIgnoreCase))
+                    || command.Equals(Alias(candidate), StringComparison.OrdinalIgnoreCase)
+                    || command.Equals(AlternateAlias(candidate), StringComparison.OrdinalIgnoreCase))
                 {
                     channel = candidate;
                     message = text.Substring(split).TrimStart();
@@ -168,9 +169,20 @@ namespace ClassicUO.Game.Managers
             {
                 case GlobalChatChannel.Global: return "[chat";
                 case GlobalChatChannel.Trade: return "[trade";
-                case GlobalChatChannel.Events: return "[event";
+                case GlobalChatChannel.Events: return "[events";
                 case GlobalChatChannel.Help: return "[help";
                 case GlobalChatChannel.Pariah: return "[pariah";
+                default: return null;
+            }
+        }
+
+        internal static string AlternateAlias(GlobalChatChannel channel)
+        {
+            switch (channel)
+            {
+                case GlobalChatChannel.Trade: return "[tradechat";
+                case GlobalChatChannel.Events: return "[eventchat";
+                case GlobalChatChannel.Help: return "[helpchat";
                 default: return null;
             }
         }
@@ -180,9 +192,9 @@ namespace ClassicUO.Game.Managers
             switch (channel)
             {
                 case GlobalChatChannel.Global: return "[c";
-                case GlobalChatChannel.Trade: return "[tc";
-                case GlobalChatChannel.Events: return "[ec";
-                case GlobalChatChannel.Help: return "[hc";
+                case GlobalChatChannel.Trade: return "[ct";
+                case GlobalChatChannel.Events: return "[ce";
+                case GlobalChatChannel.Help: return "[ch";
                 case GlobalChatChannel.LFG: return "[lfg";
                 case GlobalChatChannel.Pariah: return "[cp";
                 case GlobalChatChannel.Guild: return "\\";

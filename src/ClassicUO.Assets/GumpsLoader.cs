@@ -1,4 +1,4 @@
-﻿#region license
+#region license
 
 // Copyright (c) 2024, andreakarasho
 // All rights reserved.
@@ -33,8 +33,8 @@
 using ClassicUO.IO;
 using ClassicUO.Utility;
 using System;
+using System.Buffers.Binary;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace ClassicUO.Assets
@@ -148,7 +148,10 @@ namespace ClassicUO.Assets
         {
             ref UOFileIndex entry = ref GetValidRefEntry((int)index);
 
-            if (entry.Width <= 0 && entry.Height <= 0)
+            if (_file == null || entry.Address == IntPtr.Zero || entry.Length <= 0
+                || entry.Offset < 0 || entry.Offset > entry.FileSize
+                || entry.Length > entry.FileSize - entry.Offset
+                || (entry.Width <= 0 && entry.Height <= 0))
             {
                 return default;
             }
@@ -163,6 +166,8 @@ namespace ClassicUO.Assets
             var newFileFormat = UOFileManager.Version >= ClientVersion.CV_7010400;
             if (newFileFormat)
             {
+                if (entry.DecompressedLength < 5)
+                    return default;
                 var cbuf = _file.ReadArray(entry.Length);
                 var dbuf = new byte[entry.DecompressedLength];
                 var result = ZLib.Decompress(cbuf, 0, dbuf, dbuf.Length);
@@ -182,62 +187,55 @@ namespace ClassicUO.Assets
             var w = newFileFormat ? reader.ReadUInt32LE() : (uint)entry.Width;
             var h = newFileFormat ? reader.ReadUInt32LE() : (uint)entry.Height;
 
-            IntPtr dataStart = reader.PositionAddress;
-            var pixels = new uint[w * h];
-            int* lookuplist = (int*)dataStart;
-            int gsize;
-            var len = reader.Remaining;
+            if (!TryDecodeGump(output.Slice(reader.Position), w, h, color, out uint[] pixels))
+                return default;
 
-            for (int y = 0, half_len = len >> 2; y < h; y++)
+            return new GumpInfo { Pixels = pixels, Width = (int)w, Height = (int)h };
+        }
+
+        // The decoded UOP buffer can move during GC. Span-based reads keep the
+        // buffer tracked and validate offsets before accessing row data.
+        internal static bool TryDecodeGump(ReadOnlySpan<byte> data, uint width, uint height, ushort color, out uint[] pixels)
+        {
+            pixels = null;
+            if (width == 0 || height == 0 || width > 4096 || height > 4096
+                || height > (uint)(data.Length / 4))
+                return false;
+
+            int rowCount = (int)height;
+            int rowWidth = (int)width;
+            int blockCount = data.Length / 4;
+            var decoded = new uint[rowWidth * rowCount];
+            for (int y = 0; y < rowCount; y++)
             {
-                if (y < h - 1)
+                int start = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(y * 4, 4));
+                int end = y + 1 < rowCount
+                    ? BinaryPrimitives.ReadInt32LittleEndian(data.Slice((y + 1) * 4, 4))
+                    : blockCount;
+                if (start < rowCount || end < start || end > blockCount)
+                    return false;
+
+                int column = 0;
+                for (int i = start; i < end; i++)
                 {
-                    gsize = lookuplist[y + 1] - lookuplist[y];
-                }
-                else
-                {
-                    gsize = half_len - lookuplist[y];
-                }
-
-                GumpBlock* gmul = (GumpBlock*)(dataStart + (lookuplist[y] << 2));
-
-                var pos = y * w;
-
-                for (int i = 0; i < gsize; i++)
-                {
-                    uint val = gmul[i].Value;
-
-                    if (color != 0 && val != 0)
-                    {
-                        val = HuesLoader.Instance.ApplyHueRgba5551(gmul[i].Value, color);
-                    }
-
-                    if (val != 0)
-                    {
-                        //val = 0x8000 | val;
-                        val = HuesHelper.Color16To32(gmul[i].Value) | 0xFF_00_00_00;
-                    }
-
-                    var count = gmul[i].Run;
-                    pixels.AsSpan().Slice((int)pos, count).Fill(val);
-                    pos += count;
+                    int offset = i * 4;
+                    ushort value = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset, 2));
+                    int count = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(offset + 2, 2));
+                    if (count > rowWidth - column) return false;
+                    uint pixel = value;
+                    if (color != 0 && pixel != 0)
+                        pixel = HuesLoader.Instance.ApplyHueRgba5551(value, color);
+                    if (pixel != 0)
+                        pixel = HuesHelper.Color16To32(value) | 0xFF_00_00_00;
+                    decoded.AsSpan(y * rowWidth + column, count).Fill(pixel);
+                    column += count;
                 }
             }
-
-            return new GumpInfo()
-            {
-                Pixels = pixels,
-                Width = (int)w,
-                Height = (int)h
-            };
+            pixels = decoded;
+            return true;
         }
 
-        [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        private ref struct GumpBlock
-        {
-            public readonly ushort Value;
-            public readonly ushort Run;
-        }
+
     }
 
     public ref struct GumpInfo
