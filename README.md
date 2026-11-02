@@ -35,6 +35,11 @@ It has many features, some of them are:
 
 See the [complete client command reference](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/Client-Commands) for every built-in command, its usage, and a short explanation. You can also type `-commands` in game to open the searchable command palette.
 
+## Version 0.6.4 beta — update 5
+
+- Updated UOAlive chat shortcuts and aliases.
+- Fixed a potential artwork decoding crash when switching characters.
+
 ## Version 0.6.4 beta — update 4
 
 - **Razor Scripts:** fixed compatibility with the original Razor Enhanced 1.0.0.14 profile interface.
@@ -68,7 +73,7 @@ See the [complete client command reference](https://github.com/mike-walker-uo/ta
 
 Use `-fastlogin`, `-razorscripts` and `-petbuffs` to open the new windows. Spell ground effects are controlled in Enhancements → Spell effects.
 
-See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.4**.
+See the [0.6.4 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wiki/0.6.4-Beta-Guide). Displayed version **0.6.4-beta**; Windows file version **0.6.4.5**.
 
 ## Version 0.6.3 beta — hotfix 1
 
@@ -101,7 +106,7 @@ See the [0.6.3 beta guide](https://github.com/mike-walker-uo/tazUO-MW-Edition/wi
 
 ## Version 0.6.2 update 1 — UOAlive October 8 chat update
 
-- Added Pariah to View/Send and chat commands: `[cp` or `[pariah`. Also supports `[chat`, `[trade`, `[event`, and `[help` aliases.
+- Public chat shortcuts: Global `[c`, Trade `[ct`, Events `[ce`, Help `[ch`, LFG `[lfg`, and Pariah `[cp`. The corresponding UOAlive long-form aliases are also supported.
 - Global now combines all public channels, replacing All. Chat Settings can optionally include your received Guild and Party messages; both default off.
 - Added a Commands menu with Write shortcuts, light/dark message backgrounds, and separate saved channel-color palettes for each mode. Channel tags and message text share a color; player names retain their distinct colors.
 - Consolidated identical messages from the same sender and channel into one latest entry with a repeat count. Journal persistence is unchanged.

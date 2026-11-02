@@ -7730,7 +7730,8 @@ namespace ClassicUO.Network
             if (string.IsNullOrWhiteSpace(text)) return false;
             return text.IndexOf("Global Chat:", StringComparison.OrdinalIgnoreCase) >= 0
                 || (text.IndexOf("UOAlive Chat", StringComparison.OrdinalIgnoreCase) >= 0
-                    && ((text.IndexOf("[tc", StringComparison.OrdinalIgnoreCase) >= 0
+                    && (((text.IndexOf("[ct", StringComparison.OrdinalIgnoreCase) >= 0
+                             || text.IndexOf("[tc", StringComparison.OrdinalIgnoreCase) >= 0)
                             && text.IndexOf("[lfg", StringComparison.OrdinalIgnoreCase) >= 0)
                         || (text.IndexOf("Global", StringComparison.OrdinalIgnoreCase) >= 0
                             && text.IndexOf("Commands", StringComparison.OrdinalIgnoreCase) >= 0

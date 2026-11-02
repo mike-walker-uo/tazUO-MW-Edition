@@ -52,11 +52,11 @@ namespace ClassicUO.UnitTests.TazUO
 
         [Theory]
         [InlineData("[Global] Far.Cast: hello", "Global", "[c")]
-        [InlineData("[Trade] Tez: anybody typing here?", "Trade", "[tc")]
-        [InlineData("[Events] Tez: event starting", "Events", "[ec")]
-        [InlineData("[Help] Tez: where is New Haven?", "Help", "[hc")]
+        [InlineData("[Trade] Tez: anybody typing here?", "Trade", "[ct")]
+        [InlineData("[Events] Tez: event starting", "Events", "[ce")]
+        [InlineData("[Help] Tez: where is New Haven?", "Help", "[ch")]
         [InlineData("[LFG] Tez: looking for a group", "LFG", "[lfg")]
-        [InlineData("  [trade] Tez: buying ore", "Trade", "[tc")]
+        [InlineData("  [trade] Tez: buying ore", "Trade", "[ct")]
         [InlineData("[Pariah] Tez: hello", "Pariah", "[cp")]
         public void Public_messages_are_captured_and_routed_to_the_matching_command(string text, string channel, string command)
         {
